@@ -1,0 +1,859 @@
+﻿/**
+ * TerraHire â€” Admin Command Center Logic
+ * Handles metrics overview, dynamic organization & member wizard, and directory table
+ */
+
+document.addEventListener("DOMContentLoaded", () => {
+  const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
+  if (!store) return;
+
+  const currentUser = window.TerraHireStore.getCurrentUser();
+
+  // Ensure an active admin session, or auto-assign default Admin for preview
+  if (!currentUser || currentUser.roleType !== "admin") {
+    const admin = store.members.find((m) => m.roleType === "admin") || store.members[0];
+    admin.email = "khushi123@gmail.com";
+    admin.fullName = "Khushi Admin";
+    window.TerraHireStore.setCurrentUser(admin);
+  }
+
+  // Update sidebar admin label
+  const sbName = document.getElementById("sidebar-user-name");
+  const sbAvatar = document.getElementById("sidebar-user-avatar");
+  const activeAdmin = window.TerraHireStore.getCurrentUser();
+  if (sbName && activeAdmin) sbName.textContent = activeAdmin.fullName;
+  if (sbAvatar && activeAdmin) sbAvatar.textContent = activeAdmin.fullName.charAt(0);
+
+  // Initialize Switch Member Selector if present
+  const memberSelect = document.getElementById("select-switch-member");
+  if (memberSelect) {
+    memberSelect.value = currentUser ? currentUser.id : "usr_admin";
+    memberSelect.onchange = (e) => {
+      const s = window.TerraHireStore.getStore();
+      const target = s.members.find((m) => m.id === e.target.value);
+      if (target) {
+        window.TerraHireStore.setCurrentUser(target);
+        window.location.reload();
+      }
+    };
+  }
+
+  // Sign out handler
+  const logoutBtn = document.getElementById("btn-emp-logout");
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      window.TerraHireStore.setCurrentUser(null);
+      window.location.href = "./login.html";
+    };
+  }
+
+  // Tab navigation handling
+  const tabOverview = document.getElementById("tab-btn-overview");
+  const tabAdd = document.getElementById("tab-btn-add");
+  const tabDir = document.getElementById("tab-btn-directory");
+
+  const viewOverview = document.getElementById("subview-overview");
+  const viewAdd = document.getElementById("subview-add");
+  const viewDir = document.getElementById("subview-directory");
+
+  function switchTab(target) {
+    if (tabOverview) tabOverview.classList.remove("active");
+    if (tabAdd) tabAdd.classList.remove("active");
+    if (tabDir) tabDir.classList.remove("active");
+
+    if (viewOverview) viewOverview.classList.add("hidden");
+    if (viewAdd) viewAdd.classList.add("hidden");
+    if (viewDir) viewDir.classList.add("hidden");
+
+    if (target === "overview") {
+      if (tabOverview) tabOverview.classList.add("active");
+      if (viewOverview) viewOverview.classList.remove("hidden");
+      updateMetrics();
+    } else if (target === "add") {
+      if (tabAdd) tabAdd.classList.add("active");
+      if (viewAdd) viewAdd.classList.remove("hidden");
+      populateWizard();
+    } else if (target === "directory") {
+      if (tabDir) tabDir.classList.add("active");
+      if (viewDir) viewDir.classList.remove("hidden");
+      renderDirectory();
+    }
+  }
+
+  if (tabOverview) tabOverview.onclick = () => switchTab("overview");
+  if (tabAdd) tabAdd.onclick = () => switchTab("add");
+  if (tabDir) tabDir.onclick = () => switchTab("directory");
+
+  const quickAddBtn = document.getElementById("btn-quick-add");
+  if (quickAddBtn) quickAddBtn.onclick = () => switchTab("add");
+
+  const quickDirBtn = document.getElementById("btn-quick-dir");
+  if (quickDirBtn) quickDirBtn.onclick = () => switchTab("directory");
+
+  const dirAddBtn = document.getElementById("btn-dir-add-member");
+  if (dirAddBtn) dirAddBtn.onclick = () => switchTab("add");
+
+  // Metrics update
+  function updateMetrics() {
+    const s = window.TerraHireStore.getStore();
+    const statOrgs = document.getElementById("stat-total-orgs");
+    const statProj = document.getElementById("stat-total-projects");
+    const statMem = document.getElementById("stat-total-members");
+
+    if (statOrgs) statOrgs.textContent = s.organizations.length;
+    if (statProj) statProj.textContent = s.projects.length;
+    if (statMem) statMem.textContent = s.members.length;
+  }
+
+  // Directory rendering
+  function renderDirectory() {
+    const s = window.TerraHireStore.getStore();
+    const tbody = document.getElementById("admin-directory-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+
+    s.members.forEach((m) => {
+      const org = s.organizations.find((o) => o.id === m.orgId);
+      const proj = s.projects.find((p) => p.id === m.projectId);
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="dash-avatar" style="width:32px; height:32px; font-size:13px;">${m.fullName.charAt(0)}</div>
+            <div>
+              <div style="font-weight:600;">${m.fullName}</div>
+              <div style="font-size:12px; color:var(--mist-dim);">${m.email}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="badge ${m.roleType === "admin" ? "badge-admin" : "badge-emp"}">${m.roleType.toUpperCase()}</span>
+          <div style="font-size:12px; color:var(--mist); margin-top:3px;">${m.designation || "Specialist"}</div>
+        </td>
+        <td>
+          <div>${org ? org.name : "Global Hub"}</div>
+          <div style="font-size:12px; color:var(--mist-dim); font-family:var(--font-mono);">${org ? org.code : "GLOBAL"}</div>
+        </td>
+        <td>
+          <code>${m.projectCode || (proj ? proj.code : "N/A")}</code>
+          <div style="font-size:12px; color:var(--mist);">${proj ? proj.name : "Assigned"}</div>
+        </td>
+        <td>
+          <span class="badge badge-active">${m.status || "Active"}</span>
+        </td>
+        <td>
+          <button class="btn btn-ghost btn-sm btn-view-emp" data-id="${m.id}">View Portal</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll(".btn-view-emp").forEach((btn) => {
+      btn.onclick = () => {
+        const uid = btn.getAttribute("data-id");
+        const targetUser = s.members.find((m) => m.id === uid);
+        if (targetUser) {
+          window.TerraHireStore.setCurrentUser(targetUser);
+          window.location.href = "./employee.html";
+        }
+      };
+    });
+  }
+
+  // =========================================================================
+  // DEPARTMENT-CENTRIC PROGRESSIVE DISCLOSURE FORM CONTROLLER
+  // =========================================================================
+  const secAction = document.getElementById("sec-action");
+  const secDeptProj = document.getElementById("sec-dept-proj");
+  const secMemberInfo = document.getElementById("sec-member-info");
+  const secLeadership = document.getElementById("sec-leadership");
+  const secSecurity = document.getElementById("sec-security");
+  const progBadge = document.getElementById("prog-badge");
+
+  const fsExistingDept = document.getElementById("fs-existing-dept");
+  const fsNewDept = document.getElementById("fs-new-dept");
+  const subCase1Fields = document.getElementById("sub-case-1-fields");
+  const subCase2Fields = document.getElementById("sub-case-2-fields");
+
+  const roleSelectBox = document.getElementById("role-select-box");
+  const roleLockedBox = document.getElementById("role-locked-box");
+  const roleLockedInput = document.getElementById("wiz-member-role-locked");
+  const roleLockedBadge = document.getElementById("role-locked-badge");
+  const roleSelect = document.getElementById("wiz-member-role-select");
+
+  const leadSkipBanner = document.getElementById("lead-skip-banner");
+  const leadFieldsGrid = document.getElementById("lead-fields-grid");
+  const fieldLeadMgr = document.getElementById("field-lead-mgr");
+  const fieldLeadTeam = document.getElementById("field-lead-team");
+  const fieldLeadHead = document.getElementById("field-lead-head");
+
+  function getEffectiveRole(action, caseType) {
+    if (action === "create-dept") {
+      if (caseType === "case-1") return "Department Head";
+      if (caseType === "case-2") return "Team Manager";
+    }
+    return roleSelect?.value || "Employee / Contributor";
+  }
+
+  function renderSummaryReview() {
+    const s = window.TerraHireStore.getStore();
+    const actionRadio = document.querySelector('input[name="wiz-action"]:checked');
+    const action = actionRadio ? actionRadio.value : "add-member";
+    const caseRadio = document.querySelector('input[name="wiz-case-type"]:checked');
+    const caseType = caseRadio ? caseRadio.value : "case-1";
+
+    const name = document.getElementById("wiz-member-name")?.value.trim() || "(Name not entered)";
+    const email = document.getElementById("wiz-member-email")?.value.trim() || "(Email not entered)";
+    const phone = document.getElementById("wiz-member-phone")?.value.trim() || "+1 (555) 000-0000";
+    const role = getEffectiveRole(action, caseType);
+
+    let deptText = "";
+    let projText = "";
+    let leaderText = "";
+
+    if (action === "add-member") {
+      deptText = document.getElementById("wiz-dept-select")?.value || "Core Engineering";
+      const projId = document.getElementById("wiz-dept-proj-select")?.value;
+      const projObj = s.projects.find((p) => p.id === projId);
+      projText = projObj ? `${projObj.code} â€” ${projObj.name}` : (document.getElementById("wiz-dept-proj-code-readonly")?.value || "BILL-01");
+      
+      if (role === "Department Head") {
+        leaderText = "Top Tier (Department Head - No reporting line above)";
+      } else if (role === "Team Manager") {
+        const h = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+        leaderText = `Dept Head: ${h}`;
+      } else if (role === "Team Leader") {
+        const m = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
+        const h = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+        leaderText = `Manager: ${m} | Dept Head: ${h} (Self: Team Leader)`;
+      } else {
+        const m = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
+        const t = document.getElementById("wiz-lead-select")?.value || "Kavita Rao";
+        const h = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+        leaderText = `Manager: ${m} | Lead: ${t} | Head: ${h}`;
+      }
+    } else if (caseType === "case-1") {
+      const dName = document.getElementById("wiz-case1-dept-name")?.value.trim() || "New Department";
+      const pName = document.getElementById("wiz-case1-proj-name")?.value.trim() || "Initial Sprint";
+      const pCode = document.getElementById("wiz-case1-proj-code")?.value.trim().toUpperCase() || "NVE-01";
+      deptText = `${dName} [NEW DEPARTMENT]`;
+      projText = `${pCode} â€” ${pName}`;
+      leaderText = "Top Tier (Founding Department Head - No reporting lead)";
+    } else {
+      const dName = document.getElementById("wiz-case2-dept-select")?.value || "Core Engineering";
+      const pName = document.getElementById("wiz-case2-proj-name")?.value.trim() || "New Initiative";
+      const pCode = document.getElementById("wiz-case2-proj-code")?.value.trim().toUpperCase() || "CHK-20";
+      const head = document.getElementById("wiz-case2-head-select")?.value || "Dr. Ananya Roy";
+      deptText = dName;
+      projText = `${pCode} â€” ${pName} [NEW PROJECT]`;
+      leaderText = `Department Head: ${head}`;
+    }
+
+    const summaryEl = document.getElementById("wiz-summary-content");
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+          <div><strong style="color:var(--white);">Member:</strong> ${name}</div>
+          <div><strong style="color:var(--white);">Work Email:</strong> ${email}</div>
+          <div><strong style="color:var(--white);">Phone:</strong> ${phone}</div>
+          <div><strong style="color:var(--white);">Designated Role:</strong> <span class="badge badge-teal">${role}</span></div>
+          <div><strong style="color:var(--white);">Department:</strong> ${deptText}</div>
+          <div><strong style="color:var(--white);">Project Code:</strong> <code>${projText}</code></div>
+          <div style="grid-column: 1 / -1;"><strong style="color:var(--white);">Reporting Line:</strong> ${leaderText}</div>
+        </div>
+      `;
+    }
+  }
+
+  function checkAndRevealSections() {
+    const s = window.TerraHireStore.getStore();
+    const actionRadio = document.querySelector('input[name="wiz-action"]:checked');
+
+    // Section 1 is always visible initially
+    if (secAction) {
+      secAction.classList.add("visible");
+    }
+
+    // If no action chosen yet, only Section 1 is open
+    if (!actionRadio) {
+      secAction?.classList.remove("completed");
+      secDeptProj?.classList.remove("visible", "completed");
+      secMemberInfo?.classList.remove("visible", "completed");
+      secLeadership?.classList.remove("visible", "completed");
+      secSecurity?.classList.remove("visible", "completed");
+      if (progBadge) {
+        progBadge.className = "badge badge-emp";
+        progBadge.textContent = "âš¡ Step 1 of 5: Choose Action";
+      }
+      return;
+    }
+
+    // Step 1 is chosen! Mark Step 1 complete & Reveal Step 2 downwards
+    const action = actionRadio.value;
+    secAction?.classList.add("completed");
+    secDeptProj?.classList.add("visible");
+
+    // Toggle Fieldsets in Step 2
+    if (action === "add-member") {
+      fsExistingDept?.classList.remove("hidden");
+      fsNewDept?.classList.add("hidden");
+    } else {
+      fsExistingDept?.classList.add("hidden");
+      fsNewDept?.classList.remove("hidden");
+    }
+
+    // Check Step 2 validity
+    let isStep2Valid = false;
+    const caseRadio = document.querySelector('input[name="wiz-case-type"]:checked');
+    const caseType = caseRadio ? caseRadio.value : "";
+
+    if (action === "add-member") {
+      const deptVal = document.getElementById("wiz-dept-select")?.value;
+      const projVal = document.getElementById("wiz-dept-proj-select")?.value;
+      const codeVal = document.getElementById("wiz-dept-proj-code-readonly")?.value;
+      if (deptVal && projVal && codeVal) {
+        isStep2Valid = true;
+      }
+    } else {
+      // Toggle Sub-Case UI
+      if (caseType === "case-1") {
+        subCase1Fields?.classList.remove("hidden");
+        subCase2Fields?.classList.add("hidden");
+        const c1Dept = document.getElementById("wiz-case1-dept-name")?.value.trim();
+        const c1Proj = document.getElementById("wiz-case1-proj-name")?.value.trim();
+        const c1Code = document.getElementById("wiz-case1-proj-code")?.value.trim();
+        if (c1Dept && c1Dept.length >= 2 && c1Proj && c1Proj.length >= 2 && c1Code && c1Code.length >= 2) {
+          isStep2Valid = true;
+        }
+      } else if (caseType === "case-2") {
+        subCase1Fields?.classList.add("hidden");
+        subCase2Fields?.classList.remove("hidden");
+        const c2Dept = document.getElementById("wiz-case2-dept-select")?.value;
+        const c2Head = document.getElementById("wiz-case2-head-select")?.value;
+        const c2Proj = document.getElementById("wiz-case2-proj-name")?.value.trim();
+        const c2Code = document.getElementById("wiz-case2-proj-code")?.value.trim();
+        if (c2Dept && c2Head && c2Proj && c2Proj.length >= 2 && c2Code && c2Code.length >= 2) {
+          isStep2Valid = true;
+        }
+      } else {
+        subCase1Fields?.classList.add("hidden");
+        subCase2Fields?.classList.add("hidden");
+      }
+    }
+
+    if (!isStep2Valid) {
+      secDeptProj?.classList.remove("completed");
+      secMemberInfo?.classList.remove("visible", "completed");
+      secLeadership?.classList.remove("visible", "completed");
+      secSecurity?.classList.remove("visible", "completed");
+      if (progBadge) {
+        progBadge.className = "badge badge-emp";
+        progBadge.textContent = "âš¡ Step 2 of 5: Department & Project Details";
+      }
+      return;
+    }
+
+    // Step 2 is filled! Mark Step 2 complete & Reveal Step 3 downwards
+    secDeptProj?.classList.add("completed");
+    secMemberInfo?.classList.add("visible");
+
+    // Configure Role in Step 3 based on Step 2
+    if (action === "create-dept") {
+      roleSelectBox?.classList.add("hidden");
+      roleLockedBox?.classList.remove("hidden");
+      if (caseType === "case-1") {
+        if (roleLockedInput) roleLockedInput.value = "Department Head";
+        if (roleLockedBadge) roleLockedBadge.textContent = "ðŸ”’ Founding Department Head";
+      } else {
+        if (roleLockedInput) roleLockedInput.value = "Team Manager";
+        if (roleLockedBadge) roleLockedBadge.textContent = "ðŸ”’ Project Team Manager";
+      }
+    } else {
+      roleSelectBox?.classList.remove("hidden");
+      roleLockedBox?.classList.add("hidden");
+    }
+
+    // Check Step 3 validity (Member Info)
+    const name = document.getElementById("wiz-member-name")?.value.trim();
+    const email = document.getElementById("wiz-member-email")?.value.trim();
+    const isStep3Valid = Boolean(name && name.length >= 2 && email && email.includes("@") && email.includes("."));
+
+    if (!isStep3Valid) {
+      secMemberInfo?.classList.remove("completed");
+      secLeadership?.classList.remove("visible", "completed");
+      secSecurity?.classList.remove("visible", "completed");
+      if (progBadge) {
+        progBadge.className = "badge badge-emp";
+        progBadge.textContent = "âš¡ Step 3 of 5: Enter Member Coordinates";
+      }
+      return;
+    }
+
+    // Step 3 is filled! Mark Step 3 complete & handle Step 4 (Leadership)
+    secMemberInfo?.classList.add("completed");
+    const activeRole = getEffectiveRole(action, caseType);
+
+    // Step 4 Leadership Hierarchy Rules
+    secLeadership?.classList.add("visible");
+    const leadSubText = document.getElementById("lead-sub-text");
+
+    if (activeRole === "Department Head" || (action === "create-dept" && caseType === "case-1")) {
+      // 1. Department Head: Skipped entirely (founding / top tier lead)
+      leadSkipBanner?.classList.remove("hidden");
+      leadFieldsGrid?.classList.add("hidden");
+      if (leadSubText) leadSubText.textContent = "Department Heads have no higher managerial or team leader line above them.";
+      secLeadership?.classList.add("completed");
+    } else if (activeRole === "Team Manager") {
+      // 2. Team Manager: Reports to Department Head only
+      leadSkipBanner?.classList.add("hidden");
+      leadFieldsGrid?.classList.remove("hidden");
+      fieldLeadMgr?.classList.add("hidden");
+      fieldLeadTeam?.classList.add("hidden");
+      fieldLeadHead?.classList.remove("hidden");
+      if (leadSubText) leadSubText.textContent = "As Team Manager, designate the Department Head this project initiative reports into.";
+      secLeadership?.classList.add("completed");
+    } else if (activeRole === "Team Leader") {
+      // 3. Team Leader: Reports to Reporting Manager & Department Head (NO Team Leader field shown below)
+      leadSkipBanner?.classList.add("hidden");
+      leadFieldsGrid?.classList.remove("hidden");
+      fieldLeadMgr?.classList.remove("hidden");
+      fieldLeadTeam?.classList.add("hidden"); // <-- HIDE Team Leader field since member IS the Team Leader!
+      fieldLeadHead?.classList.remove("hidden");
+      if (leadSubText) leadSubText.textContent = "As Team Leader, designate your Reporting Manager and Department Head.";
+      secLeadership?.classList.add("completed");
+    } else {
+      // 4. Employee / Contributor: Full hierarchy (Reporting Manager, Team Leader, Department Head)
+      leadSkipBanner?.classList.add("hidden");
+      leadFieldsGrid?.classList.remove("hidden");
+      fieldLeadMgr?.classList.remove("hidden");
+      fieldLeadTeam?.classList.remove("hidden");
+      fieldLeadHead?.classList.remove("hidden");
+      if (leadSubText) leadSubText.textContent = "Designate the Reporting Manager, Team Leader, and Department Head for this contributor.";
+      secLeadership?.classList.add("completed");
+    }
+
+    // Reveal Step 5 downwards
+    secSecurity?.classList.add("visible", "completed");
+    renderSummaryReview();
+
+    if (progBadge) {
+      progBadge.className = "badge badge-teal";
+      progBadge.textContent = "âœ“ All 5 Sections Ready to Provision";
+    }
+  }
+
+  // Populate wizard options and setup smart auto-fill
+  function populateWizard() {
+    const s = window.TerraHireStore.getStore();
+    
+    // Departments
+    const deptSelect = document.getElementById("wiz-dept-select");
+    const case2DeptSelect = document.getElementById("wiz-case2-dept-select");
+    const projSelect = document.getElementById("wiz-dept-proj-select");
+    const projCodeInput = document.getElementById("wiz-dept-proj-code-readonly");
+
+    const deptList = s.departments && s.departments.length > 0
+      ? s.departments.map((d) => d.name)
+      : Array.from(new Set(s.projects.map((p) => p.department || "Core Engineering")));
+
+    const populateDeptOptions = (el, defaultPrompt) => {
+      if (!el) return;
+      el.innerHTML = `<option value="">-- ${defaultPrompt} --</option>`;
+      deptList.forEach((d) => {
+        el.innerHTML += `<option value="${d}">${d}</option>`;
+      });
+    };
+
+    populateDeptOptions(deptSelect, "Choose Target Department");
+    populateDeptOptions(case2DeptSelect, "Choose Existing Department");
+
+    // Leadership Selects
+    const mgrSelect = document.getElementById("wiz-mgr-select");
+    const leadSelect = document.getElementById("wiz-lead-select");
+    const headSelect = document.getElementById("wiz-head-select");
+    const case2HeadSelect = document.getElementById("wiz-case2-head-select");
+
+    const fillSel = (el, label) => {
+      if (!el) return;
+      el.innerHTML = `<option value="">-- ${label} --</option>`;
+      s.members.forEach((m) => {
+        el.innerHTML += `<option value="${m.fullName}">${m.fullName} (${m.designation || m.roleType})</option>`;
+      });
+    };
+
+    fillSel(mgrSelect, "Select Reporting Manager");
+    fillSel(leadSelect, "Select Team Leader");
+    fillSel(headSelect, "Select Department Head");
+    fillSel(case2HeadSelect, "Select Department Head");
+
+    // Smart autofill helper for department head
+    function autoFillDepartmentHead(deptName) {
+      if (!deptName || !headSelect) return;
+      const deptObj = s.departments?.find((d) => d.name === deptName);
+      const headName = deptObj?.head || s.members.find((m) => m.department === deptName && (m.designation?.includes("Head") || m.roleType === "admin"))?.fullName || "Dr. Ananya Roy";
+      
+      let found = Array.from(headSelect.options).find((o) => o.value === headName);
+      if (!found) {
+        headSelect.innerHTML += `<option value="${headName}">${headName} (Department Head)</option>`;
+      }
+      headSelect.value = headName;
+
+      const hintHead = document.getElementById("hint-lead-head");
+      if (hintHead) {
+        hintHead.style.display = "inline-block";
+        hintHead.textContent = `âœ¨ Auto-filled (${deptName})`;
+      }
+    }
+
+    // Smart autofill helper for project manager & team leader
+    function autoFillProjectLeadership(projId) {
+      if (!projId) return;
+      const projObj = s.projects.find((p) => p.id === projId);
+      if (!projObj) return;
+
+      // 1. Auto-fill Reporting Manager / PM
+      const pmName = projObj.pmName || s.members.find((m) => m.projectId === projId && (m.designation?.includes("Manager") || m.designation?.includes("Lead")))?.fullName || "Vikram Mehta";
+      if (pmName && mgrSelect) {
+        let found = Array.from(mgrSelect.options).find((o) => o.value === pmName);
+        if (!found) {
+          mgrSelect.innerHTML += `<option value="${pmName}">${pmName} (Project Manager)</option>`;
+        }
+        mgrSelect.value = pmName;
+        const hintMgr = document.getElementById("hint-lead-mgr");
+        if (hintMgr) {
+          hintMgr.style.display = "inline-block";
+          hintMgr.textContent = `âœ¨ Auto-filled (${projObj.code})`;
+        }
+      }
+
+      // 2. Auto-fill Team Leader if existing for project
+      const teamLeadMem = s.members.find((m) => (m.projectId === projId || m.projectCode === projObj.code) && (m.reportingTeamLead || m.designation?.includes("Lead")));
+      const leadName = teamLeadMem ? (teamLeadMem.reportingTeamLead || teamLeadMem.fullName) : (projObj.pmName ? projObj.pmName : "Kavita Rao");
+      if (leadName && leadSelect) {
+        let found = Array.from(leadSelect.options).find((o) => o.value === leadName);
+        if (!found) {
+          leadSelect.innerHTML += `<option value="${leadName}">${leadName} (Team Leader)</option>`;
+        }
+        leadSelect.value = leadName;
+        const hintTeam = document.getElementById("hint-lead-team");
+        if (hintTeam) {
+          hintTeam.style.display = "inline-block";
+          hintTeam.textContent = `âœ¨ Auto-filled (${projObj.code})`;
+        }
+      }
+    }
+
+    function updateProjectFilter(selectedDept) {
+      if (!projSelect) return;
+      if (!selectedDept) {
+        projSelect.innerHTML = '<option value="">-- Select Department First --</option>';
+        projSelect.disabled = true;
+        if (projCodeInput) projCodeInput.value = "";
+        return;
+      }
+
+      projSelect.disabled = false;
+      projSelect.innerHTML = '<option value="">-- Select Project in Department --</option>';
+      
+      const filtered = s.projects.filter((p) => !p.department || p.department === selectedDept);
+      const projectsToUse = filtered.length > 0 ? filtered : s.projects;
+
+      projectsToUse.forEach((p) => {
+        projSelect.innerHTML += `<option value="${p.id}" data-code="${p.code}">[${p.code}] ${p.name}</option>`;
+      });
+
+      if (projCodeInput) projCodeInput.value = "";
+
+      // Auto-fill department head immediately upon choosing department
+      autoFillDepartmentHead(selectedDept);
+    }
+
+    if (deptSelect) {
+      deptSelect.onchange = () => {
+        updateProjectFilter(deptSelect.value);
+        checkAndRevealSections();
+      };
+    }
+
+    if (projSelect) {
+      projSelect.onchange = () => {
+        const opt = projSelect.options[projSelect.selectedIndex];
+        const code = opt ? opt.getAttribute("data-code") || "" : "";
+        if (projCodeInput) projCodeInput.value = code;
+        
+        // Auto-fill project manager and team lead when project is selected
+        autoFillProjectLeadership(projSelect.value);
+        
+        checkAndRevealSections();
+      };
+    }
+
+    if (case2DeptSelect) {
+      case2DeptSelect.onchange = () => {
+        const deptVal = case2DeptSelect.value;
+        const deptObj = s.departments?.find((d) => d.name === deptVal);
+        const headName = deptObj?.head || "Dr. Ananya Roy";
+        if (case2HeadSelect) {
+          case2HeadSelect.value = headName;
+        }
+        autoFillDepartmentHead(deptVal);
+        checkAndRevealSections();
+      };
+    }
+
+    if (case2HeadSelect) {
+      case2HeadSelect.onchange = () => {
+        if (headSelect) headSelect.value = case2HeadSelect.value;
+        checkAndRevealSections();
+      };
+    }
+  }
+
+  // Action toggle listeners
+  document.querySelectorAll('input[name="wiz-action"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      checkAndRevealSections();
+    });
+  });
+
+  // Case Type toggle listeners (Case 1 vs Case 2)
+  document.querySelectorAll('input[name="wiz-case-type"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      checkAndRevealSections();
+    });
+  });
+
+  // Attach live reactive input listeners to all interactive elements
+  const inputsToWatch = [
+    "wiz-dept-select",
+    "wiz-dept-proj-select",
+    "wiz-case1-dept-name",
+    "wiz-case1-proj-name",
+    "wiz-case1-proj-code",
+    "wiz-case2-dept-select",
+    "wiz-case2-head-select",
+    "wiz-case2-proj-name",
+    "wiz-case2-proj-code",
+    "wiz-member-name",
+    "wiz-member-email",
+    "wiz-member-phone",
+    "wiz-member-role-select",
+    "wiz-mgr-select",
+    "wiz-lead-select",
+    "wiz-head-select",
+    "wiz-input-password"
+  ];
+
+  inputsToWatch.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("input", checkAndRevealSections);
+      el.addEventListener("change", checkAndRevealSections);
+    }
+  });
+
+  // Reset form button
+  const restartBtn = document.getElementById("wiz-btn-restart");
+  if (restartBtn) {
+    restartBtn.addEventListener("click", () => {
+      const addForm = document.getElementById("form-add-member");
+      if (addForm) addForm.reset();
+      
+      const projCodeInput = document.getElementById("wiz-dept-proj-code-readonly");
+      if (projCodeInput) projCodeInput.value = "";
+      
+      const err = document.getElementById("wiz-error-msg");
+      const ok = document.getElementById("wiz-success-msg");
+      if (err) err.textContent = "";
+      if (ok) ok.classList.add("hidden");
+
+      populateWizard();
+      checkAndRevealSections();
+    });
+  }
+
+  // Password generator
+  const genPassBtn = document.getElementById("wiz-btn-gen-pass");
+  if (genPassBtn) {
+    genPassBtn.onclick = () => {
+      const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*";
+      let pass = "";
+      for (let i = 0; i < 12; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+      const passInput = document.getElementById("wiz-input-password");
+      if (passInput) passInput.value = pass;
+    };
+  }
+
+  // Member provision form submit
+  const addForm = document.getElementById("form-add-member");
+  if (addForm) {
+    addForm.onsubmit = (e) => {
+      e.preventDefault();
+      const s = window.TerraHireStore.getStore();
+      const err = document.getElementById("wiz-error-msg");
+      const ok = document.getElementById("wiz-success-msg");
+      if (err) err.textContent = "";
+      if (ok) ok.classList.add("hidden");
+
+      const actionRadio = document.querySelector('input[name="wiz-action"]:checked');
+      if (!actionRadio) {
+        if (err) err.textContent = "Please select a provisioning action in Step 1.";
+        return;
+      }
+      const action = actionRadio.value;
+
+      const nameInput = document.getElementById("wiz-member-name");
+      const emailInput = document.getElementById("wiz-member-email");
+      const name = nameInput ? nameInput.value.trim() : "";
+      const email = emailInput ? emailInput.value.trim() : "";
+      const phone = document.getElementById("wiz-member-phone")?.value.trim() || "+1 (555) 000-0000";
+      const password = document.getElementById("wiz-input-password")?.value.trim() || "Khushi123@";
+
+      if (!name || !email) {
+        if (err) err.textContent = "Please provide the Member's Full Name and Work Email.";
+        return;
+      }
+
+      let finalDept = "";
+      let finalProjId = "";
+      let finalProjCode = "";
+      let finalRole = "";
+      let finalMgr = "";
+      let finalLead = "";
+      let finalHead = "";
+
+      if (action === "add-member") {
+        finalDept = document.getElementById("wiz-dept-select")?.value || "Core Engineering";
+        finalProjId = document.getElementById("wiz-dept-proj-select")?.value;
+        const projObj = s.projects.find((p) => p.id === finalProjId);
+        finalProjCode = projObj ? projObj.code : (document.getElementById("wiz-dept-proj-code-readonly")?.value || "BILL-01");
+        finalRole = document.getElementById("wiz-member-role-select")?.value || "Employee / Contributor";
+
+        if (finalRole === "Department Head") {
+          finalMgr = "Executive Board";
+          finalLead = "Executive Council";
+          finalHead = name;
+        } else if (finalRole === "Team Manager") {
+          finalMgr = document.getElementById("wiz-head-select")?.value || "Executive Leadership";
+          finalLead = "Project Core";
+          finalHead = document.getElementById("wiz-head-select")?.value || "Department Head";
+        } else if (finalRole === "Team Leader") {
+          finalMgr = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
+          finalLead = name;
+          finalHead = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+        } else {
+          finalMgr = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
+          finalLead = document.getElementById("wiz-lead-select")?.value || "Kavita Rao";
+          finalHead = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+        }
+      } else {
+        const caseRadio = document.querySelector('input[name="wiz-case-type"]:checked');
+        const caseType = caseRadio ? caseRadio.value : "case-1";
+
+        if (caseType === "case-1") {
+          const deptName = document.getElementById("wiz-case1-dept-name")?.value.trim() || "New Department";
+          const projName = document.getElementById("wiz-case1-proj-name")?.value.trim() || "Initial Sprint";
+          const projCode = document.getElementById("wiz-case1-proj-code")?.value.trim().toUpperCase() || "NVE-01";
+
+          finalDept = deptName;
+          finalProjCode = projCode;
+          finalRole = "Department Head";
+          finalMgr = "Executive Board";
+          finalLead = "Executive Council";
+          finalHead = name;
+
+          // Register new department
+          if (!s.departments) s.departments = [];
+          s.departments.push({
+            id: "dept_" + Date.now(),
+            name: deptName,
+            head: name
+          });
+
+          // Register new project
+          finalProjId = "proj_" + Date.now();
+          s.projects.push({
+            id: finalProjId,
+            orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
+            department: deptName,
+            code: projCode,
+            name: projName,
+            pmName: name,
+            status: "Active",
+            startDate: new Date().toISOString().split("T")[0],
+            desc: `Founding initiative for ${deptName}`
+          });
+        } else {
+          const deptName = document.getElementById("wiz-case2-dept-select")?.value || "Core Engineering";
+          const headName = document.getElementById("wiz-case2-head-select")?.value || "Dr. Ananya Roy";
+          const projName = document.getElementById("wiz-case2-proj-name")?.value.trim() || "New Initiative";
+          const projCode = document.getElementById("wiz-case2-proj-code")?.value.trim().toUpperCase() || "CHK-20";
+
+          finalDept = deptName;
+          finalProjCode = projCode;
+          finalRole = "Team Manager";
+          finalMgr = headName;
+          finalLead = name;
+          finalHead = headName;
+
+          // Register new project
+          finalProjId = "proj_" + Date.now();
+          s.projects.push({
+            id: finalProjId,
+            orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
+            department: deptName,
+            code: projCode,
+            name: projName,
+            pmName: name,
+            status: "Active",
+            startDate: new Date().toISOString().split("T")[0],
+            desc: `Project initiative in ${deptName}`
+          });
+        }
+      }
+
+      const newMem = {
+        id: "usr_" + Date.now(),
+        roleType: finalRole === "Department Head" ? "admin" : "employee",
+        fullName: name,
+        email: email,
+        password: password,
+        projectCode: finalProjCode || "BILL-01",
+        orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
+        projectId: finalProjId || (s.projects[0] ? s.projects[0].id : ""),
+        designation: finalRole,
+        department: finalDept,
+        reportingManager: finalMgr,
+        reportingTeamLead: finalLead,
+        headOfDept: finalHead,
+        phone: phone,
+        location: "Global Remote",
+        joinedDate: new Date().toISOString().split("T")[0],
+        status: "Active",
+        bio: `Provisioned as ${finalRole} in ${finalDept}.`,
+      };
+
+      s.members.push(newMem);
+      window.TerraHireStore.setStore(s);
+
+      if (ok) {
+        ok.classList.remove("hidden");
+        ok.innerHTML = `<strong>âœ“ Member Successfully Provisioned!</strong><br>Account created for <strong>${name}</strong> (${email}) as <strong>${finalRole}</strong> in <em>${finalDept}</em>.<br>Assigned Project Code: <code>${newMem.projectCode}</code>.<br><div style="margin-top:10px;"><button type="button" class="btn btn-ghost btn-sm" id="btn-view-dir-after-add">Go to Member Directory â†’</button></div>`;
+        const dirBtn = document.getElementById("btn-view-dir-after-add");
+        if (dirBtn) {
+          dirBtn.onclick = () => switchTab("directory");
+        }
+      }
+
+      updateMetrics();
+      checkAndRevealSections();
+    };
+  }
+
+  updateMetrics();
+  populateWizard();
+  checkAndRevealSections();
+});
+
+
