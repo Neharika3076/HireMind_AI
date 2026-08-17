@@ -1,32 +1,182 @@
 /**
- * TerraHire — Add Member / Org Logic
+ * TerraHire — Add Member / Organization / Project Logic
+ * Direct localStorage version (No TerraHireStore required)
  */
 
+"use strict";
+
 document.addEventListener("DOMContentLoaded", () => {
-  const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
-  if (!store) return;
+  const STORAGE_KEY = "terrahire_state_v1";
+  const SESSION_KEY = "terrahire_session_user";
 
-  const currentUser = window.TerraHireStore.getCurrentUser();
+  /* =========================================================
+     LOCAL STORAGE HELPERS
+     ========================================================= */
 
-  // Update sidebar admin label
-  const sbName = document.getElementById("sidebar-user-name");
-  const sbAvatar = document.getElementById("sidebar-user-avatar");
-  const activeAdmin = window.TerraHireStore.getCurrentUser();
-  if (sbName && activeAdmin) sbName.textContent = activeAdmin.fullName;
-  if (sbAvatar && activeAdmin) sbAvatar.textContent = activeAdmin.fullName.charAt(0);
+  function getStore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
 
-  // Sign out handler
-  const logoutBtn = document.getElementById("btn-emp-logout");
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      window.TerraHireStore.setCurrentUser(null);
-      window.location.href = "./login.html";
-    };
+      if (!raw) {
+        console.error(
+          `No data found in localStorage for key: ${STORAGE_KEY}. Ensure state.js is loaded before addmember.js.`
+        );
+        return null;
+      }
+
+      return JSON.parse(raw);
+    } catch (error) {
+      console.error("Could not read localStorage data:", error);
+      return null;
+    }
   }
 
-  // =========================================================================
-  // DEPARTMENT-CENTRIC PROGRESSIVE DISCLOSURE FORM CONTROLLER
-  // =========================================================================
+  function saveStore(data) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      console.log("✅ TerraHire data saved to localStorage:", data);
+      return true;
+    } catch (error) {
+      console.error("Could not save data to localStorage:", error);
+      return false;
+    }
+  }
+
+  function getCurrentUser() {
+    try {
+      const userId = sessionStorage.getItem(SESSION_KEY);
+      const store = getStore();
+
+      if (!userId || !store || !store.members) {
+        return null;
+      }
+
+      return store.members.find((member) => member.id === userId) || null;
+    } catch (error) {
+      console.error("Could not get current user:", error);
+      return null;
+    }
+  }
+
+  function setCurrentUser(user) {
+    if (user && user.id) {
+      sessionStorage.setItem(SESSION_KEY, user.id);
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }
+
+  function makeId(prefix) {
+    return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  }
+
+  function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = String(value || "");
+    return div.innerHTML;
+  }
+
+  function getRoleType(role) {
+    const normalizedRole = String(role || "")
+      .trim()
+      .toLowerCase();
+
+    if (normalizedRole === "admin") return "admin";
+    if (normalizedRole === "department head") return "department_head";
+    if (normalizedRole === "team manager") return "manager";
+    if (normalizedRole === "team leader") return "team_leader";
+
+    return "employee";
+  }
+
+  function projectCodeExists(store, projectCode) {
+    return (store.projects || []).some(
+      (project) =>
+        String(project.code || "").toUpperCase() ===
+        String(projectCode || "").toUpperCase()
+    );
+  }
+
+  function emailExists(store, email) {
+    return (store.members || []).some(
+      (member) =>
+        String(member.email || "").toLowerCase() ===
+        String(email || "").toLowerCase()
+    );
+  }
+
+  function getOrganizationForDepartment(store, departmentName) {
+    const projectInDepartment = (store.projects || []).find(
+      (project) => project.department === departmentName
+    );
+
+    if (projectInDepartment) {
+      return projectInDepartment.orgId;
+    }
+
+    return store.organizations?.[0]?.id || "org_acme";
+  }
+
+  /* =========================================================
+     INITIAL STORE CHECK
+     ========================================================= */
+
+  const initialStore = getStore();
+
+  if (!initialStore) {
+    alert(
+      "LocalStorage data was not found. Please ensure state.js is loaded before addmember.js."
+    );
+    return;
+  }
+
+  if (!initialStore.departments) initialStore.departments = [];
+  if (!initialStore.organizations) initialStore.organizations = [];
+  if (!initialStore.projects) initialStore.projects = [];
+  if (!initialStore.members) initialStore.members = [];
+  if (!initialStore.tasks) initialStore.tasks = [];
+  if (!initialStore.referrals) initialStore.referrals = [];
+
+  /* =========================================================
+     SIDEBAR + LOGOUT
+     ========================================================= */
+
+  const activeAdmin = getCurrentUser();
+  const sbName = document.getElementById("sidebar-user-name");
+  const sbAvatar = document.getElementById("sidebar-user-avatar");
+
+  if (sbName && activeAdmin) {
+    sbName.textContent = activeAdmin.fullName;
+  }
+
+  if (sbAvatar && activeAdmin) {
+    sbAvatar.textContent = activeAdmin.fullName.charAt(0).toUpperCase();
+  }
+
+  const logoutBtn = document.getElementById("btn-emp-logout");
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      // Remove only logged-in user session
+      sessionStorage.removeItem("terrahire_session_user");
+
+      // Optional: remove any old login keys, if they exist
+      sessionStorage.removeItem("currentUser");
+      sessionStorage.removeItem("user");
+
+      console.log("✅ User signed out successfully");
+
+      // Go back to login page
+      window.location.replace("./login.html");
+    });
+  }
+
+  /* =========================================================
+     FORM SECTIONS
+     ========================================================= */
+
   const secAction = document.getElementById("sec-action");
   const secDeptProj = document.getElementById("sec-dept-proj");
   const secMemberInfo = document.getElementById("sec-member-info");
@@ -56,19 +206,42 @@ document.addEventListener("DOMContentLoaded", () => {
       if (caseType === "case-1") return "Department Head";
       if (caseType === "case-2") return "Team Manager";
     }
+
     return roleSelect?.value || "Employee / Contributor";
   }
 
+  /* =========================================================
+     REVIEW / SUMMARY
+     ========================================================= */
+
   function renderSummaryReview() {
-    const s = window.TerraHireStore.getStore();
-    const actionRadio = document.querySelector('input[name="wiz-action"]:checked');
+    const store = getStore();
+    if (!store) return;
+
+    const actionRadio = document.querySelector(
+      'input[name="wiz-action"]:checked'
+    );
+
     const action = actionRadio ? actionRadio.value : "add-member";
-    const caseRadio = document.querySelector('input[name="wiz-case-type"]:checked');
+
+    const caseRadio = document.querySelector(
+      'input[name="wiz-case-type"]:checked'
+    );
+
     const caseType = caseRadio ? caseRadio.value : "case-1";
 
-    const name = document.getElementById("wiz-member-name")?.value.trim() || "(Name not entered)";
-    const email = document.getElementById("wiz-member-email")?.value.trim() || "(Email not entered)";
-    const phone = document.getElementById("wiz-member-phone")?.value.trim() || "+1 (555) 000-0000";
+    const name =
+      document.getElementById("wiz-member-name")?.value.trim() ||
+      "(Name not entered)";
+
+    const email =
+      document.getElementById("wiz-member-email")?.value.trim() ||
+      "(Email not entered)";
+
+    const phone =
+      document.getElementById("wiz-member-phone")?.value.trim() ||
+      "(Phone not entered)";
+
     const role = getEffectiveRole(action, caseType);
 
     let deptText = "";
@@ -76,88 +249,161 @@ document.addEventListener("DOMContentLoaded", () => {
     let leaderText = "";
 
     if (action === "add-member") {
-      deptText = document.getElementById("wiz-dept-select")?.value || "Core Engineering";
-      const projId = document.getElementById("wiz-dept-proj-select")?.value;
-      const projObj = s.projects.find((p) => p.id === projId);
-      projText = projObj ? `${projObj.code} — ${projObj.name}` : (document.getElementById("wiz-dept-proj-code-readonly")?.value || "BILL-01");
-      
-      if (role === "Department Head") {
-        leaderText = "Top Tier (Department Head - No reporting line above)";
-      } else if (role === "Team Manager") {
-        const h = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
-        leaderText = `Dept Head: ${h}`;
-      } else if (role === "Team Leader") {
-        const m = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
-        const h = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
-        leaderText = `Manager: ${m} | Dept Head: ${h} (Self: Team Leader)`;
+      deptText =
+        document.getElementById("wiz-dept-select")?.value ||
+        "Department not selected";
+
+      const projectId = document.getElementById("wiz-dept-proj-select")?.value;
+
+      if (projectId === "__new__") {
+        const projectName =
+          document.getElementById("wiz-2a-new-proj-name")?.value.trim() ||
+          "New Project";
+
+        const projectCode =
+          document
+            .getElementById("wiz-2a-new-proj-code")
+            ?.value.trim()
+            .toUpperCase() || "NEW-01";
+
+        projText = `${projectCode} — ${projectName} [NEW PROJECT]`;
       } else {
-        const m = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
-        const t = document.getElementById("wiz-lead-select")?.value || "Kavita Rao";
-        const h = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
-        leaderText = `Manager: ${m} | Lead: ${t} | Head: ${h}`;
+        const project = (store.projects || []).find(
+          (item) => item.id === projectId
+        );
+
+        projText = project
+          ? `${project.code} — ${project.name}`
+          : "Project not selected";
       }
-    } else if (caseType === "case-1") {
-      const dName = document.getElementById("wiz-case1-dept-name")?.value.trim() || "New Department";
-      const pName = document.getElementById("wiz-case1-proj-name")?.value.trim() || "Initial Sprint";
-      const pCode = document.getElementById("wiz-case1-proj-code")?.value.trim().toUpperCase() || "NVE-01";
-      deptText = `${dName} [NEW DEPARTMENT]`;
-      projText = `${pCode} — ${pName}`;
-      leaderText = "Top Tier (Founding Department Head - No reporting lead)";
-    } else {
-      const dName = document.getElementById("wiz-case2-dept-select")?.value || "Core Engineering";
-      const pName = document.getElementById("wiz-case2-proj-name")?.value.trim() || "New Initiative";
-      const pCode = document.getElementById("wiz-case2-proj-code")?.value.trim().toUpperCase() || "CHK-20";
-      const head = document.getElementById("wiz-case2-head-select")?.value || "Dr. Ananya Roy";
-      deptText = dName;
-      projText = `${pCode} — ${pName} [NEW PROJECT]`;
-      leaderText = `Department Head: ${head}`;
+
+      if (role === "Department Head") {
+        leaderText = "Top Tier: Department Head";
+      } else if (role === "Team Manager") {
+        const head =
+          document.getElementById("wiz-head-select")?.value ||
+          "Department Head not selected";
+
+        leaderText = `Department Head: ${head}`;
+      } else if (role === "Team Leader") {
+        const manager =
+          document.getElementById("wiz-mgr-select")?.value ||
+          "Manager not selected";
+
+        const head =
+          document.getElementById("wiz-head-select")?.value ||
+          "Department Head not selected";
+
+        leaderText = `Manager: ${manager} | Department Head: ${head}`;
+      } else {
+        const manager =
+          document.getElementById("wiz-mgr-select")?.value ||
+          "Manager not selected";
+
+        const leader =
+          document.getElementById("wiz-lead-select")?.value ||
+          "Team Leader not selected";
+
+        const head =
+          document.getElementById("wiz-head-select")?.value ||
+          "Department Head not selected";
+
+        leaderText = `Manager: ${manager} | Team Leader: ${leader} | Department Head: ${head}`;
+      }
+    }
+
+    if (action === "create-dept" && caseType === "case-1") {
+      const departmentName =
+        document.getElementById("wiz-case1-dept-name")?.value.trim() ||
+        "New Department";
+
+      const projectName =
+        document.getElementById("wiz-case1-proj-name")?.value.trim() ||
+        "Initial Project";
+
+      const projectCode =
+        document
+          .getElementById("wiz-case1-proj-code")
+          ?.value.trim()
+          .toUpperCase() || "NEW-01";
+
+      deptText = `${departmentName} [NEW DEPARTMENT]`;
+      projText = `${projectCode} — ${projectName}`;
+      leaderText = "Top Tier: Founding Department Head";
+    }
+
+    if (action === "create-dept" && caseType === "case-2") {
+      const departmentName =
+        document.getElementById("wiz-case2-dept-select")?.value ||
+        "Department not selected";
+
+      const projectName =
+        document.getElementById("wiz-case2-proj-name")?.value.trim() ||
+        "New Project";
+
+      const projectCode =
+        document
+          .getElementById("wiz-case2-proj-code")
+          ?.value.trim()
+          .toUpperCase() || "NEW-01";
+
+      const departmentHead =
+        document.getElementById("wiz-case2-head-select")?.value ||
+        "Department Head not selected";
+
+      deptText = departmentName;
+      projText = `${projectCode} — ${projectName} [NEW PROJECT]`;
+      leaderText = `Department Head: ${departmentHead}`;
     }
 
     const summaryEl = document.getElementById("wiz-summary-content");
+
     if (summaryEl) {
       summaryEl.innerHTML = `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-          <div><strong style="color:var(--white);">Member:</strong> ${name}</div>
-          <div><strong style="color:var(--white);">Work Email:</strong> ${email}</div>
-          <div><strong style="color:var(--white);">Phone:</strong> ${phone}</div>
-          <div><strong style="color:var(--white);">Designated Role:</strong> <span class="badge badge-teal">${role}</span></div>
-          <div><strong style="color:var(--white);">Department:</strong> ${deptText}</div>
-          <div><strong style="color:var(--white);">Project Code:</strong> <code>${projText}</code></div>
-          <div style="grid-column: 1 / -1;"><strong style="color:var(--white);">Reporting Line:</strong> ${leaderText}</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+          <div><strong style="color:var(--white);">Member:</strong> ${escapeHtml(name)}</div>
+          <div><strong style="color:var(--white);">Work Email:</strong> ${escapeHtml(email)}</div>
+          <div><strong style="color:var(--white);">Phone:</strong> ${escapeHtml(phone)}</div>
+          <div><strong style="color:var(--white);">Role:</strong> <span class="badge badge-teal">${escapeHtml(role)}</span></div>
+          <div><strong style="color:var(--white);">Department:</strong> ${escapeHtml(deptText)}</div>
+          <div><strong style="color:var(--white);">Project:</strong> <code>${escapeHtml(projText)}</code></div>
+          <div style="grid-column:1 / -1;"><strong style="color:var(--white);">Reporting Line:</strong> ${escapeHtml(leaderText)}</div>
         </div>
       `;
     }
   }
 
+  /* =========================================================
+     PROGRESSIVE FORM REVEAL
+     ========================================================= */
+
   function checkAndRevealSections() {
-    const s = window.TerraHireStore.getStore();
-    const actionRadio = document.querySelector('input[name="wiz-action"]:checked');
+    const actionRadio = document.querySelector(
+      'input[name="wiz-action"]:checked'
+    );
 
-    // Section 1 is always visible initially
-    if (secAction) {
-      secAction.classList.add("visible");
-    }
+    secAction?.classList.add("visible");
 
-    // If no action chosen yet, only Section 1 is open
     if (!actionRadio) {
       secAction?.classList.remove("completed");
       secDeptProj?.classList.remove("visible", "completed");
       secMemberInfo?.classList.remove("visible", "completed");
       secLeadership?.classList.remove("visible", "completed");
       secSecurity?.classList.remove("visible", "completed");
+
       if (progBadge) {
         progBadge.className = "badge badge-emp";
         progBadge.textContent = "⚡ Step 1 of 5: Choose Action";
       }
+
       return;
     }
 
-    // Step 1 is chosen! Mark Step 1 complete & Reveal Step 2 downwards
     const action = actionRadio.value;
+
     secAction?.classList.add("completed");
     secDeptProj?.classList.add("visible");
 
-    // Toggle Fieldsets in Step 2
     if (action === "add-member") {
       fsExistingDept?.classList.remove("hidden");
       fsNewDept?.classList.add("hidden");
@@ -166,50 +412,95 @@ document.addEventListener("DOMContentLoaded", () => {
       fsNewDept?.classList.remove("hidden");
     }
 
-    // Check Step 2 validity
     let isStep2Valid = false;
-    const caseRadio = document.querySelector('input[name="wiz-case-type"]:checked');
+
+    const caseRadio = document.querySelector(
+      'input[name="wiz-case-type"]:checked'
+    );
+
     const caseType = caseRadio ? caseRadio.value : "";
 
     if (action === "add-member") {
-      const deptVal = document.getElementById("wiz-dept-select")?.value;
-      const projVal = document.getElementById("wiz-dept-proj-select")?.value;
-      const codeVal = document.getElementById("wiz-dept-proj-code-readonly")?.value;
-      if (deptVal && projVal === "__new__") {
-        // Creating new project: validate new project fields
-        const newName = document.getElementById("wiz-2a-new-proj-name")?.value.trim();
-        const newCode = document.getElementById("wiz-2a-new-proj-code")?.value.trim();
-        if (newName && newName.length >= 2 && newCode && newCode.length >= 2) {
-          isStep2Valid = true;
-        }
-      } else if (deptVal && projVal && codeVal) {
-        isStep2Valid = true;
-      }
-    } else {
-      // Toggle Sub-Case UI
-      if (caseType === "case-1") {
-        subCase1Fields?.classList.remove("hidden");
-        subCase2Fields?.classList.add("hidden");
-        const c1Dept = document.getElementById("wiz-case1-dept-name")?.value.trim();
-        const c1Proj = document.getElementById("wiz-case1-proj-name")?.value.trim();
-        const c1Code = document.getElementById("wiz-case1-proj-code")?.value.trim();
-        if (c1Dept && c1Dept.length >= 2 && c1Proj && c1Proj.length >= 2 && c1Code && c1Code.length >= 2) {
-          isStep2Valid = true;
-        }
-      } else if (caseType === "case-2") {
-        subCase1Fields?.classList.add("hidden");
-        subCase2Fields?.classList.remove("hidden");
-        const c2Dept = document.getElementById("wiz-case2-dept-select")?.value;
-        const c2Head = document.getElementById("wiz-case2-head-select")?.value;
-        const c2Proj = document.getElementById("wiz-case2-proj-name")?.value.trim();
-        const c2Code = document.getElementById("wiz-case2-proj-code")?.value.trim();
-        if (c2Dept && c2Head && c2Proj && c2Proj.length >= 2 && c2Code && c2Code.length >= 2) {
-          isStep2Valid = true;
-        }
+      const department = document.getElementById("wiz-dept-select")?.value;
+      const projectId = document.getElementById("wiz-dept-proj-select")?.value;
+      const projectCode = document.getElementById(
+        "wiz-dept-proj-code-readonly"
+      )?.value;
+
+      if (department && projectId === "__new__") {
+        const newProjectName = document
+          .getElementById("wiz-2a-new-proj-name")
+          ?.value.trim();
+
+        const newProjectCode = document
+          .getElementById("wiz-2a-new-proj-code")
+          ?.value.trim();
+
+        isStep2Valid = Boolean(
+          newProjectName &&
+            newProjectName.length >= 2 &&
+            newProjectCode &&
+            newProjectCode.length >= 2
+        );
       } else {
-        subCase1Fields?.classList.add("hidden");
-        subCase2Fields?.classList.add("hidden");
+        isStep2Valid = Boolean(department && projectId && projectCode);
       }
+    }
+
+    if (action === "create-dept" && caseType === "case-1") {
+      subCase1Fields?.classList.remove("hidden");
+      subCase2Fields?.classList.add("hidden");
+
+      const departmentName = document
+        .getElementById("wiz-case1-dept-name")
+        ?.value.trim();
+
+      const projectName = document
+        .getElementById("wiz-case1-proj-name")
+        ?.value.trim();
+
+      const projectCode = document
+        .getElementById("wiz-case1-proj-code")
+        ?.value.trim();
+
+      isStep2Valid = Boolean(
+        departmentName &&
+          departmentName.length >= 2 &&
+          projectName &&
+          projectName.length >= 2 &&
+          projectCode &&
+          projectCode.length >= 2
+      );
+    }
+
+    if (action === "create-dept" && caseType === "case-2") {
+      subCase1Fields?.classList.add("hidden");
+      subCase2Fields?.classList.remove("hidden");
+
+      const department = document.getElementById(
+        "wiz-case2-dept-select"
+      )?.value;
+
+      const head = document.getElementById(
+        "wiz-case2-head-select"
+      )?.value;
+
+      const projectName = document
+        .getElementById("wiz-case2-proj-name")
+        ?.value.trim();
+
+      const projectCode = document
+        .getElementById("wiz-case2-proj-code")
+        ?.value.trim();
+
+      isStep2Valid = Boolean(
+        department &&
+          head &&
+          projectName &&
+          projectName.length >= 2 &&
+          projectCode &&
+          projectCode.length >= 2
+      );
     }
 
     if (!isStep2Valid) {
@@ -217,93 +508,125 @@ document.addEventListener("DOMContentLoaded", () => {
       secMemberInfo?.classList.remove("visible", "completed");
       secLeadership?.classList.remove("visible", "completed");
       secSecurity?.classList.remove("visible", "completed");
+
       if (progBadge) {
         progBadge.className = "badge badge-emp";
-        progBadge.textContent = "⚡ Step 2 of 5: Department & Project Details";
+        progBadge.textContent = "⚡ Step 2 of 5: Department & Project";
       }
+
       return;
     }
 
-    // Step 2 is filled! Mark Step 2 complete & Reveal Step 3 downwards
     secDeptProj?.classList.add("completed");
     secMemberInfo?.classList.add("visible");
 
-    // Configure Role in Step 3 based on Step 2
     if (action === "create-dept") {
       roleSelectBox?.classList.add("hidden");
       roleLockedBox?.classList.remove("hidden");
+
       if (caseType === "case-1") {
         if (roleLockedInput) roleLockedInput.value = "Department Head";
-        if (roleLockedBadge) roleLockedBadge.textContent = "🔒 Founding Department Head";
+        if (roleLockedBadge) {
+          roleLockedBadge.textContent = "🔒 Founding Department Head";
+        }
       } else {
         if (roleLockedInput) roleLockedInput.value = "Team Manager";
-        if (roleLockedBadge) roleLockedBadge.textContent = "🔒 Project Team Manager";
+        if (roleLockedBadge) {
+          roleLockedBadge.textContent = "🔒 New Project Team Manager";
+        }
       }
     } else {
       roleSelectBox?.classList.remove("hidden");
       roleLockedBox?.classList.add("hidden");
     }
 
-    // Check Step 3 validity (Member Info)
-    const name = document.getElementById("wiz-member-name")?.value.trim();
-    const email = document.getElementById("wiz-member-email")?.value.trim();
-    const isStep3Valid = Boolean(name && name.length >= 2 && email && email.includes("@") && email.includes("."));
+    const memberName = document.getElementById(
+      "wiz-member-name"
+    )?.value.trim();
+
+    const memberEmail = document.getElementById(
+      "wiz-member-email"
+    )?.value.trim();
+
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberEmail || "");
+
+    const isStep3Valid = Boolean(
+      memberName && memberName.length >= 2 && validEmail
+    );
 
     if (!isStep3Valid) {
       secMemberInfo?.classList.remove("completed");
       secLeadership?.classList.remove("visible", "completed");
       secSecurity?.classList.remove("visible", "completed");
+
       if (progBadge) {
         progBadge.className = "badge badge-emp";
-        progBadge.textContent = "⚡ Step 3 of 5: Enter Member Coordinates";
+        progBadge.textContent = "⚡ Step 3 of 5: Enter Member Details";
       }
+
       return;
     }
 
-    // Step 3 is filled! Mark Step 3 complete & handle Step 4 (Leadership)
     secMemberInfo?.classList.add("completed");
-    const activeRole = getEffectiveRole(action, caseType);
-
-    // Step 4 Leadership Hierarchy Rules
     secLeadership?.classList.add("visible");
+
+    const activeRole = getEffectiveRole(action, caseType);
     const leadSubText = document.getElementById("lead-sub-text");
 
-    if (activeRole === "Department Head" || (action === "create-dept" && caseType === "case-1")) {
-      // 1. Department Head: Skipped entirely (founding / top tier lead)
+    if (activeRole === "Department Head") {
       leadSkipBanner?.classList.remove("hidden");
       leadFieldsGrid?.classList.add("hidden");
-      if (leadSubText) leadSubText.textContent = "Department Heads have no higher managerial or team leader line above them.";
+
+      if (leadSubText) {
+        leadSubText.textContent =
+          "Department Head is the top role for this department.";
+      }
+
       secLeadership?.classList.add("completed");
     } else if (activeRole === "Team Manager") {
-      // 2. Team Manager: Reports to Department Head only
       leadSkipBanner?.classList.add("hidden");
       leadFieldsGrid?.classList.remove("hidden");
+
       fieldLeadMgr?.classList.add("hidden");
       fieldLeadTeam?.classList.add("hidden");
       fieldLeadHead?.classList.remove("hidden");
-      if (leadSubText) leadSubText.textContent = "As Team Manager, designate the Department Head this project initiative reports into.";
+
+      if (leadSubText) {
+        leadSubText.textContent =
+          "Select the Department Head for this Team Manager.";
+      }
+
       secLeadership?.classList.add("completed");
     } else if (activeRole === "Team Leader") {
-      // 3. Team Leader: Reports to Reporting Manager & Department Head (NO Team Leader field shown below)
       leadSkipBanner?.classList.add("hidden");
       leadFieldsGrid?.classList.remove("hidden");
+
       fieldLeadMgr?.classList.remove("hidden");
-      fieldLeadTeam?.classList.add("hidden"); // <-- HIDE Team Leader field since member IS the Team Leader!
+      fieldLeadTeam?.classList.add("hidden");
       fieldLeadHead?.classList.remove("hidden");
-      if (leadSubText) leadSubText.textContent = "As Team Leader, designate your Reporting Manager and Department Head.";
+
+      if (leadSubText) {
+        leadSubText.textContent =
+          "Select the Reporting Manager and Department Head.";
+      }
+
       secLeadership?.classList.add("completed");
     } else {
-      // 4. Employee / Contributor: Full hierarchy (Reporting Manager, Team Leader, Department Head)
       leadSkipBanner?.classList.add("hidden");
       leadFieldsGrid?.classList.remove("hidden");
+
       fieldLeadMgr?.classList.remove("hidden");
       fieldLeadTeam?.classList.remove("hidden");
       fieldLeadHead?.classList.remove("hidden");
-      if (leadSubText) leadSubText.textContent = "Designate the Reporting Manager, Team Leader, and Department Head for this contributor.";
+
+      if (leadSubText) {
+        leadSubText.textContent =
+          "Select the Reporting Manager, Team Leader, and Department Head.";
+      }
+
       secLeadership?.classList.add("completed");
     }
 
-    // Reveal Step 5 downwards
     secSecurity?.classList.add("visible", "completed");
     renderSummaryReview();
 
@@ -313,212 +636,336 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Populate wizard options and setup smart auto-fill
+  /* =========================================================
+     POPULATE DROPDOWNS
+     ========================================================= */
+
   function populateWizard() {
-    const s = window.TerraHireStore.getStore();
-    
-    // Departments
-    const deptSelect = document.getElementById("wiz-dept-select");
-    const case2DeptSelect = document.getElementById("wiz-case2-dept-select");
-    const projSelect = document.getElementById("wiz-dept-proj-select");
-    const projCodeInput = document.getElementById("wiz-dept-proj-code-readonly");
+    const store = getStore();
+    if (!store) return;
 
-    const deptList = s.departments && s.departments.length > 0
-      ? s.departments.map((d) => d.name)
-      : Array.from(new Set(s.projects.map((p) => p.department || "Core Engineering")));
+    const departmentSelect = document.getElementById("wiz-dept-select");
+    const case2DepartmentSelect = document.getElementById(
+      "wiz-case2-dept-select"
+    );
 
-    const populateDeptOptions = (el, defaultPrompt) => {
-      if (!el) return;
-      el.innerHTML = `<option value="">-- ${defaultPrompt} --</option>`;
-      deptList.forEach((d) => {
-        el.innerHTML += `<option value="${d}">${d}</option>`;
+    const projectSelect = document.getElementById(
+      "wiz-dept-proj-select"
+    );
+
+    const projectCodeInput = document.getElementById(
+      "wiz-dept-proj-code-readonly"
+    );
+
+    const departmentList = (store.departments || []).map(
+      (department) => department.name
+    );
+
+    function fillDepartmentSelect(element, text) {
+      if (!element) return;
+
+      element.innerHTML = `<option value="">-- ${text} --</option>`;
+
+      departmentList.forEach((departmentName) => {
+        element.innerHTML += `
+          <option value="${escapeHtml(departmentName)}">
+            ${escapeHtml(departmentName)}
+          </option>
+        `;
       });
-    };
+    }
 
-    populateDeptOptions(deptSelect, "Choose Target Department");
-    populateDeptOptions(case2DeptSelect, "Choose Existing Department");
+    fillDepartmentSelect(departmentSelect, "Choose Target Department");
+    fillDepartmentSelect(
+      case2DepartmentSelect,
+      "Choose Existing Department"
+    );
 
-    // Leadership Selects
-    const mgrSelect = document.getElementById("wiz-mgr-select");
-    const leadSelect = document.getElementById("wiz-lead-select");
+    const managerSelect = document.getElementById("wiz-mgr-select");
+    const leaderSelect = document.getElementById("wiz-lead-select");
     const headSelect = document.getElementById("wiz-head-select");
-    const case2HeadSelect = document.getElementById("wiz-case2-head-select");
+    const case2HeadSelect = document.getElementById(
+      "wiz-case2-head-select"
+    );
 
-    const fillSel = (el, label) => {
-      if (!el) return;
-      el.innerHTML = `<option value="">-- ${label} --</option>`;
-      s.members.forEach((m) => {
-        el.innerHTML += `<option value="${m.fullName}">${m.fullName} (${m.designation || m.roleType})</option>`;
+    function fillLeadershipSelect(element, label) {
+      if (!element) return;
+
+      element.innerHTML = `<option value="">-- ${label} --</option>`;
+
+      (store.members || []).forEach((member) => {
+        element.innerHTML += `
+          <option value="${escapeHtml(member.fullName)}">
+            ${escapeHtml(member.fullName)} (${escapeHtml(
+              member.designation || member.roleCategory || member.roleType
+            )})
+          </option>
+        `;
       });
-    };
+    }
 
-    fillSel(mgrSelect, "Select Reporting Manager");
-    fillSel(leadSelect, "Select Team Leader");
-    fillSel(headSelect, "Select Department Head");
-    fillSel(case2HeadSelect, "Select Department Head");
+    fillLeadershipSelect(managerSelect, "Select Reporting Manager");
+    fillLeadershipSelect(leaderSelect, "Select Team Leader");
+    fillLeadershipSelect(headSelect, "Select Department Head");
+    fillLeadershipSelect(case2HeadSelect, "Select Department Head");
 
-    // Smart autofill helper for department head
-    function autoFillDepartmentHead(deptName) {
-      if (!deptName || !headSelect) return;
-      const deptObj = s.departments?.find((d) => d.name === deptName);
-      const headName = deptObj?.head || s.members.find((m) => m.department === deptName && (m.designation?.includes("Head") || m.roleType === "admin"))?.fullName || "Dr. Ananya Roy";
-      
-      let found = Array.from(headSelect.options).find((o) => o.value === headName);
-      if (!found) {
-        headSelect.innerHTML += `<option value="${headName}">${headName} (Department Head)</option>`;
+    function autoFillDepartmentHead(departmentName) {
+      if (!departmentName || !headSelect) return;
+
+      const department = (store.departments || []).find(
+        (item) => item.name === departmentName
+      );
+
+      const headName =
+        department?.head ||
+        (store.members || []).find(
+          (member) =>
+            member.department === departmentName &&
+            member.roleType === "department_head"
+        )?.fullName ||
+        "";
+
+      if (!headName) return;
+
+      const exists = Array.from(headSelect.options).some(
+        (option) => option.value === headName
+      );
+
+      if (!exists) {
+        headSelect.innerHTML += `
+          <option value="${escapeHtml(headName)}">
+            ${escapeHtml(headName)} (Department Head)
+          </option>
+        `;
       }
+
       headSelect.value = headName;
 
       const hintHead = document.getElementById("hint-lead-head");
+
       if (hintHead) {
         hintHead.style.display = "inline-block";
-        hintHead.textContent = `✨ Auto-filled (${deptName})`;
+        hintHead.textContent = `✨ Auto-filled: ${headName}`;
       }
     }
 
-    // Smart autofill helper for project manager & team leader
-    function autoFillProjectLeadership(projId) {
-      if (!projId) return;
-      const projObj = s.projects.find((p) => p.id === projId);
-      if (!projObj) return;
+    function autoFillProjectLeadership(projectId) {
+      const project = (store.projects || []).find(
+        (item) => item.id === projectId
+      );
 
-      // 1. Auto-fill Reporting Manager / PM
-      const pmName = projObj.pmName || s.members.find((m) => m.projectId === projId && (m.designation?.includes("Manager") || m.designation?.includes("Lead")))?.fullName || "Vikram Mehta";
-      if (pmName && mgrSelect) {
-        let found = Array.from(mgrSelect.options).find((o) => o.value === pmName);
-        if (!found) {
-          mgrSelect.innerHTML += `<option value="${pmName}">${pmName} (Project Manager)</option>`;
+      if (!project) return;
+
+      const managerName = project.pmName || "";
+
+      if (managerName && managerSelect) {
+        const exists = Array.from(managerSelect.options).some(
+          (option) => option.value === managerName
+        );
+
+        if (!exists) {
+          managerSelect.innerHTML += `
+            <option value="${escapeHtml(managerName)}">
+              ${escapeHtml(managerName)} (Project Manager)
+            </option>
+          `;
         }
-        mgrSelect.value = pmName;
-        const hintMgr = document.getElementById("hint-lead-mgr");
-        if (hintMgr) {
-          hintMgr.style.display = "inline-block";
-          hintMgr.textContent = `✨ Auto-filled (${projObj.code})`;
-        }
+
+        managerSelect.value = managerName;
       }
 
-      // 2. Auto-fill Team Leader if existing for project
-      const teamLeadMem = s.members.find((m) => (m.projectId === projId || m.projectCode === projObj.code) && (m.reportingTeamLead || m.designation?.includes("Lead")));
-      const leadName = teamLeadMem ? (teamLeadMem.reportingTeamLead || teamLeadMem.fullName) : (projObj.pmName ? projObj.pmName : "Kavita Rao");
-      if (leadName && leadSelect) {
-        let found = Array.from(leadSelect.options).find((o) => o.value === leadName);
-        if (!found) {
-          leadSelect.innerHTML += `<option value="${leadName}">${leadName} (Team Leader)</option>`;
+      const teamLeader = (store.members || []).find(
+        (member) =>
+          member.projectId === projectId &&
+          member.roleType === "team_leader"
+      );
+
+      if (teamLeader && leaderSelect) {
+        const exists = Array.from(leaderSelect.options).some(
+          (option) => option.value === teamLeader.fullName
+        );
+
+        if (!exists) {
+          leaderSelect.innerHTML += `
+            <option value="${escapeHtml(teamLeader.fullName)}">
+              ${escapeHtml(teamLeader.fullName)} (Team Leader)
+            </option>
+          `;
         }
-        leadSelect.value = leadName;
-        const hintTeam = document.getElementById("hint-lead-team");
-        if (hintTeam) {
-          hintTeam.style.display = "inline-block";
-          hintTeam.textContent = `✨ Auto-filled (${projObj.code})`;
-        }
+
+        leaderSelect.value = teamLeader.fullName;
       }
+
+      autoFillDepartmentHead(project.department);
     }
 
-    function updateProjectFilter(selectedDept) {
-      if (!projSelect) return;
-      const newProjFields = document.getElementById("new-proj-fields-2a");
-      const projCodeWrap = document.getElementById("proj-code-readonly-wrap");
+    function updateProjectsForDepartment(departmentName) {
+      if (!projectSelect) return;
 
-      if (!selectedDept) {
-        projSelect.innerHTML = '<option value="">-- Select Department First --</option>';
-        projSelect.disabled = true;
-        if (projCodeInput) projCodeInput.value = "";
-        if (newProjFields) { newProjFields.classList.add("hidden"); newProjFields.style.display = "none"; }
-        if (projCodeWrap) projCodeWrap.style.display = "";
+      const newProjectFields = document.getElementById("new-proj-fields-2a");
+      const projectCodeWrap = document.getElementById(
+        "proj-code-readonly-wrap"
+      );
+
+      if (!departmentName) {
+        projectSelect.innerHTML =
+          '<option value="">-- Select Department First --</option>';
+
+        projectSelect.disabled = true;
+
+        if (projectCodeInput) projectCodeInput.value = "";
+
+        newProjectFields?.classList.add("hidden");
+
+        if (projectCodeWrap) {
+          projectCodeWrap.style.display = "";
+        }
+
         return;
       }
 
-      projSelect.disabled = false;
-      projSelect.innerHTML = '<option value="">-- Select Project in Department --</option>';
-      
-      const filtered = s.projects.filter((p) => !p.department || p.department === selectedDept);
-      const projectsToUse = filtered.length > 0 ? filtered : s.projects;
+      projectSelect.disabled = false;
+      projectSelect.innerHTML =
+        '<option value="">-- Select Project in Department --</option>';
 
-      projectsToUse.forEach((p) => {
-        projSelect.innerHTML += `<option value="${p.id}" data-code="${p.code}">[${p.code}] ${p.name}</option>`;
+      const projects = (store.projects || []).filter(
+        (project) => project.department === departmentName
+      );
+
+      projects.forEach((project) => {
+        projectSelect.innerHTML += `
+          <option value="${escapeHtml(project.id)}" data-code="${escapeHtml(
+          project.code
+        )}">
+            [${escapeHtml(project.code)}] ${escapeHtml(project.name)}
+          </option>
+        `;
       });
 
-      // Add "Create New Project" option at the end
-      projSelect.innerHTML += '<option value="__new__">➕ Create New Project</option>';
+      projectSelect.innerHTML += `
+        <option value="__new__">➕ Create New Project</option>
+      `;
 
-      if (projCodeInput) projCodeInput.value = "";
-      if (newProjFields) { newProjFields.classList.add("hidden"); newProjFields.style.display = "none"; }
-      if (projCodeWrap) projCodeWrap.style.display = "";
+      if (projectCodeInput) {
+        projectCodeInput.value = "";
+      }
 
-      // Auto-fill department head immediately upon choosing department
-      autoFillDepartmentHead(selectedDept);
+      newProjectFields?.classList.add("hidden");
+
+      if (projectCodeWrap) {
+        projectCodeWrap.style.display = "";
+      }
+
+      autoFillDepartmentHead(departmentName);
     }
 
-    if (deptSelect) {
-      deptSelect.onchange = () => {
-        updateProjectFilter(deptSelect.value);
+    if (departmentSelect) {
+      departmentSelect.onchange = () => {
+        updateProjectsForDepartment(departmentSelect.value);
         checkAndRevealSections();
       };
     }
 
-    if (projSelect) {
-      projSelect.onchange = () => {
-        const val = projSelect.value;
-        const newProjFields = document.getElementById("new-proj-fields-2a");
-        const projCodeWrap = document.getElementById("proj-code-readonly-wrap");
+    if (projectSelect) {
+      projectSelect.onchange = () => {
+        const projectId = projectSelect.value;
 
-        if (val === "__new__") {
-          // Show new project fields, hide auto-filled code
-          if (newProjFields) { newProjFields.classList.remove("hidden"); newProjFields.style.display = ""; }
-          if (projCodeWrap) projCodeWrap.style.display = "none";
-          if (projCodeInput) projCodeInput.value = "";
+        const newProjectFields = document.getElementById(
+          "new-proj-fields-2a"
+        );
+
+        const projectCodeWrap = document.getElementById(
+          "proj-code-readonly-wrap"
+        );
+
+        if (projectId === "__new__") {
+          newProjectFields?.classList.remove("hidden");
+
+          if (projectCodeWrap) {
+            projectCodeWrap.style.display = "none";
+          }
+
+          if (projectCodeInput) {
+            projectCodeInput.value = "";
+          }
         } else {
-          // Hide new project fields, show auto-filled code
-          if (newProjFields) { newProjFields.classList.add("hidden"); newProjFields.style.display = "none"; }
-          if (projCodeWrap) projCodeWrap.style.display = "";
-          const opt = projSelect.options[projSelect.selectedIndex];
-          const code = opt ? opt.getAttribute("data-code") || "" : "";
-          if (projCodeInput) projCodeInput.value = code;
-          
-          // Auto-fill project manager and team lead when project is selected
-          autoFillProjectLeadership(val);
+          newProjectFields?.classList.add("hidden");
+
+          if (projectCodeWrap) {
+            projectCodeWrap.style.display = "";
+          }
+
+          const selectedOption =
+            projectSelect.options[projectSelect.selectedIndex];
+
+          if (projectCodeInput) {
+            projectCodeInput.value =
+              selectedOption?.getAttribute("data-code") || "";
+          }
+
+          autoFillProjectLeadership(projectId);
         }
-        
+
         checkAndRevealSections();
       };
     }
 
-    if (case2DeptSelect) {
-      case2DeptSelect.onchange = () => {
-        const deptVal = case2DeptSelect.value;
-        const deptObj = s.departments?.find((d) => d.name === deptVal);
-        const headName = deptObj?.head || "Dr. Ananya Roy";
-        if (case2HeadSelect) {
-          case2HeadSelect.value = headName;
+    if (case2DepartmentSelect) {
+      case2DepartmentSelect.onchange = () => {
+        const departmentName = case2DepartmentSelect.value;
+
+        const department = (store.departments || []).find(
+          (item) => item.name === departmentName
+        );
+
+        if (case2HeadSelect && department?.head) {
+          const exists = Array.from(case2HeadSelect.options).some(
+            (option) => option.value === department.head
+          );
+
+          if (!exists) {
+            case2HeadSelect.innerHTML += `
+              <option value="${escapeHtml(department.head)}">
+                ${escapeHtml(department.head)} (Department Head)
+              </option>
+            `;
+          }
+
+          case2HeadSelect.value = department.head;
         }
-        autoFillDepartmentHead(deptVal);
+
+        autoFillDepartmentHead(departmentName);
         checkAndRevealSections();
       };
     }
 
     if (case2HeadSelect) {
       case2HeadSelect.onchange = () => {
-        if (headSelect) headSelect.value = case2HeadSelect.value;
+        if (headSelect) {
+          headSelect.value = case2HeadSelect.value;
+        }
+
         checkAndRevealSections();
       };
     }
   }
 
-  // Action toggle listeners
-  document.querySelectorAll('input[name="wiz-action"]').forEach((r) => {
-    r.addEventListener("change", () => {
-      checkAndRevealSections();
-    });
-  });
+  /* =========================================================
+     FORM EVENT LISTENERS
+     ========================================================= */
 
-  // Case Type toggle listeners (Case 1 vs Case 2)
-  document.querySelectorAll('input[name="wiz-case-type"]').forEach((r) => {
-    r.addEventListener("change", () => {
-      checkAndRevealSections();
+  document
+    .querySelectorAll('input[name="wiz-action"]')
+    .forEach((radio) => {
+      radio.addEventListener("change", checkAndRevealSections);
     });
-  });
 
-  // Attach live reactive input listeners to all interactive elements
+  document
+    .querySelectorAll('input[name="wiz-case-type"]')
+    .forEach((radio) => {
+      radio.addEventListener("change", checkAndRevealSections);
+    });
+
   const inputsToWatch = [
     "wiz-dept-select",
     "wiz-dept-proj-select",
@@ -542,224 +989,576 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   inputsToWatch.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener("input", checkAndRevealSections);
-      el.addEventListener("change", checkAndRevealSections);
-    }
+    const element = document.getElementById(id);
+
+    if (!element) return;
+
+    element.addEventListener("input", checkAndRevealSections);
+    element.addEventListener("change", checkAndRevealSections);
   });
 
-  // Reset form button
-  const restartBtn = document.getElementById("wiz-btn-restart");
-  if (restartBtn) {
-    restartBtn.addEventListener("click", () => {
-      const addForm = document.getElementById("form-add-member");
-      if (addForm) addForm.reset();
-      
-      const projCodeInput = document.getElementById("wiz-dept-proj-code-readonly");
-      if (projCodeInput) projCodeInput.value = "";
-      
-      const err = document.getElementById("wiz-error-msg");
-      const ok = document.getElementById("wiz-success-msg");
-      if (err) err.textContent = "";
-      if (ok) ok.classList.add("hidden");
+  /* =========================================================
+     PASSWORD GENERATOR
+     ========================================================= */
+
+  const generatePasswordButton = document.getElementById("wiz-btn-gen-pass");
+
+  if (generatePasswordButton) {
+    generatePasswordButton.onclick = () => {
+      const characters =
+        "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*";
+
+      let password = "";
+
+      for (let index = 0; index < 12; index += 1) {
+        password += characters.charAt(
+          Math.floor(Math.random() * characters.length)
+        );
+      }
+
+      const passwordInput = document.getElementById("wiz-input-password");
+
+      if (passwordInput) {
+        passwordInput.value = password;
+        checkAndRevealSections();
+      }
+    };
+  }
+
+  /* =========================================================
+     RESTART FORM
+     ========================================================= */
+
+  const restartButton = document.getElementById("wiz-btn-restart");
+
+  if (restartButton) {
+    restartButton.addEventListener("click", () => {
+      const form = document.getElementById("form-add-member");
+
+      form?.reset();
+
+      const projectCodeInput = document.getElementById(
+        "wiz-dept-proj-code-readonly"
+      );
+
+      if (projectCodeInput) {
+        projectCodeInput.value = "";
+      }
+
+      const errorMessage = document.getElementById("wiz-error-msg");
+      const successMessage = document.getElementById("wiz-success-msg");
+
+      if (errorMessage) {
+        errorMessage.textContent = "";
+      }
+
+      successMessage?.classList.add("hidden");
 
       populateWizard();
       checkAndRevealSections();
     });
   }
 
-  // Password generator
-  const genPassBtn = document.getElementById("wiz-btn-gen-pass");
-  if (genPassBtn) {
-    genPassBtn.onclick = () => {
-      const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*";
-      let pass = "";
-      for (let i = 0; i < 12; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
-      const passInput = document.getElementById("wiz-input-password");
-      if (passInput) passInput.value = pass;
-    };
-  }
+  /* =========================================================
+     CREATE MEMBER / SAVE INTO LOCAL STORAGE
+     ========================================================= */
 
-  // Member provision form submit
   const addForm = document.getElementById("form-add-member");
-  if (addForm) {
-    addForm.onsubmit = (e) => {
-      e.preventDefault();
-      const s = window.TerraHireStore.getStore();
-      const err = document.getElementById("wiz-error-msg");
-      const ok = document.getElementById("wiz-success-msg");
-      if (err) err.textContent = "";
-      if (ok) ok.classList.add("hidden");
 
-      const actionRadio = document.querySelector('input[name="wiz-action"]:checked');
-      if (!actionRadio) {
-        if (err) err.textContent = "Please select a provisioning action in Step 1.";
+  if (addForm) {
+    addForm.onsubmit = (event) => {
+      event.preventDefault();
+
+      const store = getStore();
+
+      if (!store) {
+        alert("Could not load localStorage data.");
         return;
       }
+
+      if (!store.departments) store.departments = [];
+      if (!store.projects) store.projects = [];
+      if (!store.members) store.members = [];
+      if (!store.organizations) store.organizations = [];
+
+      const errorMessage = document.getElementById("wiz-error-msg");
+      const successMessage = document.getElementById("wiz-success-msg");
+
+      if (errorMessage) {
+        errorMessage.textContent = "";
+      }
+
+      successMessage?.classList.add("hidden");
+
+      const actionRadio = document.querySelector(
+        'input[name="wiz-action"]:checked'
+      );
+
+      if (!actionRadio) {
+        if (errorMessage) {
+          errorMessage.textContent =
+            "Please choose an action in Step 1.";
+        }
+
+        return;
+      }
+
       const action = actionRadio.value;
 
-      const nameInput = document.getElementById("wiz-member-name");
-      const emailInput = document.getElementById("wiz-member-email");
-      const name = nameInput ? nameInput.value.trim() : "";
-      const email = emailInput ? emailInput.value.trim() : "";
-      const phone = document.getElementById("wiz-member-phone")?.value.trim() || "+1 (555) 000-0000";
-      const password = document.getElementById("wiz-input-password")?.value.trim() || "Khushi123@";
+      const name = document.getElementById("wiz-member-name")?.value.trim();
+      const email = document
+        .getElementById("wiz-member-email")
+        ?.value.trim()
+        .toLowerCase();
 
-      if (!name || !email) {
-        if (err) err.textContent = "Please provide the Member's Full Name and Work Email.";
+      const phone =
+        document.getElementById("wiz-member-phone")?.value.trim() || "";
+
+      const password =
+        document.getElementById("wiz-input-password")?.value.trim() || "";
+
+      if (!name || name.length < 2) {
+        if (errorMessage) {
+          errorMessage.textContent =
+            "Please enter a valid member full name.";
+        }
+
         return;
       }
 
-      let finalDept = "";
-      let finalProjId = "";
-      let finalProjCode = "";
+      const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "");
+
+      if (!validEmail) {
+        if (errorMessage) {
+          errorMessage.textContent =
+            "Please enter a valid work email address.";
+        }
+
+        return;
+      }
+
+      if (emailExists(store, email)) {
+        if (errorMessage) {
+          errorMessage.textContent =
+            "A member with this email already exists.";
+        }
+
+        return;
+      }
+
+      if (!password || password.length < 8) {
+        if (errorMessage) {
+          errorMessage.textContent =
+            "Please generate or enter a password with at least 8 characters.";
+        }
+
+        return;
+      }
+
+      let finalDepartment = "";
+      let finalProjectId = "";
+      let finalProjectCode = "";
       let finalRole = "";
-      let finalMgr = "";
-      let finalLead = "";
-      let finalHead = "";
+      let finalManager = "";
+      let finalTeamLeader = "";
+      let finalDepartmentHead = "";
+      let finalOrganizationId = "";
+
+      /* -----------------------------------------------------
+         OPTION 1: ADD MEMBER TO EXISTING DEPARTMENT
+         ----------------------------------------------------- */
 
       if (action === "add-member") {
-        finalDept = document.getElementById("wiz-dept-select")?.value || "Core Engineering";
-        finalProjId = document.getElementById("wiz-dept-proj-select")?.value;
+        finalDepartment =
+          document.getElementById("wiz-dept-select")?.value || "";
 
-        if (finalProjId === "__new__") {
-          // Creating a new project under existing department
-          const newProjName = document.getElementById("wiz-2a-new-proj-name")?.value.trim() || "New Project";
-          const newProjCode = document.getElementById("wiz-2a-new-proj-code")?.value.trim().toUpperCase() || "NEW-01";
-          finalProjCode = newProjCode;
-          finalProjId = "proj_" + Date.now();
-          s.projects.push({
-            id: finalProjId,
-            orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
-            department: finalDept,
-            code: newProjCode,
-            name: newProjName,
-            pmName: name,
-            status: "Active",
-            startDate: new Date().toISOString().split("T")[0],
-            desc: `New project in ${finalDept}`
-          });
-        } else {
-          const projObj = s.projects.find((p) => p.id === finalProjId);
-          finalProjCode = projObj ? projObj.code : (document.getElementById("wiz-dept-proj-code-readonly")?.value || "BILL-01");
+        finalProjectId =
+          document.getElementById("wiz-dept-proj-select")?.value || "";
+
+        if (!finalDepartment || !finalProjectId) {
+          if (errorMessage) {
+            errorMessage.textContent =
+              "Please select a department and project.";
+          }
+
+          return;
         }
 
-        finalRole = document.getElementById("wiz-member-role-select")?.value || "Employee / Contributor";
+        finalOrganizationId = getOrganizationForDepartment(
+          store,
+          finalDepartment
+        );
+
+        if (finalProjectId === "__new__") {
+          const newProjectName = document
+            .getElementById("wiz-2a-new-proj-name")
+            ?.value.trim();
+
+          const newProjectCode = document
+            .getElementById("wiz-2a-new-proj-code")
+            ?.value.trim()
+            .toUpperCase();
+
+          if (!newProjectName || !newProjectCode) {
+            if (errorMessage) {
+              errorMessage.textContent =
+                "Please enter a new project name and project code.";
+            }
+
+            return;
+          }
+
+          if (projectCodeExists(store, newProjectCode)) {
+            if (errorMessage) {
+              errorMessage.textContent = `Project code "${newProjectCode}" already exists. Please use another code.`;
+            }
+
+            return;
+          }
+
+          finalProjectId = makeId("proj");
+          finalProjectCode = newProjectCode;
+          finalRole =
+            document.getElementById("wiz-member-role-select")?.value ||
+            "Team Manager";
+
+          store.projects.push({
+            id: finalProjectId,
+            orgId: finalOrganizationId,
+            department: finalDepartment,
+            code: newProjectCode,
+            name: newProjectName,
+            pmName: name,
+            pmEmail: email,
+            status: "Active",
+            startDate: new Date().toISOString().split("T")[0],
+            endDate: "",
+            desc: `New project created in ${finalDepartment}.`,
+            createdAt: new Date().toISOString()
+          });
+        } else {
+          const existingProject = store.projects.find(
+            (project) => project.id === finalProjectId
+          );
+
+          if (!existingProject) {
+            if (errorMessage) {
+              errorMessage.textContent =
+                "Selected project could not be found.";
+            }
+
+            return;
+          }
+
+          finalProjectCode = existingProject.code;
+          finalOrganizationId = existingProject.orgId;
+
+          finalRole =
+            document.getElementById("wiz-member-role-select")?.value ||
+            "Employee / Contributor";
+        }
 
         if (finalRole === "Department Head") {
-          finalMgr = "Executive Board";
-          finalLead = "Executive Council";
-          finalHead = name;
+          finalManager = "Executive Board";
+          finalTeamLeader = "Executive Council";
+          finalDepartmentHead = name;
         } else if (finalRole === "Team Manager") {
-          finalMgr = document.getElementById("wiz-head-select")?.value || "Executive Leadership";
-          finalLead = "Project Core";
-          finalHead = document.getElementById("wiz-head-select")?.value || "Department Head";
+          finalDepartmentHead =
+            document.getElementById("wiz-head-select")?.value ||
+            "Department Head";
+
+          finalManager = finalDepartmentHead;
+          finalTeamLeader = name;
         } else if (finalRole === "Team Leader") {
-          finalMgr = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
-          finalLead = name;
-          finalHead = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+          finalManager =
+            document.getElementById("wiz-mgr-select")?.value ||
+            "Reporting Manager";
+
+          finalTeamLeader = name;
+
+          finalDepartmentHead =
+            document.getElementById("wiz-head-select")?.value ||
+            "Department Head";
         } else {
-          finalMgr = document.getElementById("wiz-mgr-select")?.value || "Vikram Mehta";
-          finalLead = document.getElementById("wiz-lead-select")?.value || "Kavita Rao";
-          finalHead = document.getElementById("wiz-head-select")?.value || "Dr. Ananya Roy";
+          finalManager =
+            document.getElementById("wiz-mgr-select")?.value ||
+            "Reporting Manager";
+
+          finalTeamLeader =
+            document.getElementById("wiz-lead-select")?.value ||
+            "Team Leader";
+
+          finalDepartmentHead =
+            document.getElementById("wiz-head-select")?.value ||
+            "Department Head";
         }
-      } else {
-        const caseRadio = document.querySelector('input[name="wiz-case-type"]:checked');
-        const caseType = caseRadio ? caseRadio.value : "case-1";
+      }
+
+      /* -----------------------------------------------------
+         OPTION 2, CASE 1: CREATE NEW DEPARTMENT + PROJECT
+         ----------------------------------------------------- */
+
+      if (action === "create-dept") {
+        const caseRadio = document.querySelector(
+          'input[name="wiz-case-type"]:checked'
+        );
+
+        const caseType = caseRadio ? caseRadio.value : "";
+
+        if (!caseType) {
+          if (errorMessage) {
+            errorMessage.textContent =
+              "Please select whether you want to create a department or only a project.";
+          }
+
+          return;
+        }
 
         if (caseType === "case-1") {
-          const deptName = document.getElementById("wiz-case1-dept-name")?.value.trim() || "New Department";
-          const projName = document.getElementById("wiz-case1-proj-name")?.value.trim() || "Initial Sprint";
-          const projCode = document.getElementById("wiz-case1-proj-code")?.value.trim().toUpperCase() || "NVE-01";
+          const departmentName = document
+            .getElementById("wiz-case1-dept-name")
+            ?.value.trim();
 
-          finalDept = deptName;
-          finalProjCode = projCode;
+          const projectName = document
+            .getElementById("wiz-case1-proj-name")
+            ?.value.trim();
+
+          const projectCode = document
+            .getElementById("wiz-case1-proj-code")
+            ?.value.trim()
+            .toUpperCase();
+
+          if (!departmentName || !projectName || !projectCode) {
+            if (errorMessage) {
+              errorMessage.textContent =
+                "Please enter department name, project name, and project code.";
+            }
+
+            return;
+          }
+
+          const duplicateDepartment = store.departments.some(
+            (department) =>
+              department.name.toLowerCase() === departmentName.toLowerCase()
+          );
+
+          if (duplicateDepartment) {
+            if (errorMessage) {
+              errorMessage.textContent =
+                "This department already exists. Please choose an existing department instead.";
+            }
+
+            return;
+          }
+
+          if (projectCodeExists(store, projectCode)) {
+            if (errorMessage) {
+              errorMessage.textContent = `Project code "${projectCode}" already exists.`;
+            }
+
+            return;
+          }
+
+          finalDepartment = departmentName;
+          finalProjectCode = projectCode;
+          finalProjectId = makeId("proj");
           finalRole = "Department Head";
-          finalMgr = "Executive Board";
-          finalLead = "Executive Council";
-          finalHead = name;
+          finalManager = "Executive Board";
+          finalTeamLeader = "Executive Council";
+          finalDepartmentHead = name;
+          finalOrganizationId =
+            store.organizations[0]?.id || "org_acme";
 
-          // Register new department
-          if (!s.departments) s.departments = [];
-          s.departments.push({
-            id: "dept_" + Date.now(),
-            name: deptName,
-            head: name
+          store.departments.push({
+            id: makeId("dept"),
+            name: departmentName,
+            head: name,
+            headEmail: email,
+            desc: `New department created by ${name}.`,
+            createdAt: new Date().toISOString()
           });
 
-          // Register new project
-          finalProjId = "proj_" + Date.now();
-          s.projects.push({
-            id: finalProjId,
-            orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
-            department: deptName,
-            code: projCode,
-            name: projName,
+          store.projects.push({
+            id: finalProjectId,
+            orgId: finalOrganizationId,
+            department: departmentName,
+            code: projectCode,
+            name: projectName,
             pmName: name,
+            pmEmail: email,
             status: "Active",
             startDate: new Date().toISOString().split("T")[0],
-            desc: `Founding initiative for ${deptName}`
+            endDate: "",
+            desc: `Founding project for ${departmentName}.`,
+            createdAt: new Date().toISOString()
           });
-        } else {
-          const deptName = document.getElementById("wiz-case2-dept-select")?.value || "Core Engineering";
-          const headName = document.getElementById("wiz-case2-head-select")?.value || "Dr. Ananya Roy";
-          const projName = document.getElementById("wiz-case2-proj-name")?.value.trim() || "New Initiative";
-          const projCode = document.getElementById("wiz-case2-proj-code")?.value.trim().toUpperCase() || "CHK-20";
+        }
 
-          finalDept = deptName;
-          finalProjCode = projCode;
+        /* ---------------------------------------------------
+           OPTION 2, CASE 2: EXISTING DEPARTMENT + NEW PROJECT
+           --------------------------------------------------- */
+
+        if (caseType === "case-2") {
+          const departmentName =
+            document.getElementById("wiz-case2-dept-select")?.value;
+
+          const departmentHead =
+            document.getElementById("wiz-case2-head-select")?.value;
+
+          const projectName = document
+            .getElementById("wiz-case2-proj-name")
+            ?.value.trim();
+
+          const projectCode = document
+            .getElementById("wiz-case2-proj-code")
+            ?.value.trim()
+            .toUpperCase();
+
+          if (
+            !departmentName ||
+            !departmentHead ||
+            !projectName ||
+            !projectCode
+          ) {
+            if (errorMessage) {
+              errorMessage.textContent =
+                "Please select department/head and enter project name/code.";
+            }
+
+            return;
+          }
+
+          if (projectCodeExists(store, projectCode)) {
+            if (errorMessage) {
+              errorMessage.textContent = `Project code "${projectCode}" already exists.`;
+            }
+
+            return;
+          }
+
+          finalDepartment = departmentName;
+          finalProjectCode = projectCode;
+          finalProjectId = makeId("proj");
           finalRole = "Team Manager";
-          finalMgr = headName;
-          finalLead = name;
-          finalHead = headName;
+          finalManager = departmentHead;
+          finalTeamLeader = name;
+          finalDepartmentHead = departmentHead;
+          finalOrganizationId = getOrganizationForDepartment(
+            store,
+            departmentName
+          );
 
-          // Register new project
-          finalProjId = "proj_" + Date.now();
-          s.projects.push({
-            id: finalProjId,
-            orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
-            department: deptName,
-            code: projCode,
-            name: projName,
+          store.projects.push({
+            id: finalProjectId,
+            orgId: finalOrganizationId,
+            department: departmentName,
+            code: projectCode,
+            name: projectName,
             pmName: name,
+            pmEmail: email,
             status: "Active",
             startDate: new Date().toISOString().split("T")[0],
-            desc: `Project initiative in ${deptName}`
+            endDate: "",
+            desc: `New project created under ${departmentName}.`,
+            createdAt: new Date().toISOString()
           });
         }
       }
 
-      const newMem = {
-        id: "usr_" + Date.now(),
-        roleType: finalRole === "Department Head" ? "admin" : "employee",
+      /* -----------------------------------------------------
+         CREATE NEW MEMBER OBJECT
+         ----------------------------------------------------- */
+
+      const newMember = {
+        id: makeId("usr"),
+
+        roleType: getRoleType(finalRole),
+        roleCategory: finalRole,
+        designation: finalRole,
+
         fullName: name,
         email: email,
         password: password,
-        projectCode: finalProjCode || "BILL-01",
-        orgId: s.organizations[0] ? s.organizations[0].id : "org_acme",
-        projectId: finalProjId || (s.projects[0] ? s.projects[0].id : ""),
-        designation: finalRole,
-        department: finalDept,
-        reportingManager: finalMgr,
-        reportingTeamLead: finalLead,
-        headOfDept: finalHead,
+
+        orgId: finalOrganizationId,
+        projectId: finalProjectId,
+        projectCode: finalProjectCode,
+        department: finalDepartment,
+
+        reportingManager: finalManager,
+        reportingTeamLead: finalTeamLeader,
+        headOfDept: finalDepartmentHead,
+
         phone: phone,
         location: "Global Remote",
         joinedDate: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
         status: "Active",
-        bio: `Provisioned as ${finalRole} in ${finalDept}.`,
+
+        isCheckedIn: false,
+        lastCheckIn: "",
+        lastCheckOut: "",
+        checkInTimestamp: null,
+
+        workingDaysInMonth: 22,
+        daysPresent: 0,
+        daysAbsent: 0,
+        daysOnLeave: 0,
+        lateArrivals: 0,
+        overtimeHours: 0,
+
+        bio: `Provisioned as ${finalRole} in ${finalDepartment}.`
       };
 
-      s.members.push(newMem);
-      window.TerraHireStore.setStore(s);
+      /* -----------------------------------------------------
+         SAVE EVERYTHING IN LOCAL STORAGE
+         ----------------------------------------------------- */
 
-      if (ok) {
-        ok.classList.remove("hidden");
-        ok.innerHTML = `<strong>✓ Member Successfully Provisioned!</strong><br>Account created for <strong>${name}</strong> (${email}) as <strong>${finalRole}</strong> in <em>${finalDept}</em>.<br>Assigned Project Code: <code>${newMem.projectCode}</code>.<br><div style="margin-top:10px;"><button type="button" class="btn btn-ghost btn-sm" id="btn-view-dir-after-add">Go to Member Directory →</button></div>`;
-        const dirBtn = document.getElementById("btn-view-dir-after-add");
-        if (dirBtn) {
-          dirBtn.onclick = () => { window.location.href = "./admin.html"; };
+      store.members.push(newMember);
+
+      const saved = saveStore(store);
+
+      if (!saved) {
+        if (errorMessage) {
+          errorMessage.textContent =
+            "Member was created but could not be saved in localStorage.";
+        }
+
+        return;
+      }
+      populateWizard();
+
+      console.log("✅ New member saved in localStorage:", newMember);
+
+      if (successMessage) {
+        successMessage.classList.remove("hidden");
+
+        successMessage.innerHTML = `
+          <strong>✓ Member Successfully Provisioned!</strong><br>
+          Account created for <strong>${escapeHtml(name)}</strong>
+          (${escapeHtml(email)}) as
+          <strong>${escapeHtml(finalRole)}</strong>.<br>
+          Department: <strong>${escapeHtml(finalDepartment)}</strong><br>
+          Project code: <code>${escapeHtml(finalProjectCode)}</code><br>
+          <div style="margin-top:10px;">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              id="btn-view-dir-after-add"
+            >
+              Go to Member Directory →
+            </button>
+          </div>
+        `;
+
+        const directoryButton = document.getElementById(
+          "btn-view-dir-after-add"
+        );
+
+        if (directoryButton) {
+          directoryButton.onclick = () => {
+            window.location.href = "./admin.html";
+          };
         }
       }
 
@@ -767,7 +1566,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  /* =========================================================
+     INITIALIZE PAGE
+     ========================================================= */
+
   populateWizard();
   checkAndRevealSections();
-
 });

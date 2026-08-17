@@ -383,10 +383,6 @@
       observer.observe(roleStack);
     }
   }
-
-  // =========================================================================
-  // BOOTSTRAP LANDING
-  // =========================================================================
   document.addEventListener("DOMContentLoaded", () => {
     initLoader();
     renderFeatures();

@@ -1,9 +1,3 @@
-/**
- * TerraHire — Workday Dashboard & Member Portal Logic
- * Handles Profile & Current Status Card, Real-time Clock, Check In/Out,
- * Attendance Summary & Mini Calendar, Task Summary & Interactive Progress Gauge
- */
-
 document.addEventListener("DOMContentLoaded", () => {
   const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
   if (!store) return;
@@ -43,13 +37,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Sign out button
-  const logoutBtn = document.getElementById("btn-emp-logout");
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      window.TerraHireStore.setCurrentUser(null);
-      window.location.href = "./login.html";
-    };
-  }
+const logoutBtn = document.getElementById("btn-emp-logout");
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+
+    // Remove only logged-in user session
+    sessionStorage.removeItem("terrahire_session_user");
+
+    // Optional: remove any old login keys, if they exist
+    sessionStorage.removeItem("currentUser");
+    sessionStorage.removeItem("user");
+
+    console.log("✅ User signed out successfully");
+
+    // Go back to login page
+    window.location.replace("./login.html");
+  });
+}
 
   // Top Nav Items smooth scrolling / active class
   document.querySelectorAll(".workday-nav-item").forEach((item) => {

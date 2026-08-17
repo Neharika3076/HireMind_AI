@@ -1,110 +1,215 @@
 /**
  * TerraHire — Login Portal Logic
- * Handles authentication for Admin and Employee access
+ * Direct localStorage authentication
  */
 
+"use strict";
+
 document.addEventListener("DOMContentLoaded", () => {
+  const STORAGE_KEY = "terrahire_state_v1";
+  const SESSION_KEY = "terrahire_session_user";
+
   const form = document.getElementById("form-login");
   const errEl = document.getElementById("login-error");
   const inputId = document.getElementById("input-identifier");
   const inputPass = document.getElementById("input-password");
 
-  // Quick-fill buttons
+  /* =========================================================
+     LOCAL STORAGE HELPERS
+     ========================================================= */
+
+  function getStore() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+
+      if (!raw) {
+        return null;
+      }
+
+      return JSON.parse(raw);
+    } catch (error) {
+      console.error("Could not read localStorage:", error);
+      return null;
+    }
+  }
+
+  function setCurrentUser(user) {
+    if (user && user.id) {
+      sessionStorage.setItem(SESSION_KEY, user.id);
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }
+
+  function showError(message) {
+    if (errEl) {
+      errEl.textContent = message;
+      errEl.classList.remove("hidden");
+    }
+  }
+
+  function clearError() {
+    if (errEl) {
+      errEl.textContent = "";
+      errEl.classList.add("hidden");
+    }
+  }
+
+  /* =========================================================
+     QUICK LOGIN FILL BUTTONS
+     ========================================================= */
+
   const quickFills = document.querySelectorAll(".btn-quick-fill");
-  quickFills.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idVal = btn.getAttribute("data-id");
-      const passVal = btn.getAttribute("data-pass");
-      if (inputId && idVal) inputId.value = idVal;
-      if (inputPass && passVal) inputPass.value = passVal;
-      if (errEl) errEl.textContent = "";
+
+  quickFills.forEach((button) => {
+    button.addEventListener("click", () => {
+      const identifier = button.getAttribute("data-id");
+      const password = button.getAttribute("data-pass");
+
+      if (inputId && identifier) {
+        inputId.value = identifier;
+      }
+
+      if (inputPass && password) {
+        inputPass.value = password;
+      }
+
+      clearError();
     });
   });
 
-  if (!form) return;
+  if (!form) {
+    return;
+  }
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (errEl) errEl.textContent = "";
+  /* =========================================================
+     LOGIN SUBMIT
+     ========================================================= */
 
-    const identifier = inputId ? inputId.value.trim().toLowerCase() : "";
-    const password = inputPass ? inputPass.value.trim() : "";
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    clearError();
+
+    const identifier = inputId?.value.trim().toLowerCase() || "";
+    const password = inputPass?.value.trim() || "";
 
     if (!identifier) {
-      if (errEl) errEl.textContent = "Please enter your Admin Email or Project Code.";
-      if (inputId) inputId.focus();
+      showError("Please enter your email, full name, or project code.");
+      inputId?.focus();
       return;
     }
 
     if (!password) {
-      if (errEl) errEl.textContent = "Please enter your password.";
-      if (inputPass) inputPass.focus();
+      showError("Please enter your password.");
+      inputPass?.focus();
       return;
     }
 
-    const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
-    if (!store) {
-      if (errEl) errEl.textContent = "Data store error. Please refresh the page.";
+    const store = getStore();
+
+    if (!store || !Array.isArray(store.members)) {
+      showError(
+        "No member data found. Please refresh the page or initialize localStorage."
+      );
       return;
     }
 
-    // 1. Check Admin Login credentials
-    if (
-      identifier === "khushi123@gmail.com" ||
-      identifier === "admin@terrahire.com" ||
-      identifier === "admin"
-    ) {
-      if (password === "Khushi123@" || password === "admin123" || password === "demo123") {
-        const admin = store.members.find((m) => m.roleType === "admin") || store.members[0];
-        admin.email = "khushi123@gmail.com";
-        admin.fullName = "Khushi Admin";
-        window.TerraHireStore.setCurrentUser(admin);
-        window.location.href = "./employee.html";
-        return;
-      } else {
-        if (errEl) errEl.textContent = "Invalid password for Admin. (Khushi123@)";
-        return;
-      }
-    }
+    /* -------------------------------------------------------
+       FIND MEMBER:
+       Login accepted with:
+       - Email
+       - Full name
+       - Project code
+       ------------------------------------------------------- */
 
-    // 2. Match Employee by Project Code or Email or Name
-    let matchedUser = store.members.find((m) => {
+    let matchedMember = store.members.find((member) => {
+      const memberEmail = String(member.email || "").toLowerCase();
+      const memberName = String(member.fullName || "").toLowerCase();
+      const memberProjectCode = String(member.projectCode || "").toLowerCase();
+
       return (
-        (m.projectCode && m.projectCode.toLowerCase() === identifier) ||
-        (m.email && m.email.toLowerCase() === identifier) ||
-        (m.fullName && m.fullName.toLowerCase() === identifier) ||
-        (identifier === "sarah" && m.fullName.toLowerCase().includes("sarah"))
+        memberEmail === identifier ||
+        memberName === identifier ||
+        memberProjectCode === identifier
       );
     });
 
-    if (!matchedUser) {
-      const matchedProj = store.projects.find((p) => p.code.toLowerCase() === identifier);
-      if (matchedProj) {
-        matchedUser = store.members.find(
-          (m) =>
-            m.projectId === matchedProj.id ||
-            (m.projectCode && m.projectCode.toLowerCase() === matchedProj.code.toLowerCase())
-        );
+    /* If the person enters a project code:
+       Find the project, then select its project manager first. */
+
+    if (!matchedMember) {
+      const project = (store.projects || []).find(
+        (item) =>
+          String(item.code || "").toLowerCase() === identifier
+      );
+
+      if (project) {
+        matchedMember =
+          store.members.find(
+            (member) =>
+              member.projectId === project.id &&
+              String(member.fullName || "").toLowerCase() ===
+                String(project.pmName || "").toLowerCase()
+          ) ||
+          store.members.find(
+            (member) =>
+              member.projectId === project.id ||
+              String(member.projectCode || "").toLowerCase() ===
+                String(project.code || "").toLowerCase()
+          );
       }
     }
 
-    if (!matchedUser) {
-      if (errEl) errEl.textContent = "No account found. Use khushi123@gmail.com or project code like BILL-01.";
+    /* -------------------------------------------------------
+       MEMBER NOT FOUND
+       ------------------------------------------------------- */
+
+    if (!matchedMember) {
+      showError(
+        "Account not found. Please enter the correct email, project code, or full name."
+      );
       return;
     }
+
+    /* -------------------------------------------------------
+       PASSWORD CHECK
+       Only that member's own password is accepted.
+       ------------------------------------------------------- */
+
+    const storedPassword = String(matchedMember.password || "");
+
+    if (!storedPassword || password !== storedPassword) {
+      showError("Incorrect email/project code or password. Please try again.");
+      inputPass?.focus();
+      return;
+    }
+
+    /* -------------------------------------------------------
+       ACCOUNT STATUS CHECK
+       ------------------------------------------------------- */
 
     if (
-      password !== "Khushi123@" &&
-      password !== "demo123" &&
-      password !== (matchedUser.password || "emp123")
+      matchedMember.status &&
+      String(matchedMember.status).toLowerCase() !== "active"
     ) {
-      if (errEl) errEl.textContent = "Incorrect password. (Khushi123@)";
+      showError("This account is inactive. Please contact the administrator.");
       return;
     }
 
-    // Set active session user & redirect to home dashboard
-    window.TerraHireStore.setCurrentUser(matchedUser);
+    /* -------------------------------------------------------
+       SUCCESS: Save only user ID in sessionStorage
+       ------------------------------------------------------- */
+
+    setCurrentUser(matchedMember);
+
+    console.log("✅ Login successful:", {
+      id: matchedMember.id,
+      name: matchedMember.fullName,
+      role: matchedMember.roleType,
+      department: matchedMember.department,
+      projectCode: matchedMember.projectCode
+    });
+
     window.location.href = "./employee.html";
   });
 });
-

@@ -40,11 +40,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Sign out handler
   const logoutBtn = document.getElementById("btn-emp-logout");
+
   if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      window.TerraHireStore.setCurrentUser(null);
-      window.location.href = "./login.html";
-    };
+    logoutBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      // Remove only logged-in user session
+      sessionStorage.removeItem("terrahire_session_user");
+
+      // Optional: remove any old login keys, if they exist
+      sessionStorage.removeItem("currentUser");
+      sessionStorage.removeItem("user");
+
+      console.log("✅ User signed out successfully");
+
+      // Go back to login page
+      window.location.replace("./login.html");
+    });
   }
 
   // Tab navigation handling
