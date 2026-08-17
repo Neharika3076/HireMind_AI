@@ -5,13 +5,29 @@
 
 "use strict";
 
+
 document.addEventListener("DOMContentLoaded", () => {
-  const STORAGE_KEY = "terrahire_state_v1";
-  const SESSION_KEY = "terrahire_session_user";
+  const currentUser =
+        window.TerraHireStore.getCurrentUser();
+
+    if (!currentUser) {
+        window.location.href = "./login.html";
+        return;
+    }
+
+    if (currentUser.roleType !== "admin") {
+        window.location.href =
+            window.TerraHireStore.getDashboardForRole(currentUser);
+        return;
+    }
+
+    const STORAGE_KEY = "terrahire_state_v1";
+    const SESSION_KEY = "terrahire_session_user";
 
   /* =========================================================
      LOCAL STORAGE HELPERS
      ========================================================= */
+
 
   function getStore() {
     try {

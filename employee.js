@@ -1,20 +1,44 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
-  if (!store) return;
+  const store = window.TerraHireStore
+        ? window.TerraHireStore.getStore()
+        : null;
 
-  let currentUser = window.TerraHireStore.getCurrentUser();
+    if (!store) {
+        console.error("TerraHireStore not available");
+        return;
+    }
 
-  // If no user logged in, default to Sarah Johnson (usr_sarah) for executive workday preview
-  if (!currentUser) {
-    currentUser = store.members.find((m) => m.id === "usr_sarah") || store.members.find((m) => m.email === "sarah.johnson@acme.in") || store.members[1];
-    window.TerraHireStore.setCurrentUser(currentUser);
-  }
+    const currentUser =
+        window.TerraHireStore.getCurrentUser();
+
+    if (!currentUser) {
+        window.location.href = "./login.html";
+        return;
+    }
+
+    // ==========================================
+    // ROLE-BASED NAVIGATION
+    // ==========================================
+
+    const directoryNav =
+        document.getElementById("nav-directory");
+
+    const addMemberNav =
+        document.getElementById("nav-add-member");
+
+    if (currentUser.roleType !== "admin") {
+        directoryNav?.remove();
+        addMemberNav?.remove();
+    }
 
   // Timer interval reference
   let timerInterval = null;
 
   // Initialize Switch Member Selector if present
   const memberSelect = document.getElementById("select-switch-member");
+  if (memberSelect && currentUser.roleType !== "admin") {
+    memberSelect.closest("div")?.remove();
+}
   if (memberSelect) {
     memberSelect.value = currentUser ? currentUser.id : "usr_sarah";
     memberSelect.onchange = (e) => {
@@ -28,13 +52,37 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  const welcomeName =
+    document.getElementById("welcome-name");
+
+if (welcomeName) {
+    welcomeName.textContent = currentUser.fullName;
+}
+  const teamOverview =
+    document.getElementById("team-overview");
+
+if (
+    currentUser.roleType !== "manager" &&
+    currentUser.roleType !== "team_leader"
+) {
+    teamOverview?.remove();
+}
   // Admin Quick Switch Button
   const btnAdmin = document.getElementById("btn-quick-admin-switch");
-  if (btnAdmin) {
+ if (btnAdmin) {
+
+  if (currentUser.roleType === "admin") {
+
     btnAdmin.onclick = () => {
       window.location.href = "./admin.html";
     };
+
+  } else {
+
+    btnAdmin.remove();
+
   }
+}
 
   // Sign out button
 const logoutBtn = document.getElementById("btn-emp-logout");

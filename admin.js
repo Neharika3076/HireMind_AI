@@ -10,12 +10,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const currentUser = window.TerraHireStore.getCurrentUser();
 
   // Ensure an active admin session, or auto-assign default Admin for preview
-  if (!currentUser || currentUser.roleType !== "admin") {
-    const admin = store.members.find((m) => m.roleType === "admin") || store.members[0];
-    admin.email = "khushi123@gmail.com";
-    admin.fullName = "Khushi Admin";
-    window.TerraHireStore.setCurrentUser(admin);
-  }
+ if (!currentUser) {
+  window.location.href = "./login.html";
+  return;
+}
+
+if (currentUser.roleType !== "admin") {
+  window.location.href =
+    window.TerraHireStore.getDashboardForRole(currentUser);
+  return;
+}
 
   // Update sidebar admin label
   const sbName = document.getElementById("sidebar-user-name");

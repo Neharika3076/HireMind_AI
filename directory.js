@@ -7,16 +7,40 @@
  * Level 4: Employee / Manager Detail (Basic Profile + Attendance Summary + Work / Task Summary + Project Contribution)
  */
 
-document.addEventListener("DOMContentLoaded", () => {
-  const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
-  if (!store) return;
 
-  // Active Session User & Sidebar Info
-  let currentUser = window.TerraHireStore.getCurrentUser();
-  if (!currentUser) {
-    currentUser = store.members.find((m) => m.roleType === "admin") || store.members[0];
-    window.TerraHireStore.setCurrentUser(currentUser);
+"use strict";
+document.addEventListener("DOMContentLoaded", () => {
+  
+    const currentUser =
+        window.TerraHireStore.getCurrentUser();
+
+    if (!currentUser) {
+        window.location.href = "./login.html";
+        return;
+    }
+
+    if (currentUser.roleType !== "admin") {
+        window.location.href =
+            window.TerraHireStore.getDashboardForRole(currentUser);
+        return;
+    }
+
+    const store =
+        window.TerraHireStore.getStore();
+
+    if (!store) {
+        return;
+    }
+
+
+  const directoryNav = document.getElementById("nav-directory");
+  const addMemberNav = document.getElementById("nav-add-member");
+
+  if (currentUser.roleType !== "admin") {
+    directoryNav?.remove();
+    addMemberNav?.remove();
   }
+
 
   // Populate Sidebar active user
   const sbAvatar = document.getElementById("sidebar-user-avatar");
@@ -704,13 +728,12 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
 
       <div class="dir-projects-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:20px;">
-        ${
-          projects.length === 0
-            ? `<div style="grid-column:1/-1; padding:32px; text-align:center; background:var(--navy-900); border:1px dashed var(--line); border-radius:12px; color:var(--mist);">No projects assigned to this department yet.</div>`
-            : projects
-                .map((projDetail) => {
-                  const { project, organization, team, totalTasks: pTotal, completedTasks: pDone, pendingTasks: pPending, overdueTasks: pOverdue, completionRate: pRate } = projDetail;
-                  return `
+        ${projects.length === 0
+        ? `<div style="grid-column:1/-1; padding:32px; text-align:center; background:var(--navy-900); border:1px dashed var(--line); border-radius:12px; color:var(--mist);">No projects assigned to this department yet.</div>`
+        : projects
+          .map((projDetail) => {
+            const { project, organization, team, totalTasks: pTotal, completedTasks: pDone, pendingTasks: pPending, overdueTasks: pOverdue, completionRate: pRate } = projDetail;
+            return `
             <div class="card-workday-detailed card-project-item" data-proj-id="${project.id}" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s ease, border-color 0.2s ease;">
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
@@ -779,9 +802,9 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
             </div>
           `;
-                })
-                .join("")
-        }
+          })
+          .join("")
+      }
       </div>
     `;
 
@@ -868,9 +891,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         <div class="dir-team-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:18px;">
           ${team
-            .map((mem) => {
-              const isPm = mem.fullName.toLowerCase() === (project.pmName || "").toLowerCase() || mem.roleCategory === "Team Manager";
-              return `
+        .map((mem) => {
+          const isPm = mem.fullName.toLowerCase() === (project.pmName || "").toLowerCase() || mem.roleCategory === "Team Manager";
+          return `
             <div class="card-workday-detailed card-team-member" data-mem-id="${mem.id}" style="cursor:pointer; display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s ease, border-color 0.2s ease; ${isPm ? "border-color:rgba(45,212,191,0.5); background:rgba(45,212,191,0.04);" : ""}">
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
@@ -931,8 +954,8 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
             </div>
           `;
-            })
-            .join("")}
+        })
+        .join("")}
         </div>
       </div>
 
@@ -952,13 +975,12 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div class="task-list" style="display:flex; flex-direction:column; gap:10px;">
-          ${
-            tasks.length === 0
-              ? `<div style="padding:20px; text-align:center; color:var(--mist); font-size:13px;">No tasks logged for this project yet.</div>`
-              : tasks
-                  .map((t) => {
-                    const assignee = team.find((m) => m.id === t.memberId) || { fullName: "Team Member" };
-                    return `
+          ${tasks.length === 0
+        ? `<div style="padding:20px; text-align:center; color:var(--mist); font-size:13px;">No tasks logged for this project yet.</div>`
+        : tasks
+          .map((t) => {
+            const assignee = team.find((m) => m.id === t.memberId) || { fullName: "Team Member" };
+            return `
               <div class="task-row" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:8px; gap:12px; flex-wrap:wrap;">
                 <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:240px;">
                   <input type="checkbox" class="task-toggle-check" data-task-id="${t.id}" ${t.completed ? "checked" : ""} style="width:17px; height:17px; cursor:pointer; accent-color:var(--teal-400);">
@@ -983,9 +1005,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
               </div>
             `;
-                  })
-                  .join("")
-          }
+          })
+          .join("")
+      }
         </div>
       </div>
     `;
@@ -1184,13 +1206,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         <!-- Tasks List -->
         <div class="task-list" style="display:flex; flex-direction:column; gap:10px;">
-          ${
-            tasks.length === 0
-              ? `<div style="padding:20px; text-align:center; color:var(--mist); font-size:13px;">No individual tasks assigned to this member.</div>`
-              : tasks
-                  .map((t) => {
-                    const proj = (projects || []).find((p) => p.id === t.projectId) || { name: member.department, code: member.projectCode || "PRJ" };
-                    return `
+          ${tasks.length === 0
+        ? `<div style="padding:20px; text-align:center; color:var(--mist); font-size:13px;">No individual tasks assigned to this member.</div>`
+        : tasks
+          .map((t) => {
+            const proj = (projects || []).find((p) => p.id === t.projectId) || { name: member.department, code: member.projectCode || "PRJ" };
+            return `
               <div class="task-row" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:8px; gap:12px; flex-wrap:wrap;">
                 <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:240px;">
                   <input type="checkbox" class="emp-task-toggle-check" data-task-id="${t.id}" ${t.completed ? "checked" : ""} style="width:17px; height:17px; cursor:pointer; accent-color:var(--teal-400);">
@@ -1215,9 +1236,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
               </div>
             `;
-                  })
-                  .join("")
-          }
+          })
+          .join("")
+      }
         </div>
       </div>
 
@@ -1229,12 +1250,11 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div style="display:flex; flex-direction:column; gap:12px;">
-          ${
-            projectContributions.length === 0
-              ? `<div style="color:var(--mist); font-size:13px;">No project contributions recorded.</div>`
-              : projectContributions
-                  .map((pc) => {
-                    return `
+          ${projectContributions.length === 0
+        ? `<div style="color:var(--mist); font-size:13px;">No project contributions recorded.</div>`
+        : projectContributions
+          .map((pc) => {
+            return `
               <div style="padding:14px 18px; background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div style="min-width:200px;">
                   <div style="display:flex; align-items:center; gap:8px;">
@@ -1258,9 +1278,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
               </div>
             `;
-                  })
-                  .join("")
-          }
+          })
+          .join("")
+      }
         </div>
       </div>
     `;

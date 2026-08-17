@@ -3,39 +3,113 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
-  if (!store) return;
+ const store = window.TerraHireStore
+    ? window.TerraHireStore.getStore()
+    : null;
 
-  let currentUser = window.TerraHireStore.getCurrentUser();
+  if (!store) {
+    console.error("TerraHireStore not available.");
+    return;
+  }
+  
+  // ==========================================
+  // AUTHENTICATION
+  // ==========================================
+
+  
+  const currentUser =
+    window.TerraHireStore.getCurrentUser();
+
   if (!currentUser) {
-    currentUser = store.members.find((m) => m.id === "usr_sarah") || store.members[1];
-    window.TerraHireStore.setCurrentUser(currentUser);
+    window.location.href = "./login.html";
+    return;
   }
 
-  // Active User Chip
-  const sbAvatar = document.getElementById("sidebar-user-avatar");
-  const sbName = document.getElementById("sidebar-user-name");
-  const sbRole = document.getElementById("sidebar-user-role");
-  if (sbAvatar) sbAvatar.textContent = currentUser.fullName.charAt(0);
-  if (sbName) sbName.textContent = currentUser.fullName;
-  if (sbRole) sbRole.textContent = currentUser.designation || "Member";
+  // ==========================================
+  // ROLE-BASED NAVIGATION
+  // ==========================================
 
-  // Switch Member Selector
-  const memberSelect = document.getElementById("select-switch-member");
-  if (memberSelect) {
+  const directoryNav =
+    document.getElementById("nav-item-team");
+
+  const addMemberNav =
+    document.getElementById("nav-item-add");
+
+  const adminButton =
+    document.getElementById("btn-quick-admin-switch");
+
+  const memberSwitcher =
+    document.getElementById("select-switch-member");
+
+  if (currentUser.roleType !== "admin") {
+
+    directoryNav?.closest("li")?.remove();
+
+    addMemberNav?.closest("li")?.remove();
+
+    adminButton?.remove();
+
+    memberSwitcher?.closest("div")?.remove();
+  }
+
+  // ==========================================
+  // ACTIVE USER CHIP
+  // ==========================================
+
+ const sbAvatar =
+    document.getElementById("sidebar-user-avatar");
+
+  const sbName =
+    document.getElementById("sidebar-user-name");
+
+  const sbRole =
+    document.getElementById("sidebar-user-role");
+
+  if (sbAvatar) {
+    sbAvatar.textContent =
+      currentUser.fullName.charAt(0).toUpperCase();
+  }
+
+  if (sbName) {
+    sbName.textContent = currentUser.fullName;
+  }
+
+  if (sbRole) {
+    sbRole.textContent =
+      currentUser.designation || "Member";
+  }
+  // ==========================================
+  // PREVIEW SWITCHER
+  // ADMIN ONLY
+  // ==========================================
+
+  const memberSelect =
+    document.getElementById("select-switch-member");
+
+  if (memberSelect && currentUser.roleType === "admin") {
+
     memberSelect.value = currentUser.id;
+
     memberSelect.onchange = (e) => {
-      const s = window.TerraHireStore.getStore();
-      const target = s.members.find((m) => m.id === e.target.value);
+
+      const s =
+        window.TerraHireStore.getStore();
+
+      const target =
+        s.members.find(
+          (m) => m.id === e.target.value
+        );
+
       if (target) {
         window.TerraHireStore.setCurrentUser(target);
         window.location.reload();
       }
     };
   }
-
   // Logout
-  const logoutBtn = document.getElementById("btn-emp-logout");
+ const logoutBtn =
+    document.getElementById("btn-emp-logout");
+
   if (logoutBtn) {
     logoutBtn.onclick = () => {
       window.TerraHireStore.setCurrentUser(null);
@@ -44,8 +118,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Admin Switch
-  const btnAdmin = document.getElementById("btn-quick-admin-switch");
-  if (btnAdmin) {
+   const btnAdmin =
+    document.getElementById("btn-quick-admin-switch");
+
+  if (btnAdmin && currentUser.roleType === "admin") {
     btnAdmin.onclick = () => {
       window.location.href = "./admin.html";
     };
@@ -197,15 +273,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const assigneeSelect = document.getElementById("task-full-assignee");
 
   if (assigneeSelect) {
-    assigneeSelect.innerHTML = "";
+  assigneeSelect.innerHTML = "";
+
+  if (currentUser.roleType === "admin") {
+
     store.members.forEach((m) => {
       const opt = document.createElement("option");
+
       opt.value = m.id;
-      opt.textContent = `${m.fullName} (${m.designation || "Member"})`;
-      if (m.id === currentUser.id) opt.selected = true;
+      opt.textContent =
+        `${m.fullName} (${m.designation || "Member"})`;
+
+      if (m.id === currentUser.id) {
+        opt.selected = true;
+      }
+
       assigneeSelect.appendChild(opt);
     });
+
+  } else {
+
+    const opt = document.createElement("option");
+
+    opt.value = currentUser.id;
+    opt.textContent =
+      `${currentUser.fullName} (${currentUser.designation || "Member"})`;
+
+    opt.selected = true;
+
+    assigneeSelect.appendChild(opt);
   }
+}
 
   if (btnOpen && modal) btnOpen.onclick = () => modal.classList.remove("hidden");
   if (btnClose && modal) btnClose.onclick = () => modal.classList.add("hidden");

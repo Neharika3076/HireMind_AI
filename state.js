@@ -86,6 +86,7 @@ const DEFAULT_STATE = {
       name: "Billing System Revamp",
       pmName: "Kavita Rao",
       pmEmail: "kavita.rao@acme.in",
+      demoEmployeeId: "usr_sarah",
       status: "In Progress",
       startDate: "2026-01-10",
       endDate: "2026-09-30",
@@ -179,7 +180,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "usr_kavita",
-      roleType: "employee",
+      roleType: "manager",
       roleCategory: "Team Manager",
       fullName: "Kavita Rao",
       email: "kavita.rao@acme.in",
@@ -241,7 +242,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "usr_ritu",
-      roleType: "employee",
+      roleType: "team_leader",
       roleCategory: "Team Leader",
       fullName: "Ritu Sharma",
       email: "ritu.sharma@acme.in",
@@ -303,7 +304,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "usr_amara",
-      roleType: "employee",
+      roleType: "manager",
       roleCategory: "Team Manager",
       fullName: "Amara Okafor",
       email: "amara.okafor@vertexlabs.io",
@@ -334,7 +335,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "usr_aris",
-      roleType: "employee",
+      roleType: "team_leader",
       roleCategory: "Team Leader",
       fullName: "Dr. Aris Thorne",
       email: "aris.thorne@gammahealth.org",
@@ -672,6 +673,8 @@ try {
   console.error("❌ Error while saving data in localStorage:", error);
 }
 
+
+
 /* =========================================================
    OPTIONAL HELPER FUNCTIONS
    You may use these from any page.
@@ -702,3 +705,73 @@ function resetAppData() {
 window.getAppData = getAppData;
 window.saveAppData = saveAppData;
 window.resetAppData = resetAppData;
+
+/* =========================================================
+   TerraHireStore
+   ========================================================= */
+
+const SESSION_KEY = "terrahire_session_user";
+
+window.TerraHireStore = {
+  getDashboardForRole(user) {
+
+  if (!user) {
+    return "./login.html";
+  }
+
+  switch (user.roleType) {
+
+    case "admin":
+      return "./admin.html";
+
+    case "department_head":
+      return "./directory.html";
+
+    case "manager":
+      return "./employee.html";
+
+    case "team_leader":
+      return "./employee.html";
+
+    case "employee":
+      return "./employee.html";
+
+    default:
+      return "./employee.html";
+  }
+},
+
+  getStore() {
+    return getAppData();
+  },
+
+  setStore(data) {
+    saveAppData(data);
+  },
+
+  getCurrentUser() {
+    const userId = sessionStorage.getItem(SESSION_KEY);
+
+    if (!userId) {
+      return null;
+    }
+
+    const store = getAppData();
+
+    if (!store || !Array.isArray(store.members)) {
+      return null;
+    }
+
+    return store.members.find(member => member.id === userId) || null;
+  },
+
+  setCurrentUser(user) {
+    if (user && user.id) {
+      sessionStorage.setItem(SESSION_KEY, user.id);
+    } else {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }
+
+  
+};

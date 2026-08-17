@@ -125,12 +125,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let matchedMember = store.members.find((member) => {
       const memberEmail = String(member.email || "").toLowerCase();
       const memberName = String(member.fullName || "").toLowerCase();
-      const memberProjectCode = String(member.projectCode || "").toLowerCase();
 
       return (
         memberEmail === identifier ||
-        memberName === identifier ||
-        memberProjectCode === identifier
+        memberName === identifier
       );
     });
 
@@ -138,25 +136,35 @@ document.addEventListener("DOMContentLoaded", () => {
        Find the project, then select its project manager first. */
 
     if (!matchedMember) {
+
       const project = (store.projects || []).find(
         (item) =>
           String(item.code || "").toLowerCase() === identifier
       );
 
       if (project) {
-        matchedMember =
-          store.members.find(
+
+        // For demo login, use the employee assigned
+        // to this project's demoEmployeeId.
+        if (project.demoEmployeeId) {
+
+          matchedMember = store.members.find(
+            (member) =>
+              member.id === project.demoEmployeeId
+          );
+
+        }
+
+        // Fallback: use the project manager
+        if (!matchedMember) {
+
+          matchedMember = store.members.find(
             (member) =>
               member.projectId === project.id &&
               String(member.fullName || "").toLowerCase() ===
-                String(project.pmName || "").toLowerCase()
-          ) ||
-          store.members.find(
-            (member) =>
-              member.projectId === project.id ||
-              String(member.projectCode || "").toLowerCase() ===
-                String(project.code || "").toLowerCase()
+              String(project.pmName || "").toLowerCase()
           );
+        }
       }
     }
 
@@ -209,7 +217,10 @@ document.addEventListener("DOMContentLoaded", () => {
       department: matchedMember.department,
       projectCode: matchedMember.projectCode
     });
+    const dashboard =
+      window.TerraHireStore.getDashboardForRole(matchedMember);
 
-    window.location.href = "./employee.html";
+    window.location.href = dashboard;
+
   });
 });

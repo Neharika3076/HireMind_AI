@@ -3,30 +3,103 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  const store = window.TerraHireStore ? window.TerraHireStore.getStore() : null;
-  if (!store) return;
+  
+  const store = window.TerraHireStore
+    ? window.TerraHireStore.getStore()
+    : null;
 
-  let currentUser = window.TerraHireStore.getCurrentUser();
-  if (!currentUser) {
-    currentUser = store.members.find((m) => m.id === "usr_sarah") || store.members[1];
-    window.TerraHireStore.setCurrentUser(currentUser);
+  if (!store) {
+    console.error("TerraHireStore not available.");
+    return;
   }
 
-  // Active User Chip
-  const sbAvatar = document.getElementById("sidebar-user-avatar");
-  const sbName = document.getElementById("sidebar-user-name");
-  const sbRole = document.getElementById("sidebar-user-role");
-  if (sbAvatar) sbAvatar.textContent = currentUser.fullName.charAt(0);
-  if (sbName) sbName.textContent = currentUser.fullName;
-  if (sbRole) sbRole.textContent = currentUser.designation || "Member";
+  // ==========================================
+  // AUTHENTICATION
+  // ==========================================
 
-  // Switch Member Selector
-  const memberSelect = document.getElementById("select-switch-member");
-  if (memberSelect) {
+  const currentUser =
+    window.TerraHireStore.getCurrentUser();
+
+  if (!currentUser) {
+    window.location.href = "./login.html";
+    return;
+  }
+
+  // ==========================================
+  // ROLE-BASED NAVIGATION
+  // ==========================================
+
+  const directoryNav =
+    document.getElementById("nav-item-team");
+
+  const addMemberNav =
+    document.getElementById("nav-item-add");
+
+  const adminButton =
+    document.getElementById("btn-quick-admin-switch");
+
+  const memberSwitcher =
+    document.getElementById("select-switch-member");
+
+  if (currentUser.roleType !== "admin") {
+
+    directoryNav?.closest("li")?.remove();
+
+    addMemberNav?.closest("li")?.remove();
+
+    adminButton?.remove();
+
+    memberSwitcher?.closest("div")?.remove();
+  }
+
+  // ==========================================
+  // ACTIVE USER CHIP
+  // ==========================================
+
+  const sbAvatar =
+    document.getElementById("sidebar-user-avatar");
+
+  const sbName =
+    document.getElementById("sidebar-user-name");
+
+  const sbRole =
+    document.getElementById("sidebar-user-role");
+
+  if (sbAvatar) {
+    sbAvatar.textContent =
+      currentUser.fullName.charAt(0).toUpperCase();
+  }
+
+  if (sbName) {
+    sbName.textContent = currentUser.fullName;
+  }
+
+  if (sbRole) {
+    sbRole.textContent =
+      currentUser.designation || "Member";
+  }
+
+  // ==========================================
+  // PREVIEW SWITCHER — ADMIN ONLY
+  // ==========================================
+
+  const memberSelect =
+    document.getElementById("select-switch-member");
+
+  if (memberSelect && currentUser.roleType === "admin") {
+
     memberSelect.value = currentUser.id;
+
     memberSelect.onchange = (e) => {
-      const s = window.TerraHireStore.getStore();
-      const target = s.members.find((m) => m.id === e.target.value);
+
+      const s =
+        window.TerraHireStore.getStore();
+
+      const target =
+        s.members.find(
+          (m) => m.id === e.target.value
+        );
+
       if (target) {
         window.TerraHireStore.setCurrentUser(target);
         window.location.reload();
@@ -34,8 +107,13 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // Logout
-  const logoutBtn = document.getElementById("btn-emp-logout");
+  // ==========================================
+  // LOGOUT
+  // ==========================================
+
+  const logoutBtn =
+    document.getElementById("btn-emp-logout");
+
   if (logoutBtn) {
     logoutBtn.onclick = () => {
       window.TerraHireStore.setCurrentUser(null);
@@ -43,9 +121,14 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  // Admin Switch
-  const btnAdmin = document.getElementById("btn-quick-admin-switch");
-  if (btnAdmin) {
+  // ==========================================
+  // ADMIN CONSOLE
+  // ==========================================
+
+  const btnAdmin =
+    document.getElementById("btn-quick-admin-switch");
+
+  if (btnAdmin && currentUser.roleType === "admin") {
     btnAdmin.onclick = () => {
       window.location.href = "./admin.html";
     };
