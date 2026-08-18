@@ -112,13 +112,14 @@ if (currentUser.roleType !== "admin") {
   // Metrics update
   function updateMetrics() {
     const s = window.TerraHireStore.getStore();
+    const activeOrgId = currentUser.orgId;
     const statOrgs = document.getElementById("stat-total-orgs");
     const statProj = document.getElementById("stat-total-projects");
     const statMem = document.getElementById("stat-total-members");
 
-    if (statOrgs) statOrgs.textContent = s.organizations.length;
-    if (statProj) statProj.textContent = s.projects.length;
-    if (statMem) statMem.textContent = s.members.length;
+    if (statOrgs) statOrgs.textContent = 1;
+    if (statProj) statProj.textContent = s.projects.filter((project) => project.orgId === activeOrgId).length;
+    if (statMem) statMem.textContent = s.members.filter((member) => member.orgId === activeOrgId && member.roleType !== "admin").length;
   }
 
   // Directory rendering
@@ -128,7 +129,7 @@ if (currentUser.roleType !== "admin") {
     if (!tbody) return;
     tbody.innerHTML = "";
 
-    s.members.forEach((m) => {
+    s.members.filter((m) => m.orgId === currentUser.orgId).forEach((m) => {
       const org = s.organizations.find((o) => o.id === m.orgId);
       const proj = s.projects.find((p) => p.id === m.projectId);
 
@@ -177,4 +178,5 @@ if (currentUser.roleType !== "admin") {
     });
   }
 
+  updateMetrics();
 });

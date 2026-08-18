@@ -15,18 +15,16 @@ document.addEventListener("DOMContentLoaded", () => {
         window.TerraHireStore.getCurrentUser();
 
     if (!currentUser) {
-        window.location.href = "./login.html";
+        window.location.replace("./login.html");
         return;
     }
 
-    if (currentUser.roleType !== "admin") {
-        window.location.href =
-            window.TerraHireStore.getDashboardForRole(currentUser);
-        return;
-    }
-
-    const store =
-        window.TerraHireStore.getStore();
+    const allStore = window.TerraHireStore.getStore();
+    const store = {
+      ...allStore,
+      members: (allStore.members || []).filter((member) => member.orgId === currentUser.orgId),
+      projects: (allStore.projects || []).filter((project) => project.orgId === currentUser.orgId)
+    };
 
     if (!store) {
         return;
@@ -36,10 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const directoryNav = document.getElementById("nav-directory");
   const addMemberNav = document.getElementById("nav-add-member");
 
-  if (currentUser.roleType !== "admin") {
-    directoryNav?.remove();
-    addMemberNav?.remove();
-  }
+  if (currentUser.roleType !== "admin") addMemberNav?.remove();
 
 
   // Populate Sidebar active user
