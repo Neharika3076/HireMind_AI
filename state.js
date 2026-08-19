@@ -715,31 +715,31 @@ const SESSION_KEY = "terrahire_session_user";
 window.TerraHireStore = {
   getDashboardForRole(user) {
 
-  if (!user) {
-    return "./login.html";
-  }
+    if (!user) {
+      return "./login.html";
+    }
 
-  switch (user.roleType) {
+    switch (user.roleType) {
 
-    case "admin":
-      return "./admin.html";
+      case "admin":
+        return "./admin.html";
 
-    case "department_head":
-      return "./directory.html";
+      case "department_head":
+        return "./directory.html";
 
-    case "manager":
-      return "./employee.html";
+      case "manager":
+        return "./employee.html";
 
-    case "team_leader":
-      return "./employee.html";
+      case "team_leader":
+        return "./employee.html";
 
-    case "employee":
-      return "./employee.html";
+      case "employee":
+        return "./employee.html";
 
-    default:
-      return "./employee.html";
-  }
-},
+      default:
+        return "./employee.html";
+    }
+  },
 
   getStore() {
     return getAppData();
@@ -771,7 +771,100 @@ window.TerraHireStore = {
     } else {
       sessionStorage.removeItem(SESSION_KEY);
     }
+  },
+  // ==========================================
+  // ADD TASK
+  // ==========================================
+
+  addTask(memberId, taskData) {
+
+    const data = getAppData();
+
+    if (!Array.isArray(data.tasks)) {
+      data.tasks = [];
+    }
+
+    const newTask = {
+
+      id:
+        "task_" +
+        Date.now() +
+        "_" +
+        Math.random()
+          .toString(36)
+          .substring(2, 8),
+
+      memberId: memberId,
+
+      projectId:
+        taskData.projectId || null,
+
+      title:
+        taskData.title || "Untitled Task",
+
+      priority:
+        taskData.priority || "Medium",
+
+      completed: false,
+
+      status: "To Do",
+
+      overdue: false,
+
+      dueDate:
+        taskData.dueDate || "",
+
+      category:
+        taskData.category || "General"
+    };
+
+    data.tasks.push(newTask);
+
+    saveAppData(data);
+
+    console.log(
+      "✅ Task added:",
+      newTask
+    );
+
+    return newTask;
+  },
+
+
+  // ==========================================
+  // TOGGLE TASK
+  // ==========================================
+
+  toggleTask(taskId) {
+
+    const data = getAppData();
+
+    if (!Array.isArray(data.tasks)) {
+      return;
+    }
+
+    const task =
+      data.tasks.find(
+        t => t.id === taskId
+      );
+
+    if (!task) {
+      return;
+    }
+
+    task.completed =
+      !task.completed;
+
+    task.status =
+      task.completed
+        ? "Done"
+        : "To Do";
+
+    saveAppData(data);
+
+    return task;
   }
 
-  
+
+
 };

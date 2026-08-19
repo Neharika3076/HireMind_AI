@@ -3,7 +3,7 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
- const store = window.TerraHireStore
+  const store = window.TerraHireStore
     ? window.TerraHireStore.getStore()
     : null;
 
@@ -11,12 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("TerraHireStore not available.");
     return;
   }
-  
+
   // ==========================================
   // AUTHENTICATION
   // ==========================================
 
-  
+
   const currentUser =
     window.TerraHireStore.getCurrentUser();
 
@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ACTIVE USER CHIP
   // ==========================================
 
- const sbAvatar =
+  const sbAvatar =
     document.getElementById("sidebar-user-avatar");
 
   const sbName =
@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
   // Logout
- const logoutBtn =
+  const logoutBtn =
     document.getElementById("btn-emp-logout");
 
   if (logoutBtn) {
@@ -118,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Admin Switch
-   const btnAdmin =
+  const btnAdmin =
     document.getElementById("btn-quick-admin-switch");
 
   if (btnAdmin && currentUser.roleType === "admin") {
@@ -130,13 +130,50 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentFilter = "ALL";
   let searchQuery = "";
 
+  // ==========================================
+  // TASK ASSIGNMENT PERMISSIONS
+  // ==========================================
+
+  const assignmentRules = {
+    admin: ["department_head", "manager"],
+    department_head: ["manager", "team_leader", "employee"],
+    manager: ["team_leader", "employee"],
+    team_leader: ["employee"],
+    employee: []
+  };
+
+  function canAssignTo(targetUser) {
+    if (!targetUser) return false;
+
+    // Nobody can assign a task to themselves
+    if (targetUser.id === currentUser.id) {
+      return false;
+    }
+
+    const allowedRoles =
+      assignmentRules[currentUser.roleType] || [];
+
+    return allowedRoles.includes(targetUser.roleType);
+  }
+
+
   function renderProjects() {
     const s = window.TerraHireStore.getStore();
     const container = document.getElementById("projects-container");
     if (!container) return;
     container.innerHTML = "";
 
-    s.projects.forEach((proj) => {
+    let projects = s.projects;
+
+    // Employee can see only their own project
+    if (currentUser.roleType !== "admin") {
+      projects = projects.filter(
+        (proj) => proj.id === currentUser.projectId
+      );
+    }
+
+
+    projects.forEach((proj) => {
       const org = s.organizations.find((o) => o.id === proj.orgId) || { code: "ACME" };
       const teamCount = s.members.filter((m) => m.projectId === proj.id || m.projectCode === proj.code).length;
 
@@ -164,7 +201,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderTasks() {
     const s = window.TerraHireStore.getStore();
     const cur = currentUser;
-    const allTasks = s.tasks || [];
+    let allTasks = s.tasks || [];
+    if (currentUser.roleType !== "admin") {
+      allTasks = allTasks.filter(
+        (task) =>
+          task.memberId === currentUser.id &&
+          task.projectId === currentUser.projectId
+      );
+    }
 
     const countAll = document.getElementById("count-all");
     const countPending = document.getElementById("count-pending");
@@ -227,7 +271,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const chk = tr.querySelector(".task-checkbox");
       if (chk) {
         chk.onchange = () => {
+          if (
+            currentUser.roleType !== "admin" &&
+            task.memberId !== currentUser.id
+          ) {
+            return;
+          }
+
           window.TerraHireStore.toggleTask(task.id);
+
           renderTasks();
         };
       }
@@ -235,9 +287,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const del = tr.querySelector(".btn-del-task");
       if (del) {
         del.onclick = () => {
+
           const fresh = window.TerraHireStore.getStore();
-          fresh.tasks = fresh.tasks.filter((t) => t.id !== task.id);
+
+          // Employee can delete only their own task
+          if (
+            currentUser.roleType !== "admin" &&
+            task.memberId !== currentUser.id
+          ) {
+            return;
+          }
+
+          fresh.tasks = fresh.tasks.filter(
+            (t) => t.id !== task.id
+          );
+
           window.TerraHireStore.setStore(fresh);
+
           renderTasks();
         };
       }
@@ -272,40 +338,75 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("form-create-full-task");
   const assigneeSelect = document.getElementById("task-full-assignee");
 
+  // Employees cannot assign tasks
+  if (
+    btnOpen &&
+    currentUser.roleType === "employee"
+  ) {
+    btnOpen.style.display = "none";
+  }
+
+  // ==========================================
+  // ASSIGNEE DROPDOWN
+  // ==========================================
+
   if (assigneeSelect) {
-  assigneeSelect.innerHTML = "";
+    assigneeSelect.innerHTML = "";
 
-  if (currentUser.roleType === "admin") {
-
-    store.members.forEach((m) => {
-      const opt = document.createElement("option");
-
-      opt.value = m.id;
-      opt.textContent =
-        `${m.fullName} (${m.designation || "Member"})`;
-
-      if (m.id === currentUser.id) {
-        opt.selected = true;
-      }
-
-      assigneeSelect.appendChild(opt);
+    const allowedMembers = store.members.filter((member) => {
+      return canAssignTo(member);
     });
 
-  } else {
+    if (allowedMembers.length === 0) {
 
-    const opt = document.createElement("option");
+      const opt = document.createElement("option");
 
-    opt.value = currentUser.id;
-    opt.textContent =
-      `${currentUser.fullName} (${currentUser.designation || "Member"})`;
+      opt.value = "";
+      opt.textContent = "No eligible assignees";
 
-    opt.selected = true;
+      opt.disabled = true;
+      opt.selected = true;
 
-    assigneeSelect.appendChild(opt);
+      assigneeSelect.appendChild(opt);
+
+    } else {
+
+      // Placeholder
+      const placeholder = document.createElement("option");
+
+      placeholder.value = "";
+      placeholder.textContent = "Select employee to assign";
+      placeholder.disabled = true;
+      placeholder.selected = true;
+
+      assigneeSelect.appendChild(placeholder);
+
+      // Add only allowed people
+      allowedMembers.forEach((member) => {
+
+        const opt = document.createElement("option");
+
+        opt.value = member.id;
+
+        opt.textContent =
+          `${member.fullName} (${member.roleCategory || member.designation || "Member"})`;
+
+        assigneeSelect.appendChild(opt);
+      });
+    }
   }
-}
 
-  if (btnOpen && modal) btnOpen.onclick = () => modal.classList.remove("hidden");
+if (btnOpen && modal) {
+
+  btnOpen.onclick = () => {
+
+    if (currentUser.roleType === "employee") {
+      return;
+    }
+
+    modal.classList.remove("hidden");
+  };
+}
   if (btnClose && modal) btnClose.onclick = () => modal.classList.add("hidden");
 
   if (form) {
@@ -315,20 +416,64 @@ document.addEventListener("DOMContentLoaded", () => {
       const priority = document.getElementById("task-full-priority")?.value;
       const category = document.getElementById("task-full-category")?.value.trim();
       const due = document.getElementById("task-full-due")?.value;
-      const targetMemberId = assigneeSelect ? assigneeSelect.value : currentUser.id;
+      const targetMemberId =
+        assigneeSelect ? assigneeSelect.value : "";
 
-      if (title) {
-        window.TerraHireStore.addTask(targetMemberId, {
-          title: title,
-          priority: priority || "High",
-          category: category || "Design",
-          dueDate: due || "2026-08-22",
-        });
-
-        form.reset();
-        if (modal) modal.classList.add("hidden");
-        renderTasks();
+      if (!title) {
+        return;
       }
+
+      // Employee cannot create/assign tasks
+      if (currentUser.roleType === "employee") {
+        alert("Employees are not allowed to assign tasks.");
+        return;
+      }
+
+      // Find selected employee
+      const targetMember = store.members.find(
+        (member) => member.id === targetMemberId
+      );
+
+      // Validate target
+      if (!targetMember) {
+        alert("Please select a valid assignee.");
+        return;
+      }
+
+      // Check role permission + prevent self assignment
+      if (!canAssignTo(targetMember)) {
+        alert(
+          "You are not allowed to assign a task to this person."
+        );
+        return;
+      }
+
+      // For non-admin roles, keep task inside their project
+      if (
+        currentUser.roleType !== "admin" &&
+        targetMember.projectId !== currentUser.projectId
+      ) {
+        alert(
+          "You can only assign tasks to members of your project."
+        );
+        return;
+      }
+
+      window.TerraHireStore.addTask(targetMember.id, {
+        title: title,
+        priority: priority || "High",
+        category: category || "Design",
+        dueDate: due || "2026-08-22",
+        projectId: currentUser.projectId
+      });
+
+      form.reset();
+
+      if (modal) {
+        modal.classList.add("hidden");
+      }
+
+      renderTasks();
     };
   }
 
