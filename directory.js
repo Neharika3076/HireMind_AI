@@ -19,7 +19,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    const allStore = window.TerraHireStore.getStore();
+    // Keep the directory focused on the actual organization hierarchy.
+    // The old demo-only switcher and filter ribbon were not part of the
+    // directory workflow and also obscured the clickable department cards.
+    document.getElementById("demo-member-switcher")?.remove();
+    document.getElementById("directory-filter-ribbon")?.remove();
+
+    const allStore = window.TerraHireStore.getScopedDirectoryData();
     const store = {
       ...allStore,
       members: (allStore.members || []).filter((member) => member.orgId === currentUser.orgId),
@@ -139,6 +145,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Router / Level Switcher
   function navigateTo(level, payload = {}) {
     state.level = level;
+
+    // Clear deeper selections when moving back up the hierarchy so the URL
+    // and breadcrumb always represent the page that is actually displayed.
+    if (level === "home") {
+      state.selectedDeptId = null;
+      state.selectedProjectId = null;
+      state.selectedMemberId = null;
+    } else if (level === "department") {
+      state.selectedProjectId = null;
+      state.selectedMemberId = null;
+    } else if (level === "project") {
+      state.selectedMemberId = null;
+    }
+
     if (payload.deptId !== undefined) state.selectedDeptId = payload.deptId;
     if (payload.projectId !== undefined) state.selectedProjectId = payload.projectId;
     if (payload.memberId !== undefined) state.selectedMemberId = payload.memberId;
@@ -214,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Breadcrumbs Component
   function renderBreadcrumbs() {
     if (!breadcrumbEl) return;
-    const s = window.TerraHireStore.getStore();
+    const s = window.TerraHireStore.getScopedDirectoryData();
 
     let crumbs = [
       { label: "📁 Directory Home", level: "home", payload: {} },
@@ -275,7 +295,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // =========================================================================
   function renderHomeLevel() {
     const summary = window.TerraHireStore.getSummaryStats();
-    const s = window.TerraHireStore.getStore();
+    const s = window.TerraHireStore.getScopedDirectoryData();
 
     // Summary Card Stats
     const elDepts = document.getElementById("stat-total-depts");
@@ -386,7 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Render Projects Overview Grid (Level 1 Projects Tab)
   function renderProjectsGrid() {
-    const s = window.TerraHireStore.getStore();
+    const s = window.TerraHireStore.getScopedDirectoryData();
     const container = document.getElementById("dir-all-projects-grid");
     const filterBadge = document.getElementById("dir-projects-filter-badge");
     const filterText = document.getElementById("dir-projects-filter-text");
@@ -529,7 +549,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderFlatMembers() {
-    const s = window.TerraHireStore.getStore();
+    const s = window.TerraHireStore.getScopedDirectoryData();
     const container = document.getElementById("dir-cards-container");
     const filterBadge = document.getElementById("dir-members-filter-badge");
     const filterText = document.getElementById("dir-members-filter-text");
