@@ -712,6 +712,50 @@ window.resetAppData = resetAppData;
 
 const SESSION_KEY = "terrahire_session_user";
 
+/* =========================================================
+   DIRECTORY HELPERS
+   Keep directory calculations inside the active organization.
+   Older demo records do not have orgId on departments, so those
+   departments are inferred from the active organization's projects
+   and members for backwards compatibility.
+   ========================================================= */
+
+function getDirectoryScope() {
+  const data = getAppData();
+  const userId = sessionStorage.getItem(SESSION_KEY);
+  const user = userId && Array.isArray(data.members)
+    ? data.members.find((member) => member.id === userId)
+    : null;
+  const orgId = user && user.orgId ? user.orgId : null;
+
+  const projects = (data.projects || []).filter((project) => !orgId || project.orgId === orgId);
+  const members = (data.members || []).filter((member) => !orgId || member.orgId === orgId);
+  const departmentNames = new Set([
+    ...projects.map((project) => project.department).filter(Boolean),
+    ...members.map((member) => member.department).filter(Boolean),
+  ]);
+  const departments = (data.departments || []).filter((department) => {
+    if (department.orgId) return !orgId || department.orgId === orgId;
+    return !orgId || departmentNames.has(department.name);
+  });
+  const tasks = (data.tasks || []).filter((task) => {
+    const project = projects.find((item) => item.id === task.projectId);
+    const member = members.find((item) => item.id === task.memberId);
+    return Boolean(project || member);
+  });
+
+  return { data, user, orgId, organizations: data.organizations || [], departments, projects, members, tasks };
+}
+
+function getTaskMetrics(tasks) {
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((task) => task.completed || task.status === "Done").length;
+  const pendingTasks = totalTasks - completedTasks;
+  const overdueTasks = tasks.filter((task) => task.overdue || task.status === "Overdue").length;
+  const completionRate = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  return { totalTasks, completedTasks, pendingTasks, overdueTasks, completionRate };
+}
+
 window.TerraHireStore = {
   getDashboardForRole(user) {
 
@@ -745,6 +789,10 @@ window.TerraHireStore = {
     return getAppData();
   },
 
+  getScopedDirectoryData() {
+    return getDirectoryScope();
+  },
+
   setStore(data) {
     saveAppData(data);
   },
@@ -771,6 +819,129 @@ window.TerraHireStore = {
     } else {
       sessionStorage.removeItem(SESSION_KEY);
     }
+  },
+
+  getSummaryStats() {
+    const scope = getDirectoryScope();
+    const metrics = getTaskMetrics(scope.tasks);
+    const totalProjectsCompleted = scope.projects.filter((project) => project.status === "Completed").length;
+    const totalProjectsPending = scope.projects.length - totalProjectsCompleted;
+    const totalWorkingToday = scope.members.filter((member) => member.isCheckedIn).length;
+
+    return {
+      totalDepartments: scope.departments.length,
+      totalProjects: scope.projects.length,
+      totalProjectsCompleted,
+      totalProjectsPending,
+      totalEmployees: scope.members.length,
+      totalWorkingToday,
+      totalNotWorkingToday: scope.members.length - totalWorkingToday,
+      ...metrics,
+    };
+  },
+
+  getDepartmentDetail(departmentId) {
+    const scope = getDirectoryScope();
+    const department = scope.departments.find(
+      (item) => item.id === departmentId || item.name === departmentId
+    );
+    if (!department) return null;
+
+    const projects = scope.projects
+      .filter((project) => project.department === department.name)
+      .map((project) => this.getProjectDetail(project.id));
+    const members = scope.members.filter((member) => member.department === department.name);
+    const tasks = scope.tasks.filter((task) => {
+      const project = scope.projects.find((item) => item.id === task.projectId);
+      const member = scope.members.find((item) => item.id === task.memberId);
+      return (project && project.department === department.name) || (member && member.department === department.name);
+    });
+
+    return {
+      department,
+      projects: projects.filter(Boolean),
+      members,
+      ...getTaskMetrics(tasks),
+      totalEmployees: members.length,
+      totalProjects: projects.filter(Boolean).length,
+    };
+  },
+
+  getProjectDetail(projectId) {
+    const scope = getDirectoryScope();
+    const project = scope.projects.find(
+      (item) => item.id === projectId || item.code === projectId
+    );
+    if (!project) return null;
+
+    const organization = scope.organizations.find((item) => item.id === project.orgId) || {
+      name: "Organization",
+      code: "ORG",
+    };
+    const department = scope.departments.find((item) => item.name === project.department) || {
+      id: project.department,
+      name: project.department || "Unassigned",
+      head: "—",
+      headEmail: "",
+    };
+    const team = scope.members.filter(
+      (member) => member.projectId === project.id || member.projectCode === project.code
+    );
+    const tasks = scope.tasks.filter((task) => task.projectId === project.id);
+    const metrics = getTaskMetrics(tasks);
+    const projectManager = team.find(
+      (member) => member.fullName && member.fullName.toLowerCase() === String(project.pmName || "").toLowerCase()
+    ) || null;
+
+    return {
+      project,
+      organization,
+      department,
+      team,
+      projectManager,
+      tasks,
+      startDate: project.startDate || "—",
+      endDate: project.endDate || "—",
+      status: project.status || "Active",
+      ...metrics,
+    };
+  },
+
+  getMemberDetail(memberId) {
+    const scope = getDirectoryScope();
+    const member = scope.members.find((item) => item.id === memberId);
+    if (!member) return null;
+
+    const department = scope.departments.find((item) => item.name === member.department) || {
+      id: member.department,
+      name: member.department || "Unassigned",
+      head: "—",
+      headEmail: "",
+    };
+    const projects = scope.projects.filter(
+      (project) => project.id === member.projectId || project.code === member.projectCode
+    );
+    const tasks = scope.tasks.filter((task) => task.memberId === member.id);
+    const projectContributions = projects.map((project) => {
+      const projectTasks = tasks.filter((task) => task.projectId === project.id);
+      return { project, ...getTaskMetrics(projectTasks) };
+    });
+
+    return {
+      member,
+      department,
+      projects,
+      projectContributions,
+      tasks,
+      attendance: {
+        workingDaysInMonth: member.workingDaysInMonth || 0,
+        daysPresent: member.daysPresent || 0,
+        daysAbsent: member.daysAbsent || 0,
+        daysOnLeave: member.daysOnLeave || 0,
+        lateArrivals: member.lateArrivals || 0,
+      },
+      ...getTaskMetrics(tasks),
+    };
   },
   // ==========================================
   // ADD TASK
