@@ -71,7 +71,7 @@
     </ul>
 
     <!-- Quick Switcher for Demo Testing -->
-    <div style="margin:16px 0 10px 0; padding:10px; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:10px;">
+    <div id="demo-member-switcher" style="margin:16px 0 10px 0; padding:10px; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:10px;">
       <label for="select-switch-member" style="font-size:11px; font-family:var(--font-mono); color:var(--mist-dim); text-transform:uppercase; display:block; margin-bottom:6px;">Preview As Member:</label>
       <select id="select-switch-member" style="width:100%; padding:6px 8px; font-size:12px; background:var(--navy-950); color:var(--white); border:1px solid var(--line); border-radius:6px;">
         <option value="usr_sarah">Sarah Johnson (Employee)</option>
@@ -161,7 +161,7 @@
       </div>
 
       <!-- Search & Filters Ribbon -->
-      <div class="card-workday-detailed" style="margin-bottom:24px; padding:18px 24px;">
+      <div id="directory-filter-ribbon" class="card-workday-detailed" style="margin-bottom:24px; padding:18px 24px;">
         <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:14px;">
           <div style="flex:1; min-width:280px; position:relative;">
             <input type="text" id="dir-search-input" placeholder="🔍 Search department, project code, member name, email, or role..." style="width:100%; padding:10px 14px; background:var(--navy-950); border:1px solid var(--line); border-radius:8px; color:var(--white); font-size:13.5px;">
