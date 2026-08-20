@@ -150,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </li>
 
 
-        <li>
+        <li id="nav-directory">
           <a
             href="./directory.html"
             class="workday-nav-item"
@@ -322,11 +322,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const switcher =
     document.getElementById("sidebar-switcher");
+  
+  const directory =
+  document.getElementById("nav-directory");
 
 
   if (currentUser.roleType !== "admin") {
 
     // Add Member → Admin only
+     if (directory) {
+    directory.style.display = "none";
+  }
     if (addMember) {
       addMember.style.display = "none";
     }
