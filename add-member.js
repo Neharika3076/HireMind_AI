@@ -58,9 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function getCurrentUser() {
     try {
       const userId = sessionStorage.getItem(SESSION_KEY);
-      // console.log(userId+" print");
       const store = getStore();
-
       if (!userId || !store || !store.members) {
         return null;
       }
@@ -68,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if(userId.trim().startsWith("{")){
         try {
         const parsedUser = JSON.parse(userId);
-        targetId = parsedUser.id || parsedUser.email || rawSessionVal;
+        targetId = parsedUser.id || parsedUser.email || parsedUser.fullName || "";
         }  catch (e) {
           console.warn("Could not parse session user JSON:", e);
         }
@@ -136,18 +134,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getOrganizationForDepartment(store, departmentName) {
-    if (activeAdmin && activeAdmin.orgId) {
-    return activeAdmin.orgId;
-    }
-    const projectInDepartment = (store.projects || []).find(
-      (project) => project.department === departmentName
-    );
+      if (activeAdmin?.orgId) {
+        return String(activeAdmin.orgId).trim();
+      }
 
-    if (projectInDepartment) {
-      return projectInDepartment.orgId;
-    }
+      const department = (store.departments || []).find(
+        (item) =>
+          item.name === departmentName &&
+          item.orgId
+      );
 
-    return store.organizations?.[0]?.id || "org_acme";
+      if (department?.orgId) {
+        return department.orgId;
+      }
+
+      return "";
   }
 
   /* =========================================================
@@ -473,7 +474,9 @@ document.addEventListener("DOMContentLoaded", () => {
           ?.value.trim();
 
         isStep2Valid = Boolean(
-          newProjectName &&
+           department &&
+            // head &&
+            newProjectName &&
             newProjectName.length >= 2 &&
             newProjectCode &&
             newProjectCode.length >= 2
@@ -677,342 +680,656 @@ document.addEventListener("DOMContentLoaded", () => {
      ========================================================= */
 
   function populateWizard() {
-    // console.log(activeAdmin);
-    const store = getStore();
-    // if (!store) return;
-    if (!store || !activeAdmin) return;
-    console.log(activeAdmin)
-    const currentOrgId = activeAdmin.orgId;
+  const store = getStore();
+  const currentUser = getCurrentUser();
+
+  if (!store || !currentUser) {
+    console.error("Store or current user not found");
+    return;
+  }
+
+  const currentOrgId = String(currentUser.orgId || "").trim();
+
+  if (!currentOrgId) {
+    console.error("Current user orgId not found");
+    return;
+  }
+
+  console.log("populateWizard running");
+  console.log("Current Org ID:", currentOrgId);
+
+  /* =========================================
+     GET CURRENT ORGANIZATION DEPARTMENTS
+     ========================================= */
+
+  const orgDepartments = (store.departments || []).filter(
+    (dept) =>
+      String(dept.orgId || "").trim() === currentOrgId
+  );
+
+  const departmentList = orgDepartments.map(
+    (dept) => dept.name
+  );
+
+  console.log("Organization departments:", departmentList);
+
+  /* =========================================
+     GET HTML ELEMENTS
+     ========================================= */
+
+  const departmentSelect = document.getElementById(
+    "wiz-dept-select"
+  );
+
+  const case2DepartmentSelect = document.getElementById(
+    "wiz-case2-dept-select"
+  );
+
+  const projectSelect = document.getElementById(
+    "wiz-dept-proj-select"
+  );
+
+  const projectCodeInput = document.getElementById(
+    "wiz-dept-proj-code-readonly"
+  );
+
+  const managerSelect = document.getElementById(
+    "wiz-mgr-select"
+  );
+
+  const leaderSelect = document.getElementById(
+    "wiz-lead-select"
+  );
+
+  const headSelect = document.getElementById(
+    "wiz-head-select"
+  );
+
+  const case2HeadSelect = document.getElementById(
+    "wiz-case2-head-select"
+  );
 
 
-    // // 1. Get all projects for the current organization
-    // const orgProjects = (store.projects || []).filter(
-    //   (project) => project.orgId === currentOrgId
-    // );
+  /* =========================================
+     FILL DEPARTMENT DROPDOWNS
+     ========================================= */
 
-    // // 2. Identify projects that are NOT completed (Active, In Progress, Pending, etc.)
-    // const activeOrgProjects = orgProjects.filter(
-    //   (project) => String(project.status).toLowerCase() !== "completed"
-    // );
+  function fillDepartmentSelect(element, placeholder) {
 
-    const orgDeptNames = new Set(
-    (store.projects || [])
-      .filter((project) => project.orgId === currentOrgId)
-      .map((project) => project.department)
+    if (!element) return;
+
+    element.innerHTML = `
+      <option value="">-- ${placeholder} --</option>
+    `;
+
+    departmentList.forEach((departmentName) => {
+
+      const option = document.createElement("option");
+
+      option.value = departmentName;
+      option.textContent = departmentName;
+
+      element.appendChild(option);
+    });
+  }
+
+
+  fillDepartmentSelect(
+    departmentSelect,
+    "Choose Target Department"
+  );
+
+  fillDepartmentSelect(
+    case2DepartmentSelect,
+    "Choose Existing Department"
+  );
+
+
+  /* =========================================
+     RESET PROJECT SELECT
+     ========================================= */
+
+  if (projectSelect) {
+
+    projectSelect.innerHTML =
+      '<option value="">-- Select Department First --</option>';
+
+    projectSelect.disabled = true;
+  }
+
+  if (projectCodeInput) {
+    projectCodeInput.value = "";
+  }
+
+
+  /* =========================================
+     FILL LEADERSHIP DROPDOWNS
+     ONLY CURRENT ORGANIZATION MEMBERS
+     ========================================= */
+
+  const orgMembers = (store.members || []).filter(
+    (member) =>
+      String(member.orgId || "").trim() === currentOrgId
+  );
+
+
+  function fillLeadershipSelect(element, placeholder) {
+
+    if (!element) return;
+
+    element.innerHTML = `
+      <option value="">-- ${placeholder} --</option>
+    `;
+
+    orgMembers.forEach((member) => {
+
+      const option = document.createElement("option");
+
+      option.value = member.fullName;
+
+      option.textContent =
+        `${member.fullName} (${
+          member.designation ||
+          member.roleCategory ||
+          member.roleType ||
+          "Member"
+        })`;
+
+      element.appendChild(option);
+    });
+  }
+
+
+  fillLeadershipSelect(
+    managerSelect,
+    "Select Reporting Manager"
+  );
+
+  fillLeadershipSelect(
+    leaderSelect,
+    "Select Team Leader"
+  );
+
+  fillLeadershipSelect(
+    headSelect,
+    "Select Department Head"
+  );
+
+  fillLeadershipSelect(
+    case2HeadSelect,
+    "Select Department Head"
+  );
+
+
+  /* =========================================
+     AUTO FILL DEPARTMENT HEAD
+     ========================================= */
+
+  function autoFillDepartmentHead(departmentName) {
+
+    if (!departmentName) return;
+
+    const department = orgDepartments.find(
+      (dept) => dept.name === departmentName
     );
-    const departmentList = (store.departments || [])
-    .filter(
-      (dept) => dept.orgId === currentOrgId || orgDeptNames.has(dept.name)
-    )
-    .map((department) => department.name);
 
-    // console.log(currentOrgId);
-    // console.log(orgDeptNames);
-    const departmentSelect = document.getElementById("wiz-dept-select");
-    const case2DepartmentSelect = document.getElementById(
-      "wiz-case2-dept-select"
-    );
+    if (!department) return;
 
-    
-    // const departmentList = (store.departments || []).map(
-      //   (department) => department.name
-      // );
-      
-      function fillDepartmentSelect(element, text) {
-        if (!element) return;
-        
-        element.innerHTML = `<option value="">-- ${text} --</option>`;
-        
-        departmentList.forEach((departmentName) => {
-          element.innerHTML += `
-          <option value="${escapeHtml(departmentName)}">
-          ${escapeHtml(departmentName)}
-          </option>
-          `;
-        });
-      }
-      fillDepartmentSelect(departmentSelect, "Choose Target Department");
-      fillDepartmentSelect(
-        case2DepartmentSelect,
-        "Choose Existing Department"
-      );
-      const projectSelect = document.getElementById(
-        "wiz-dept-proj-select"
-      );
-  
-      const projectCodeInput = document.getElementById(
-        "wiz-dept-proj-code-readonly"
-      );
+    const headName = department.head || "";
+
+    if (!headName) return;
 
 
-    const managerSelect = document.getElementById("wiz-mgr-select");
-    const leaderSelect = document.getElementById("wiz-lead-select");
-    const headSelect = document.getElementById("wiz-head-select");
-    const case2HeadSelect = document.getElementById(
-      "wiz-case2-head-select"
-    );
+    if (headSelect) {
 
-    function fillLeadershipSelect(element, label) {
-      if (!element) return;
-
-      element.innerHTML = `<option value="">-- ${label} --</option>`;
-
-      (store.members || []).forEach((member) => {
-        element.innerHTML += `
-          <option value="${escapeHtml(member.fullName)}">
-            ${escapeHtml(member.fullName)} (${escapeHtml(
-              member.designation || member.roleCategory || member.roleType
-            )})
-          </option>
-        `;
-      });
-    }
-
-    fillLeadershipSelect(managerSelect, "Select Reporting Manager");
-    fillLeadershipSelect(leaderSelect, "Select Team Leader");
-    fillLeadershipSelect(headSelect, "Select Department Head");
-    fillLeadershipSelect(case2HeadSelect, "Select Department Head");
-
-    function autoFillDepartmentHead(departmentName) {
-      if (!departmentName || !headSelect) return;
-
-      const department = (store.departments || []).find(
-        (item) => item.name === departmentName
-      );
-
-      const headName =
-        department?.head ||
-        (store.members || []).find(
-          (member) =>
-            member.department === departmentName &&
-            member.roleType === "department_head"
-        )?.fullName ||
-        "";
-
-      if (!headName) return;
-
-      const exists = Array.from(headSelect.options).some(
+      let exists = Array.from(
+        headSelect.options
+      ).some(
         (option) => option.value === headName
       );
 
       if (!exists) {
-        headSelect.innerHTML += `
-          <option value="${escapeHtml(headName)}">
-            ${escapeHtml(headName)} (Department Head)
-          </option>
-        `;
+
+        const option = document.createElement("option");
+
+        option.value = headName;
+
+        option.textContent =
+          `${headName} (Department Head)`;
+
+        headSelect.appendChild(option);
       }
 
       headSelect.value = headName;
-
-      const hintHead = document.getElementById("hint-lead-head");
-
-      if (hintHead) {
-        hintHead.style.display = "inline-block";
-        hintHead.textContent = `✨ Auto-filled: ${headName}`;
-      }
     }
 
-    function autoFillProjectLeadership(projectId) {
-      const project = (store.projects || []).find(
-        (item) => item.id === projectId
+
+    const hintHead =
+      document.getElementById("hint-lead-head");
+
+    if (hintHead) {
+
+      hintHead.style.display = "inline-block";
+
+      hintHead.textContent =
+        `✨ Auto-filled: ${headName}`;
+    }
+  }
+
+
+  /* =========================================
+     AUTO FILL PROJECT LEADERSHIP
+     ========================================= */
+
+  function autoFillProjectLeadership(projectId) {
+
+    const project = (store.projects || []).find(
+      (item) =>
+        item.id === projectId &&
+        String(item.orgId || "").trim() === currentOrgId
+    );
+
+    if (!project) return;
+
+
+    const managerName = project.pmName || "";
+
+    if (managerName && managerSelect) {
+
+      const exists = Array.from(
+        managerSelect.options
+      ).some(
+        (option) => option.value === managerName
       );
 
-      if (!project) return;
+      if (!exists) {
 
-      const managerName = project.pmName || "";
+        const option =
+          document.createElement("option");
 
-      if (managerName && managerSelect) {
-        const exists = Array.from(managerSelect.options).some(
-          (option) => option.value === managerName
-        );
+        option.value = managerName;
 
-        if (!exists) {
-          managerSelect.innerHTML += `
-            <option value="${escapeHtml(managerName)}">
-              ${escapeHtml(managerName)} (Project Manager)
-            </option>
-          `;
-        }
+        option.textContent =
+          `${managerName} (Project Manager)`;
 
-        managerSelect.value = managerName;
+        managerSelect.appendChild(option);
       }
 
-      const teamLeader = (store.members || []).find(
-        (member) =>
-          member.projectId === projectId &&
-          member.roleType === "team_leader"
-      );
-
-      if (teamLeader && leaderSelect) {
-        const exists = Array.from(leaderSelect.options).some(
-          (option) => option.value === teamLeader.fullName
-        );
-
-        if (!exists) {
-          leaderSelect.innerHTML += `
-            <option value="${escapeHtml(teamLeader.fullName)}">
-              ${escapeHtml(teamLeader.fullName)} (Team Leader)
-            </option>
-          `;
-        }
-
-        leaderSelect.value = teamLeader.fullName;
-      }
-
-      autoFillDepartmentHead(project.department);
+      managerSelect.value = managerName;
     }
 
-    function updateProjectsForDepartment(departmentName) {
-      if (!projectSelect) return;
 
-      const newProjectFields = document.getElementById("new-proj-fields-2a");
-      const projectCodeWrap = document.getElementById(
+    const teamLeader = orgMembers.find(
+      (member) =>
+        member.projectId === projectId &&
+        member.roleType === "team_leader"
+    );
+
+    if (teamLeader && leaderSelect) {
+
+      const exists = Array.from(
+        leaderSelect.options
+      ).some(
+        (option) =>
+          option.value === teamLeader.fullName
+      );
+
+      if (!exists) {
+
+        const option =
+          document.createElement("option");
+
+        option.value = teamLeader.fullName;
+
+        option.textContent =
+          `${teamLeader.fullName} (Team Leader)`;
+
+        leaderSelect.appendChild(option);
+      }
+
+      leaderSelect.value =
+        teamLeader.fullName;
+    }
+
+    autoFillDepartmentHead(
+      project.department
+    );
+  }
+
+
+  /* =========================================
+     UPDATE PROJECTS BY DEPARTMENT + ORG ID
+     ========================================= */
+
+  function updateProjectsForDepartment(
+    departmentName
+  ) {
+
+    if (!projectSelect) return;
+
+    const newProjectFields =
+      document.getElementById(
+        "new-proj-fields-2a"
+      );
+
+    const projectCodeWrap =
+      document.getElementById(
         "proj-code-readonly-wrap"
       );
 
-      if (!departmentName) {
-        projectSelect.innerHTML =
-          '<option value="">-- Select Department First --</option>';
 
-        projectSelect.disabled = true;
+    if (!departmentName) {
 
-        if (projectCodeInput) projectCodeInput.value = "";
-
-        newProjectFields?.classList.add("hidden");
-
-        if (projectCodeWrap) {
-          projectCodeWrap.style.display = "";
-        }
-
-        return;
-      }
-
-      projectSelect.disabled = false;
       projectSelect.innerHTML =
-        '<option value="">-- Select Project in Department --</option>';
+        '<option value="">-- Select Department First --</option>';
 
-      const projects = (store.projects || []).filter(
-        (project) => project.department === departmentName
-      );
-
-      projects.forEach((project) => {
-        projectSelect.innerHTML += `
-          <option value="${escapeHtml(project.id)}" data-code="${escapeHtml(
-          project.code
-        )}">
-            [${escapeHtml(project.code)}] ${escapeHtml(project.name)}
-          </option>
-        `;
-      });
-
-      projectSelect.innerHTML += `
-        <option value="__new__">➕ Create New Project</option>
-      `;
+      projectSelect.disabled = true;
 
       if (projectCodeInput) {
         projectCodeInput.value = "";
       }
 
-      newProjectFields?.classList.add("hidden");
+      newProjectFields?.classList.add(
+        "hidden"
+      );
 
       if (projectCodeWrap) {
         projectCodeWrap.style.display = "";
       }
 
-      autoFillDepartmentHead(departmentName);
+      return;
     }
 
-    if (departmentSelect) {
-      departmentSelect.onchange = () => {
-        updateProjectsForDepartment(departmentSelect.value);
-        checkAndRevealSections();
-      };
+
+    projectSelect.disabled = false;
+
+    projectSelect.innerHTML =
+      '<option value="">-- Select Project in Department --</option>';
+
+
+    /* STRICTLY SAME ORGANIZATION */
+
+    const projects = (store.projects || []).filter(
+      (project) =>
+        project.department === departmentName &&
+        String(project.orgId || "").trim() === currentOrgId
+    );
+
+
+    projects.forEach((project) => {
+
+      const option =
+        document.createElement("option");
+
+      option.value = project.id;
+
+      option.dataset.code =
+        project.code || "";
+
+      option.dataset.completed =
+        String(
+          project.status || ""
+        ).toLowerCase() === "completed";
+
+      const isCompleted =
+        option.dataset.completed === "true";
+
+      option.textContent = isCompleted
+        ? `[${project.code}] ${project.name} (Completed)`
+        : `[${project.code}] ${project.name}`;
+
+      projectSelect.appendChild(option);
+    });
+
+
+    /* CREATE NEW PROJECT */
+
+    const newProjectOption =
+      document.createElement("option");
+
+    newProjectOption.value = "__new__";
+
+    newProjectOption.textContent =
+      "➕ Create New Project";
+
+    projectSelect.appendChild(
+      newProjectOption
+    );
+
+
+    if (projectCodeInput) {
+      projectCodeInput.value = "";
     }
 
-    if (projectSelect) {
-      projectSelect.onchange = () => {
-        const projectId = projectSelect.value;
+    newProjectFields?.classList.add(
+      "hidden"
+    );
 
-        const newProjectFields = document.getElementById("new-proj-fields-2a");
+    if (projectCodeWrap) {
+      projectCodeWrap.style.display = "";
+    }
 
-        const projectCodeWrap = document.getElementById(
+    autoFillDepartmentHead(
+      departmentName
+    );
+  }
+
+
+  /* =========================================
+     EXISTING DEPARTMENT CHANGE
+     ========================================= */
+
+  if (departmentSelect) {
+
+    departmentSelect.onchange = () => {
+
+      updateProjectsForDepartment(
+        departmentSelect.value
+      );
+
+      checkAndRevealSections();
+    };
+  }
+
+
+  /* =========================================
+     PROJECT CHANGE
+     ========================================= */
+
+  if (projectSelect) {
+
+    projectSelect.onchange = () => {
+
+      const projectId =
+        projectSelect.value;
+
+      const newProjectFields =
+        document.getElementById(
+          "new-proj-fields-2a"
+        );
+
+      const projectCodeWrap =
+        document.getElementById(
           "proj-code-readonly-wrap"
         );
-        const errorMessage = document.getElementById("wiz-error-msg");
 
-        if (projectId === "__new__") {
-          newProjectFields?.classList.remove("hidden");
 
-          if (projectCodeWrap) {
-            projectCodeWrap.style.display = "none";
-          }
+      if (projectId === "__new__") {
+
+        newProjectFields?.classList.remove(
+          "hidden"
+        );
+
+        if (projectCodeWrap) {
+          projectCodeWrap.style.display =
+            "none";
+        }
+
+        if (projectCodeInput) {
+          projectCodeInput.value = "";
+        }
+
+      } else {
+
+        const selectedProject =
+          (store.projects || []).find(
+            (item) =>
+              item.id === projectId &&
+              String(item.orgId || "").trim() ===
+                currentOrgId
+          );
+
+
+        if (
+          selectedProject &&
+          String(
+            selectedProject.status || ""
+          )
+            .toLowerCase() === "completed"
+        ) {
+
+          alert(
+            `Project "${selectedProject.name}" is already completed. Please choose another project.`
+          );
+
+          projectSelect.value = "";
 
           if (projectCodeInput) {
             projectCodeInput.value = "";
           }
-        } else {
-          // find selectedProject ;
-          newProjectFields?.classList.add("hidden");
 
-          if (projectCodeWrap) {
-            projectCodeWrap.style.display = "";
-          }
-
-          const selectedOption =
-            projectSelect.options[projectSelect.selectedIndex];
-
-          if (projectCodeInput) {
-            projectCodeInput.value =
-              selectedOption?.getAttribute("data-code") || "";
-          }
-
-          autoFillProjectLeadership(projectId);
-        }
-
-        checkAndRevealSections();
-      };
-    }
-
-    if (case2DepartmentSelect) {
-      case2DepartmentSelect.onchange = () => {
-        const departmentName = case2DepartmentSelect.value;
-
-        const department = (store.departments || []).find(
-          (item) => item.name === departmentName
-        );
-
-        if (case2HeadSelect && department?.head) {
-          const exists = Array.from(case2HeadSelect.options).some(
-            (option) => option.value === department.head
+          newProjectFields?.classList.add(
+            "hidden"
           );
 
-          if (!exists) {
-            case2HeadSelect.innerHTML += `
-              <option value="${escapeHtml(department.head)}">
-                ${escapeHtml(department.head)} (Department Head)
-              </option>
-            `;
+          if (projectCodeWrap) {
+            projectCodeWrap.style.display =
+              "";
           }
 
-          case2HeadSelect.value = department.head;
+          checkAndRevealSections();
+
+          return;
         }
 
-        autoFillDepartmentHead(departmentName);
-        checkAndRevealSections();
-      };
-    }
 
-    if (case2HeadSelect) {
-      case2HeadSelect.onchange = () => {
-        if (headSelect) {
-          headSelect.value = case2HeadSelect.value;
+        newProjectFields?.classList.add(
+          "hidden"
+        );
+
+        if (projectCodeWrap) {
+          projectCodeWrap.style.display =
+            "";
         }
 
-        checkAndRevealSections();
-      };
-    }
+
+        const selectedOption =
+          projectSelect.options[
+            projectSelect.selectedIndex
+          ];
+
+
+        if (projectCodeInput) {
+
+          projectCodeInput.value =
+            selectedOption?.dataset.code || "";
+        }
+
+
+        autoFillProjectLeadership(
+          projectId
+        );
+      }
+
+
+      checkAndRevealSections();
+    };
   }
+
+
+  /* =========================================
+     CASE 2
+     EXISTING DEPARTMENT + NEW PROJECT
+     ========================================= */
+
+  if (case2DepartmentSelect) {
+
+    case2DepartmentSelect.onchange = () => {
+
+      const departmentName =
+        case2DepartmentSelect.value;
+
+
+      const department =
+        orgDepartments.find(
+          (dept) =>
+            dept.name === departmentName
+        );
+
+
+      if (
+        case2HeadSelect &&
+        department?.head
+      ) {
+
+        let exists = Array.from(
+          case2HeadSelect.options
+        ).some(
+          (option) =>
+            option.value === department.head
+        );
+
+
+        if (!exists) {
+
+          const option =
+            document.createElement("option");
+
+          option.value =
+            department.head;
+
+          option.textContent =
+            `${department.head} (Department Head)`;
+
+          case2HeadSelect.appendChild(
+            option
+          );
+        }
+
+
+        case2HeadSelect.value =
+          department.head;
+      }
+
+
+      autoFillDepartmentHead(
+        departmentName
+      );
+
+      checkAndRevealSections();
+    };
+  }
+
+
+  if (case2HeadSelect) {
+
+    case2HeadSelect.onchange = () => {
+
+      if (headSelect) {
+
+        headSelect.value =
+          case2HeadSelect.value;
+      }
+
+      checkAndRevealSections();
+    };
+  }
+
+
+  console.log(
+    "populateWizard completed successfully"
+  );
+}
 
   /* =========================================================
      FORM EVENT LISTENERS
@@ -1301,9 +1618,13 @@ document.addEventListener("DOMContentLoaded", () => {
             createdAt: new Date().toISOString()
           });
         } else {
-          const existingProject = store.projects.find(
-            (project) => project.id === finalProjectId
-          );
+          const existingProject =
+  store.projects.find(
+    (project) =>
+      project.id === finalProjectId &&
+      String(project.orgId || "").trim() ===
+        String(activeAdmin.orgId || "").trim()
+  );
 
           if (!existingProject) {
             if (errorMessage) {
@@ -1401,10 +1722,17 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          const duplicateDepartment = store.departments.some(
-            (department) =>
-              department.name.toLowerCase() === departmentName.toLowerCase()
-          );
+          const duplicateDepartment =
+  store.departments.some(
+    (department) =>
+      String(department.name || "")
+        .toLowerCase()
+        .trim() ===
+      departmentName.toLowerCase().trim() &&
+
+      String(department.orgId || "").trim() ===
+      String(activeAdmin.orgId || "").trim()
+  );
 
           if (duplicateDepartment) {
             if (errorMessage) {
@@ -1430,11 +1758,11 @@ document.addEventListener("DOMContentLoaded", () => {
           finalManager = "Executive Board";
           finalTeamLeader = "Executive Council";
           finalDepartmentHead = name;
-          finalOrganizationId =
-            store.organizations[0]?.id || "org_acme";
+          finalOrganizationId = activeAdmin.orgId;
 
           store.departments.push({
             id: makeId("dept"),
+            orgId: activeAdmin.orgId,
             name: departmentName,
             head: name,
             headEmail: email,
