@@ -120,13 +120,7 @@ if (logoutBtn) {
     if (!cur) return;
 
     const org = s.organizations.find((o) => o.id === cur.orgId) || { name: "Acme Corporation", code: "ACME" };
-    const proj = s.projects.find((p) => p.id === cur.projectId || p.code === cur.projectCode) || {
-      name: "Billing System Revamp",
-      code: cur.projectCode || "BILL-01",
-      pmName: cur.reportingManager || "Kavita Rao",
-      status: "In Progress",
-      desc: "Distributed multi-currency payroll queues.",
-    };
+    const proj = s.projects.find((p) => p.id === cur.projectId || p.code === cur.projectCode || (p.memberIds || []).includes(cur.id)) || null;
 
     // 1. Sidebar Chip
     const sbAvatar = document.getElementById("sidebar-user-avatar");
@@ -164,8 +158,8 @@ if (logoutBtn) {
     if (heroLocationText) heroLocationText.textContent = cur.location || "New York, USA";
     if (heroRoleCat) heroRoleCat.textContent = cur.roleCategory || (cur.roleType === "admin" ? "Admin" : "Employee");
     if (heroOrgName) heroOrgName.textContent = `${org.name} (${org.code})`;
-    if (heroProjName) heroProjName.textContent = `${proj.name} [${proj.code}]`;
-    if (heroDeptName) heroDeptName.textContent = cur.department || "Product Experience";
+    if (heroProjName) heroProjName.textContent = proj ? `${proj.name} [${proj.code}]` : "No project assigned";
+    if (heroDeptName) heroDeptName.textContent = cur.department || "No department assigned";
 
     if (cur.isCheckedIn) {
       if (heroAvatarBadge) {
@@ -312,16 +306,11 @@ if (logoutBtn) {
 
   function renderTasksAndMetrics(user, state) {
     const allTasks = state.tasks || [];
-    const userTasks = allTasks.filter((t) => t.memberId === user.id);
-
-    // If user has no tasks yet, provide default tasks
-    const tasksToDisplay = userTasks.length > 0 ? userTasks : [
-      { id: "def_1", title: "Design System Review", priority: "High", completed: true },
-      { id: "def_2", title: "Wireframe User Flow", priority: "Medium", completed: false },
-      { id: "def_3", title: "Component Accessibility Audit", priority: "High", completed: true },
-      { id: "def_4", title: "Design Tokens Synchronization", priority: "Medium", completed: true },
-      { id: "def_5", title: "Sprint Retrospective Documentation", priority: "Low", completed: false },
-    ];
+    const tasksToDisplay = allTasks.filter((task) => {
+      const employees = task.employeeIds || (task.memberId ? [task.memberId] : []);
+      const teamLeads = task.teamLeadIds || [];
+      return employees.includes(user.id) || (user.roleType === "team_leader" && teamLeads.includes(user.id));
+    });
 
     const completedTasks = tasksToDisplay.filter((t) => t.completed).length;
     const totalTasks = tasksToDisplay.length;
@@ -501,14 +490,21 @@ if (logoutBtn) {
     const teamLeadVal = document.getElementById("team-lead-val");
     const teamHeadVal = document.getElementById("team-head-val");
 
-    if (teamPmVal) teamPmVal.textContent = proj.pmName || cur.reportingManager || "Kavita Rao";
-    if (teamLeadVal) teamLeadVal.textContent = cur.reportingTeamLead || "Liam Cooper";
-    if (teamHeadVal) teamHeadVal.textContent = cur.headOfDept || "Claire Vance";
+    const manager = s.members.find((member) => member.id === cur.managerId);
+    const executive = s.members.find((member) => member.id === (manager && manager.executiveId));
+    if (teamPmVal) teamPmVal.textContent = manager ? manager.fullName : (proj && proj.pmName) || "No manager assigned";
+    if (teamLeadVal) teamLeadVal.textContent = cur.roleType === "team_leader" ? cur.fullName : "Assigned by project manager";
+    if (teamHeadVal) teamHeadVal.textContent = executive ? executive.fullName : "No executive assigned";
 
     const tmList = document.getElementById("emp-teammates-list");
     if (tmList) {
       tmList.innerHTML = "";
-      const peers = s.members.filter((m) => m.id !== cur.id);
+      const peers = s.members.filter((m) => {
+        if (m.id === cur.id || m.orgId !== cur.orgId) return false;
+        if (cur.roleType === "manager") return m.managerId === cur.id || m.id === cur.id;
+        if (cur.roleType === "team_leader") return m.managerId === cur.managerId;
+        return Boolean(cur.managerId && m.managerId === cur.managerId);
+      });
       if (peers.length === 0) {
         tmList.innerHTML = '<li style="color:var(--mist-dim); font-size:12px;">No other peers in cluster.</li>';
       } else {

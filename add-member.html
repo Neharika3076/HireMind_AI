@@ -3,346 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TerraHire — Admin Command Center</title>
+  <title>HUMN — Organization Management</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./index.css">
 </head>
 <body class="workday-shell">
-
-  <!-- Left Sidebar Navigation -->
   <div id="sidebar-root"></div>
 
-  <!-- Main Content Area -->
   <main class="workday-main">
-    <div class="workday-top-bar" style="flex-direction: column; align-items: flex-start; gap: 16px;">
-      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-        <div class="workday-greeting">
-          <h1>Add Member</h1>
-          <p>Provision new members and create departments or projects.</p>
-        </div>
+    <div class="workday-top-bar">
+      <div class="workday-greeting">
+        <h1>Organization Management</h1>
+        <p>Create departments independently, then provision Executives, Managers, and members into the right organizational structure.</p>
       </div>
+      <!-- <a href="./tasks.html" class="btn btn-primary btn-sm">Create or assign project</a> -->
     </div>
 
-    
-<!-- SUBVIEW: ADD MEMBER & ORG WIZARD -->
-    <div id="subview-add">
-      <div class="wizard-wrap">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-          <div>
-            <h2 class="wizard-title">Member & Organization Provisioning</h2>
-            <p class="wizard-sub" style="margin-bottom:0;">Sections unlock automatically below as you complete each detail.</p>
+    <div class="card-workday-detailed" style="padding:18px 22px; margin-bottom:20px; border-left:3px solid var(--teal-400);">
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--teal-300); text-transform:uppercase; margin-bottom:6px;">Corporate structure</div>
+      <div style="color:var(--mist); font-size:13px; line-height:1.55;">Each department can have one <strong style="color:var(--white);">Executive</strong>, multiple <strong style="color:var(--white);">Managers</strong>, and Team Leaders or Members linked to their manager.</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; align-items:start;">
+      <section class="card-workday-detailed" style="padding:22px;">
+        <div class="detailed-card-title" style="margin-bottom:14px;">Create Department</div>
+        <p style="font-size:12.5px; color:var(--mist); margin-bottom:18px;">Departments can be created empty. Add their Executive and members later.</p>
+        <form id="form-create-department">
+          <div class="form-group">
+            <label for="department-name">Department Name</label>
+            <input id="department-name" required placeholder="e.g. Frontend Engineering">
           </div>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div id="prog-badge" class="badge badge-teal" style="font-size:12.5px; padding:6px 12px;">
-              ⚡ Section 1 of 5 Ready
-            </div>
-            <button type="button" class="btn btn-ghost btn-sm" id="wiz-btn-restart">↺ Reset Form</button>
+          <div class="form-group">
+            <label for="department-description">Description</label>
+            <textarea id="department-description" rows="3" placeholder="What this department is responsible for"></textarea>
           </div>
-        </div>
-
-        <form id="form-add-member" novalidate>
-          
-          <!-- SECTION 1: Action Selection (Always Visible) -->
-          <div class="auto-reveal-section visible" id="sec-action">
-            <fieldset>
-              <legend>
-                <span class="n" id="badge-n-1">1</span>
-                <span>STEP 1: Choose Provisioning Action</span>
-                <span class="step-check" id="check-step-1">✓ Complete</span>
-              </legend>
-              <p style="color:var(--mist); font-size:13.5px; margin-bottom:14px;">
-                Select whether to onboard a team member into an established department or establish new initiatives.
-              </p>
-              
-              <div class="radios">
-                <label class="action-card-option">
-                  <input type="radio" name="wiz-action" value="add-member">
-                  <div style="flex:1;">
-                    <div style="font-weight:600; color:var(--white); font-size:14.5px;">A) Add Member to Existing Department</div>
-                    <div style="font-size:12.5px; color:var(--mist); margin-top:2px;">Assign member into an existing department & filtered active project code.</div>
-                  </div>
-                </label>
-
-                <label class="action-card-option">
-                  <input type="radio" name="wiz-action" value="create-dept">
-                  <div style="flex:1;">
-                    <div style="font-weight:600; color:var(--white); font-size:14.5px;">B) Create New Department / Project</div>
-                    <div style="font-size:12.5px; color:var(--mist); margin-top:2px;">Found a brand-new department or initiate a new project under an existing department.</div>
-                  </div>
-                </label>
-              </div>
-            </fieldset>
-          </div>
-
-          <!-- SECTION 2: Department & Project Setup (Auto-reveals) -->
-          <div class="auto-reveal-section" id="sec-dept-proj">
-            <!-- 2A: Existing Department Flow -->
-            <fieldset id="fs-existing-dept" class="hidden">
-              <legend>
-                <span class="n" id="badge-n-2a">2</span>
-                <span>STEP 2A: Select Department & Project</span>
-                <span class="step-check" id="check-step-2a">✓ Complete</span>
-              </legend>
-              <p style="color:var(--mist); font-size:13.5px; margin-bottom:14px;">
-                Choose the target department to filter projects, then select the assigned project.
-              </p>
-              <div class="grid">
-                <div class="field">
-                  <label for="wiz-dept-select">Target Department *</label>
-                  <select id="wiz-dept-select"></select>
-                </div>
-                <div class="field">
-                  <label for="wiz-dept-proj-select">Project (Filtered by Department) *</label>
-                  <select id="wiz-dept-proj-select" disabled>
-                    <option value="">-- Select Department First --</option>
-                  </select>
-                </div>
-                <div class="field full" id="proj-code-readonly-wrap">
-                  <label for="wiz-dept-proj-code-readonly">Assigned Project Code (Auto-filled)</label>
-                  <input type="text" id="wiz-dept-proj-code-readonly" placeholder="Project code will auto-fill upon project selection" readonly style="background:rgba(15,23,42,0.8); cursor:not-allowed; color:var(--teal-300); font-family:var(--font-mono); font-weight:700;">
-                </div>
-
-                <!-- New Project fields (shown when "Create New Project" is selected) -->
-                <div id="new-proj-fields-2a" class="hidden" style="grid-column: 1 / -1;">
-                  <div style="background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.2); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--sky);">
-                    ℹ️ <strong>New Project:</strong> You are creating a new project under the selected department. Fill in the project details below.
-                  </div>
-                  <div class="grid">
-                    <div class="field">
-                      <label for="wiz-2a-new-proj-name">New Project Name *</label>
-                      <input type="text" id="wiz-2a-new-proj-name" placeholder="e.g. Customer Portal Redesign">
-                    </div>
-                    <div class="field">
-                      <label for="wiz-2a-new-proj-code">New Project Code *</label>
-                      <input type="text" id="wiz-2a-new-proj-code" placeholder="e.g. CPR-01">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-
-            <!-- 2B: New Department / Project Flow -->
-            <fieldset id="fs-new-dept" class="hidden">
-              <legend>
-                <span class="n" id="badge-n-2b">2</span>
-                <span>STEP 2B: Department & Project Creation Setup</span>
-                <span class="step-check" id="check-step-2b">✓ Complete</span>
-              </legend>
-              <p style="color:var(--mist); font-size:13.5px; margin-bottom:14px;">
-                Choose which creation case applies:
-              </p>
-
-              <div class="radios" style="margin-bottom:18px;">
-                <label class="action-card-option">
-                  <input type="radio" name="wiz-case-type" value="case-1">
-                  <div style="flex:1;">
-                    <div style="font-weight:600; color:var(--white); font-size:14px;">Case 1: New Department + New Project</div>
-                    <div style="font-size:12.5px; color:var(--mist); margin-top:2px;">Found a brand-new department with an initial project. Creator is Founding Department Head.</div>
-                  </div>
-                </label>
-
-                <label class="action-card-option">
-                  <input type="radio" name="wiz-case-type" value="case-2">
-                  <div style="flex:1;">
-                    <div style="font-weight:600; color:var(--white); font-size:14px;">Case 2: New Project only (under an Existing Department)</div>
-                    <div style="font-size:12.5px; color:var(--mist); margin-top:2px;">Initiate a new project under an existing department. Role defaults to Team Manager.</div>
-                  </div>
-                </label>
-              </div>
-
-              <!-- Case 1 Container -->
-              <div id="sub-case-1-fields" class="hidden">
-                <div style="background:rgba(45,212,191,0.06); border:1px solid rgba(45,212,191,0.2); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--teal-300);">
-                  ℹ️ <strong>Case 1 Architecture:</strong> Creator is the Founding Department Head (no hierarchy above). Role will automatically lock to <strong>Department Head</strong> in Step 3.
-                </div>
-                <div class="grid">
-                  <div class="field full">
-                    <label for="wiz-case1-dept-name">Department Name *</label>
-                    <input type="text" id="wiz-case1-dept-name" placeholder="e.g. Artificial Intelligence & Robotics">
-                  </div>
-                  <div class="field">
-                    <label for="wiz-case1-proj-name">Project Name *</label>
-                    <input type="text" id="wiz-case1-proj-name" placeholder="e.g. Neural Vision Engine">
-                  </div>
-                  <div class="field">
-                    <label for="wiz-case1-proj-code">Project Code *</label>
-                    <input type="text" id="wiz-case1-proj-code" placeholder="e.g. NVE-01">
-                  </div>
-                </div>
-              </div>
-
-              <!-- Case 2 Container -->
-              <div id="sub-case-2-fields" class="hidden">
-                <div style="background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.2); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--sky);">
-                  ℹ️ <strong>Case 2 Architecture:</strong> Creating a new project under an existing department. Role will automatically lock to <strong>Team Manager</strong> in Step 3.
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="wiz-case2-dept-select">Department Name (Select Existing) *</label>
-                    <select id="wiz-case2-dept-select"></select>
-                  </div>
-                  <div class="field">
-                    <label for="wiz-case2-head-select">Select Department Head *</label>
-                    <select id="wiz-case2-head-select"></select>
-                  </div>
-                  <div class="field">
-                    <label for="wiz-case2-proj-name">New Project Name *</label>
-                    <input type="text" id="wiz-case2-proj-name" placeholder="e.g. Global Checkout 2.0">
-                  </div>
-                  <div class="field">
-                    <label for="wiz-case2-proj-code">Project Code *</label>
-                    <input type="text" id="wiz-case2-proj-code" placeholder="e.g. CHK-20">
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-          </div>
-
-          <!-- SECTION 3: Member Information (Auto-reveals) -->
-          <div class="auto-reveal-section" id="sec-member-info">
-            <fieldset>
-              <legend>
-                <span class="n" id="badge-n-3">3</span>
-                <span>STEP 3: Member Information</span>
-                <span class="step-check" id="check-step-3">✓ Complete</span>
-              </legend>
-              <p style="color:var(--mist); font-size:13.5px; margin-bottom:14px;">
-                Enter personal coordinates, work contact, and designate role level.
-              </p>
-              <div class="grid">
-                <div class="field">
-                  <label for="wiz-member-name">Full Name *</label>
-                  <input type="text" id="wiz-member-name" placeholder="e.g. Priya Sharma" required>
-                </div>
-                <div class="field">
-                  <label for="wiz-member-email">Work Email *</label>
-                  <input type="email" id="wiz-member-email" placeholder="e.g. priya.sharma@zenith.com" required>
-                </div>
-                <div class="field">
-                  <label for="wiz-member-phone">Phone Number</label>
-                  <input type="text" id="wiz-member-phone" placeholder="e.g. +1 (555) 234-5678">
-                </div>
-                
-                <!-- Dynamic Role Field -->
-                <div class="field" id="role-field-wrapper">
-                  <label for="wiz-member-role-select">Role / Designation *</label>
-                  
-                  <!-- Editable in Step 2A -->
-                  <div id="role-select-box">
-                    <select id="wiz-member-role-select">
-                      <option value="Employee / Contributor">Employee / Contributor</option>
-                      <option value="Team Manager">Team Manager</option>
-                      <option value="Team Leader">Team Leader</option>
-                      <option value="Department Head">Department Head</option>
-                    </select>
-                  </div>
-                  
-                  <!-- Locked in Step 2B Case 1 or Case 2 -->
-                  <div id="role-locked-box" class="hidden">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <input type="text" id="wiz-member-role-locked" readonly style="background:rgba(15,23,42,0.8); cursor:not-allowed; color:var(--white); font-weight:700; flex:1;">
-                      <span id="role-locked-badge" class="badge badge-teal" style="font-size:11.5px; white-space:nowrap;">🔒 Auto-locked</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-          </div>
-
-          <!-- SECTION 4: Leadership Hierarchy Mapping (Auto-reveals when applicable) -->
-          <div class="auto-reveal-section" id="sec-leadership">
-            <fieldset>
-              <legend>
-                <span class="n" id="badge-n-4">4</span>
-                <span>STEP 4: Leadership Hierarchy Mapping</span>
-                <span class="step-check" id="check-step-4">✓ Complete</span>
-              </legend>
-              <p id="lead-sub-text" style="color:var(--mist); font-size:13.5px; margin-bottom:14px;">
-                Link this member to their reporting chain.
-              </p>
-              
-              <!-- Skip banner if Department Head -->
-              <div id="lead-skip-banner" class="hidden" style="background:rgba(45,212,191,0.08); border:1px solid rgba(45,212,191,0.3); border-radius:8px; padding:12px 16px; color:var(--teal-300); font-size:13.5px;">
-                ✓ <strong>Leadership Hierarchy Skipped:</strong> This member is designated as <strong>Department Head</strong> with no managerial line above them.
-              </div>
-
-              <div id="lead-fields-grid" class="grid">
-                <div class="field" id="field-lead-mgr">
-                  <label for="wiz-mgr-select">
-                    <span>Reporting Manager *</span>
-                    <span id="hint-lead-mgr" class="badge badge-teal" style="font-size:10.5px; margin-left:6px; font-weight:500; display:none;">✨ Auto-filled</span>
-                  </label>
-                  <select id="wiz-mgr-select"></select>
-                </div>
-                <div class="field" id="field-lead-team">
-                  <label for="wiz-lead-select">
-                    <span>Team Leader *</span>
-                    <span id="hint-lead-team" class="badge badge-teal" style="font-size:10.5px; margin-left:6px; font-weight:500; display:none;">✨ Auto-filled</span>
-                  </label>
-                  <select id="wiz-lead-select"></select>
-                </div>
-                <div class="field full" id="field-lead-head">
-                  <label for="wiz-head-select">
-                    <span>Department Head *</span>
-                    <span id="hint-lead-head" class="badge badge-teal" style="font-size:10.5px; margin-left:6px; font-weight:500; display:none;">✨ Auto-filled</span>
-                  </label>
-                  <select id="wiz-head-select"></select>
-                </div>
-              </div>
-            </fieldset>
-          </div>
-
-          <!-- SECTION 5: Password & Security (Auto-reveals) -->
-          <div class="auto-reveal-section" id="sec-security">
-            <fieldset>
-              <legend>
-                <span class="n" id="badge-n-5">5</span>
-                <span>STEP 5: Security Credentials & Provisioning</span>
-                <span class="step-check" id="check-step-5">✓ Ready</span>
-              </legend>
-              <p style="color:var(--mist); font-size:13.5px; margin-bottom:14px;">
-                Set authentication credentials for this member and review before provisioning.
-              </p>
-              <div class="grid">
-                <div class="field full">
-                  <label for="wiz-input-password">Account Password</label>
-                  <div class="row">
-                    <input type="text" id="wiz-input-password" placeholder="Enter password or generate one" value="Khushi123@" style="flex:1;">
-                    <button type="button" class="btn btn-ghost" id="wiz-btn-gen-pass">🎲 Generate Password</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Quick summary review card -->
-              <div id="wiz-summary-card" style="margin-top:16px; padding:14px 18px; background:var(--navy-950); border:1px solid var(--line); border-radius:10px;">
-                <h4 style="font-size:13px; text-transform:uppercase; color:var(--teal-300); font-family:var(--font-mono); margin-bottom:8px;">Live Provisioning Summary</h4>
-                <div id="wiz-summary-content" style="font-size:13px; color:var(--mist); line-height:1.6;"></div>
-              </div>
-            </fieldset>
-
-            <div id="wiz-error-msg" class="err" style="margin-top:14px; margin-bottom:10px; font-weight:600; font-size:14px;"></div>
-            <div id="wiz-success-msg" class="note ok hidden" style="margin-top:14px; margin-bottom:16px;"></div>
-
-            <div style="margin-top:18px; display:flex; justify-content:flex-end;">
-              <button type="submit" class="btn btn-primary" style="padding:13px 32px; font-size:15px;" id="btn-submit-member">
-                ✓ Provision & Save Member
-              </button>
-            </div>
-          </div>
-
+          <button type="submit" class="btn btn-primary">Create Department</button>
         </form>
-      </div>
+      </section>
+
+      <section class="card-workday-detailed" style="padding:22px;">
+        <div class="detailed-card-title" style="margin-bottom:14px;">Add Member</div>
+        <p style="font-size:12.5px; color:var(--mist); margin-bottom:18px;">Members are added to a department without being tied to a single project.</p>
+        <form id="form-add-member">
+          <div class="grid">
+            <div class="field">
+              <label for="member-name">Full Name</label>
+              <input id="member-name" required placeholder="e.g. Priya Sharma">
+            </div>
+            <div class="field">
+              <label for="member-email">Work Email</label>
+              <input id="member-email" type="email" required placeholder="priya@company.com">
+            </div>
+            <div class="field">
+              <label for="member-password">Login Password</label>
+              <input id="member-password" type="password" minlength="8" required placeholder="At least 8 characters">
+            </div>
+            <div class="field">
+              <label for="member-department">Department</label>
+              <select id="member-department" required></select>
+            </div>
+            <div class="field">
+              <label for="member-role">Organizational Role</label>
+              <select id="member-role" required>
+                <option value="employee">Member</option>
+                <option value="manager">Manager</option>
+                <option value="executive">Executive</option>
+              </select>
+            </div>
+            <div class="field full" id="member-manager-wrap">
+              <label for="member-manager">Reports To Manager <span style="color:var(--mist-dim);">(required for Team Leaders and Members when available)</span></label>
+              <select id="member-manager"><option value="">No manager selected</option></select>
+            </div>
+            <div class="field full hidden" id="executive-position-wrap">
+              <label for="executive-position">Executive Position</label>
+              <input id="executive-position" placeholder="e.g. CTO, CFO, COO">
+            </div>
+            <div class="field full hidden" id="manager-position-wrap">
+              <label for="manager-position">Manager Position</label>
+              <input id="manager-position" placeholder="e.g. Product Manager, Frontend Manager">
+            </div>
+            <div class="field full">
+              <label for="member-designation">Member Designation <span style="color:var(--mist-dim);">(for non-manager members)</span></label>
+              <input id="member-designation" placeholder="e.g. Senior Developer, UX Designer">
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+            <button type="submit" class="btn btn-primary">Provision Member</button>
+          </div>
+        </form>
+      </section>
     </div>
 
-    </main>
+    <div class="card-workday-detailed" style="padding:22px; margin-top:20px;">
+      <div class="detailed-card-title" style="margin-bottom:14px;">Department Directory</div>
+      <div id="department-directory" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:14px;"></div>
+    </div>
 
-  <!-- Dedicated Page JavaScript Files -->
+    <div id="org-feedback" class="note ok hidden" style="margin-top:18px;"></div>
+    <div id="org-error" class="err" style="margin-top:14px; font-weight:600;"></div>
+  </main>
+
   <script src="./state.js"></script>
   <script src="./sidebar.js"></script>
   <script src="./add-member.js"></script>
 </body>
 </html>
-
-

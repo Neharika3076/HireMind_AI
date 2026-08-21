@@ -116,10 +116,16 @@ if (currentUser.roleType !== "admin") {
     const statOrgs = document.getElementById("stat-total-orgs");
     const statProj = document.getElementById("stat-total-projects");
     const statMem = document.getElementById("stat-total-members");
+    const statDepartments = document.getElementById("stat-total-departments");
 
     if (statOrgs) statOrgs.textContent = 1;
     if (statProj) statProj.textContent = s.projects.filter((project) => project.orgId === activeOrgId).length;
     if (statMem) statMem.textContent = s.members.filter((member) => member.orgId === activeOrgId && member.roleType !== "admin").length;
+    if (statDepartments) statDepartments.textContent = s.departments.filter((department) => department.orgId === activeOrgId).length;
+    if (statDepartments) {
+      const departmentDelta = statDepartments.parentElement.querySelector(".stat-card-delta");
+      if (departmentDelta) departmentDelta.textContent = "Departments visible";
+    }
   }
 
   // Directory rendering

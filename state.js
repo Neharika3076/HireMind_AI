@@ -696,6 +696,423 @@ const DEFAULT_STATE = {
 };
 
 /* =========================================================
+   CORPORATE ORGANIZATION MODEL (v2)
+   =========================================================
+   The original demo represented department, project and team ownership with
+   single fields.  This layer keeps legacy fields for older screens, while all
+   new operations use IDs and assignment collections.  It is deliberately
+   enforced here so UI forms cannot bypass the business rules.
+*/
+(function installCorporateStore() {
+  const CORPORATE_SESSION_KEY = "terrahire_session_user";
+  const unique = (values) => [...new Set((values || []).filter(Boolean))];
+  const id = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const today = () => new Date().toISOString();
+
+  function memberDepartmentId(data, member) {
+    const legacyId = member.departmentId || member.deptId;
+    const byId = (data.departments || []).find((item) => item.id === legacyId && (!item.orgId || item.orgId === member.orgId));
+    if (byId) return byId.id;
+    const byName = (data.departments || []).find((item) => item.name === member.department && (!item.orgId || item.orgId === member.orgId));
+    if (byName) return byName.id;
+    const legacyDepartment = (data.departments || []).find((item) => item.name === member.department);
+    if (!legacyDepartment || !member.orgId) return "";
+    const cloneId = `${legacyDepartment.id}_${member.orgId}`;
+    const clone = { ...legacyDepartment, id: cloneId, orgId: member.orgId, executiveId: "", head: "", headEmail: "", createdAt: today() };
+    data.departments.push(clone);
+    return clone.id;
+  }
+
+  function projectDepartmentIds(data, project) {
+    if (Array.isArray(project.departmentIds) && project.departmentIds.length) return unique(project.departmentIds);
+    const names = project.departmentNames || [project.department];
+    return unique(names.map((name) => {
+      const department = (data.departments || []).find((item) => item.name === name && (!item.orgId || item.orgId === project.orgId));
+      return department ? department.id : "";
+    }));
+  }
+
+  function normalizeCorporateData(raw) {
+    const data = raw && typeof raw === "object" ? raw : {};
+    data.departments = Array.isArray(data.departments) ? data.departments : [];
+    data.members = Array.isArray(data.members) ? data.members : [];
+    data.projects = Array.isArray(data.projects) ? data.projects : [];
+    data.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+    data.projectAssignments = Array.isArray(data.projectAssignments) ? data.projectAssignments : [];
+
+    data.members.forEach((member) => {
+      member.departmentId = memberDepartmentId(data, member);
+      member.wasLegacyTeamLeader = member.wasLegacyTeamLeader || member.roleType === "team_leader";
+      if (member.roleType === "department_head") member.roleType = "executive";
+      if (member.roleType === "team_leader" && /manager/i.test(String(member.designation || ""))) member.roleType = "manager";
+      if (member.roleType === "manager" && !/manager/i.test(String(member.designation || "")) && member.roleCategory !== "Team Manager" && (member.roleCategory === "Team Leader" || (member.reportingTeamLead && member.reportingTeamLead === member.fullName && member.reportingManager))) member.roleType = "team_leader";
+      // Team Leaders are real hierarchy members. Keep legacy records marked
+      // as team_leader instead of silently flattening them into employees.
+      if (member.roleType !== "admin" && member.roleType !== "executive" && member.roleType !== "manager" && member.roleType !== "team_leader") member.roleType = "employee";
+      if (member.roleType === "executive") {
+        member.roleCategory = "Executive";
+        member.executivePosition = member.executivePosition || member.designation || "Executive";
+      } else if (member.roleType === "manager") {
+        member.roleCategory = "Manager";
+        member.managerPosition = member.managerPosition || member.designation || "Manager";
+      } else if (member.roleType === "team_leader") {
+        member.roleCategory = "Team Leader";
+        member.managerId = member.managerId || "";
+      } else {
+        member.roleCategory = "Member";
+        member.managerId = member.managerId || "";
+      }
+    });
+
+    data.departments.forEach((department) => {
+      if (!department.executiveId) {
+        const executive = data.members.find((member) => member.roleType === "executive" && member.departmentId === department.id && (!department.orgId || member.orgId === department.orgId));
+        if (executive) department.executiveId = executive.id;
+      }
+      department.head = department.head || ((data.members.find((member) => member.id === department.executiveId) || {}).fullName || "");
+    });
+
+    // Backfill reporting links for legacy records while preserving any
+    // explicit hierarchy entered by an administrator.
+    data.members.forEach((member) => {
+      const department = data.departments.find((item) => item.id === member.departmentId);
+      if (member.roleType === "manager" && !member.executiveId) member.executiveId = department && department.executiveId || "";
+      if ((member.roleType === "employee" || member.roleType === "team_leader") && !member.managerId) {
+        const project = data.projects.find((item) => item.id === member.projectId || item.code === member.projectCode);
+        const manager = project && data.members.find((candidate) => candidate.id === (project.managerIds || [])[0]);
+        if (manager) member.managerId = manager.id;
+      }
+    });
+
+    data.projects.forEach((project) => {
+      project.departmentIds = projectDepartmentIds(data, project);
+      project.departmentNames = project.departmentIds.map((departmentId) => (data.departments.find((department) => department.id === departmentId) || {}).name).filter(Boolean);
+      project.department = project.department || project.departmentNames[0] || "Unassigned";
+      project.memberIds = unique(project.memberIds || []);
+      project.managerIds = unique(project.managerIds || []);
+      if (!project.managerIds.length && project.pmName) {
+        const manager = data.members.find((member) => member.orgId === project.orgId && member.fullName === project.pmName && member.roleType === "manager");
+        if (manager) project.managerIds.push(manager.id);
+      }
+      project.teamLeadIds = unique(project.teamLeadIds || []);
+      project.assignmentHistory = Array.isArray(project.assignmentHistory) ? project.assignmentHistory : [];
+      project.createdByName = project.createdByName || ((data.members.find((member) => member.id === project.createdBy) || {}).fullName || "");
+      project.assignedBy = project.assignedBy || project.createdBy || "";
+      project.assignedByName = project.assignedByName || project.createdByName || "";
+    });
+
+    data.members.forEach((member) => {
+      if ((member.roleType !== "employee" && member.roleType !== "team_leader") || member.managerId) return;
+      const project = data.projects.find((item) => item.id === member.projectId || item.code === member.projectCode);
+      const manager = project && data.members.find((candidate) => candidate.id === (project.managerIds || [])[0]);
+      const namedManager = data.members.find((candidate) => candidate.orgId === member.orgId && candidate.roleType === "manager" && candidate.fullName === member.reportingManager);
+      if (manager) member.managerId = manager.id;
+      else if (namedManager) member.managerId = namedManager.id;
+    });
+
+    data.projects.forEach((project) => {
+      data.members.filter((member) => member.projectId === project.id || member.projectCode === project.code).forEach((member) => {
+        project.memberIds = unique([...project.memberIds, member.id]);
+        if (!data.projectAssignments.some((assignment) => assignment.projectId === project.id && assignment.memberId === member.id)) {
+          data.projectAssignments.push({
+            id: id("assignment"), projectId: project.id, memberId: member.id,
+            departmentId: member.departmentId, isTeamLeader: Boolean(member.wasLegacyTeamLeader || member.roleType === "team_leader"), assignedAt: today(), assignedBy: "migration"
+          });
+        }
+        if (member.wasLegacyTeamLeader || member.roleType === "team_leader") project.teamLeadIds = unique([...project.teamLeadIds, member.id]);
+      });
+    });
+
+    data.projectAssignments.forEach((assignment) => {
+      const project = data.projects.find((item) => item.id === assignment.projectId);
+      const member = data.members.find((item) => item.id === assignment.memberId);
+      if (!project || !member) return;
+      assignment.departmentId = assignment.departmentId || member.departmentId;
+      assignment.isTeamLeader = Boolean(assignment.isTeamLeader || member.roleType === "team_leader");
+      project.memberIds = unique([...project.memberIds, member.id]);
+      if (assignment.isTeamLeader) project.teamLeadIds = unique([...project.teamLeadIds, member.id]);
+    });
+
+    data.tasks.forEach((task) => {
+      const project = data.projects.find((item) => item.id === task.projectId);
+      task.employeeIds = unique(task.employeeIds || (task.memberId ? [task.memberId] : []));
+      task.managerIds = unique(task.managerIds || (task.managerId ? [task.managerId] : (project ? project.managerIds : [])));
+      task.teamLeadIds = unique(task.teamLeadIds || (task.teamLeadId ? [task.teamLeadId] : []));
+      task.status = task.status === "Done" ? "Completed" : (task.status || "Assigned");
+      task.progress = Number.isFinite(Number(task.progress)) ? Number(task.progress) : (task.completed ? 100 : 0);
+      task.completed = task.status === "Completed" || Boolean(task.completed);
+      task.assignmentHistory = Array.isArray(task.assignmentHistory) ? task.assignmentHistory : [];
+      task.reviewStatus = task.reviewStatus || (task.completed ? "Approved" : "Not submitted");
+      task.subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+      task.assignedBy = task.assignedBy || ((task.assignmentHistory[task.assignmentHistory.length - 1] || {}).actorId || "");
+      task.assignedByName = task.assignedByName || ((task.assignmentHistory[task.assignmentHistory.length - 1] || {}).actorName || "");
+      task.assignedAt = task.assignedAt || ((task.assignmentHistory[task.assignmentHistory.length - 1] || {}).at || "");
+    });
+    return data;
+  }
+
+  function readData() {
+    try { return normalizeCorporateData(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || DEFAULT_STATE); }
+    catch (_) { return normalizeCorporateData(DEFAULT_STATE); }
+  }
+  function writeData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeCorporateData(data))); }
+  function getUser(data) {
+    const raw = sessionStorage.getItem(CORPORATE_SESSION_KEY);
+    if (!raw) return null;
+    let userId = raw;
+    try { const parsed = JSON.parse(raw); userId = parsed && parsed.id ? parsed.id : parsed; } catch (_) { /* stored as an ID */ }
+    return data.members.find((member) => member.id === userId) || null;
+  }
+  const isAdmin = (user) => user && user.roleType === "admin";
+  const isExecutive = (user) => user && user.roleType === "executive";
+  const isOwner = (user) => isAdmin(user) || isExecutive(user);
+  const departmentFor = (data, member) => member && data.departments.find((department) => department.id === member.departmentId || department.name === member.department);
+  const executiveForDepartment = (data, departmentId) => {
+    const department = data.departments.find((item) => item.id === departmentId);
+    return department && data.members.find((member) => member.id === department.executiveId) || null;
+  };
+  const isUnderExecutive = (data, member, executive) => {
+    if (!member || !executive || member.orgId !== executive.orgId) return false;
+    return member.executiveId === executive.id || Boolean(member.departmentId && member.departmentId === executive.departmentId) && (departmentFor(data, member) || {}).executiveId === executive.id;
+  };
+  const isUnderManager = (member, manager) => Boolean(member && manager && member.orgId === manager.orgId && (member.managerId === manager.id || member.reportingManagerId === manager.id));
+  const allowedMemberForActor = (data, actor, member) => {
+    if (!member || member.orgId !== actor.orgId) return false;
+    if (isAdmin(actor)) return true;
+    if (isExecutive(actor)) return isUnderExecutive(data, member, actor);
+    if (actor.roleType === "manager") return isUnderManager(member, actor);
+    return false;
+  };
+  function requireActor(data) { const user = getUser(data); if (!user) throw new Error("Please sign in to continue."); return user; }
+  function getProject(data, projectId) { return data.projects.find((project) => project.id === projectId); }
+  function getProjectMembers(data, project) {
+    const ids = unique([...(project.memberIds || []), ...(data.projectAssignments || []).filter((assignment) => assignment.projectId === project.id).map((assignment) => assignment.memberId)]);
+    return data.members.filter((member) => ids.includes(member.id));
+  }
+  function canManageProject(data, user, project) {
+    if (!user || !project || project.orgId !== user.orgId) return false;
+    if (isAdmin(user)) return true;
+    if (isExecutive(user)) return project.departmentIds.includes(user.departmentId);
+    return user.roleType === "manager" && project.managerIds.includes(user.id);
+  }
+  function canViewProject(data, user, project) {
+    if (!user || !project || project.orgId !== user.orgId) return false;
+    if (isAdmin(user)) return true;
+    if (isExecutive(user)) return project.createdBy === user.id || project.assignedBy === user.id || (project.managerIds || []).some((managerId) => isUnderExecutive(data, data.members.find((member) => member.id === managerId), user));
+    return (project.managerIds || []).includes(user.id) || (project.memberIds || []).includes(user.id);
+  }
+  function history(task, action, actor, details) {
+    task.assignmentHistory.unshift({ id: id("history"), action, actorId: actor.id, actorName: actor.fullName, details: details || "", at: today() });
+  }
+  function validateProjectParticipants(data, project, memberIds, teamLeadIds) {
+    const selected = unique(memberIds);
+    const invalidMember = selected.find((memberId) => {
+      const member = data.members.find((item) => item.id === memberId);
+      return !member || member.orgId !== project.orgId || !project.departmentIds.includes(member.departmentId);
+    });
+    if (invalidMember) throw new Error("Every project member must belong to a department assigned to the project.");
+    const invalidLeader = unique(teamLeadIds).find((memberId) => !selected.includes(memberId));
+    if (invalidLeader) throw new Error("A Team Leader must first be assigned to this project.");
+  }
+
+  window.getAppData = readData;
+  window.saveAppData = writeData;
+  window.TerraHireStore = {
+    getStore: readData,
+    setStore: writeData,
+    getCurrentUser() { return getUser(readData()); },
+    setCurrentUser(user) { if (user && user.id) sessionStorage.setItem(CORPORATE_SESSION_KEY, user.id); else sessionStorage.removeItem(CORPORATE_SESSION_KEY); },
+    getDashboardForRole(user) { if (!user) return "./login.html"; if (isAdmin(user)) return "./admin.html"; if (user.roleType === "executive" || user.roleType === "manager") return "./tasks.html"; return "./employee.html"; },
+    getOrganizationDepartments(orgId) { return readData().departments.filter((department) => !department.orgId || department.orgId === orgId); },
+    getProjectMembers(projectId) { const data = readData(); const project = getProject(data, projectId); return project ? getProjectMembers(data, project) : []; },
+    getProjectAssignments(projectId) { return readData().projectAssignments.filter((assignment) => assignment.projectId === projectId); },
+    getAccessibleProjects(user = this.getCurrentUser()) {
+      const data = readData();
+      if (!user) return [];
+      return data.projects.filter((project) => canViewProject(data, user, project));
+    },
+    createDepartment(input) {
+      const data = readData(); const actor = requireActor(data);
+      if (!isAdmin(actor)) throw new Error("Only an administrator can create departments.");
+      const name = String(input.name || "").trim();
+      if (!name) throw new Error("A department name is required.");
+      if (data.departments.some((department) => department.orgId === actor.orgId && department.name.toLowerCase() === name.toLowerCase())) throw new Error("A department with this name already exists.");
+      const department = { id: id("dept"), orgId: actor.orgId, name, desc: String(input.desc || "").trim(), executiveId: "", head: "", headEmail: "", createdAt: today() };
+      data.departments.push(department); writeData(data); return department;
+    },
+    createMember(input) {
+      const data = readData(); const actor = requireActor(data);
+      if (!isAdmin(actor)) throw new Error("Only an administrator can add members.");
+      const department = data.departments.find((item) => item.id === input.departmentId && (!item.orgId || item.orgId === actor.orgId));
+      const roleType = ["executive", "manager", "team_leader"].includes(input.roleType) ? input.roleType : "employee";
+      const name = String(input.fullName || "").trim(); const email = String(input.email || "").trim().toLowerCase();
+      const password = String(input.password || "");
+      if (!department || !name || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) throw new Error("Provide a name, valid email, department, and a password of at least 8 characters.");
+      if (data.members.some((member) => member.email.toLowerCase() === email)) throw new Error("A member with this email already exists.");
+      if (roleType === "executive" && department.executiveId) throw new Error(`${department.name} already has an Executive. A department can have only one Executive.`);
+      const executivePosition = String(input.executivePosition || "").trim();
+      const managerPosition = String(input.managerPosition || "").trim();
+      if (roleType === "executive" && !executivePosition) throw new Error("Executive Position is required.");
+      if (roleType === "manager" && !managerPosition) throw new Error("Manager Position is required.");
+      const managerId = String(input.managerId || "").trim();
+      const manager = managerId && data.members.find((member) => member.id === managerId && member.orgId === actor.orgId && member.roleType === "manager");
+      if ((roleType === "employee" || roleType === "team_leader") && managerId && !manager) throw new Error("Select a Manager from this organization.");
+      const executiveId = roleType === "manager" ? (String(input.executiveId || department.executiveId || "").trim()) : "";
+      if (roleType === "manager" && executiveId && !data.members.some((member) => member.id === executiveId && member.orgId === actor.orgId && member.roleType === "executive")) throw new Error("Select a valid Executive from this organization.");
+      const member = { id: id("usr"), orgId: actor.orgId, departmentId: department.id, department: department.name, roleType, roleCategory: roleType === "executive" ? "Executive" : roleType === "manager" ? "Manager" : roleType === "team_leader" ? "Team Leader" : "Member", fullName: name, email, password, designation: roleType === "executive" ? executivePosition : roleType === "manager" ? managerPosition : (input.designation || (roleType === "team_leader" ? "Team Leader" : "Employee")), executivePosition, managerPosition, executiveId, managerId: manager ? manager.id : "", phone: input.phone || "", location: input.location || "Global Remote", joinedDate: new Date().toISOString().slice(0, 10), createdAt: today(), status: "Active", isCheckedIn: false, projectIds: [], bio: input.bio || "" };
+      data.members.push(member);
+      if (roleType === "executive") { department.executiveId = member.id; department.head = member.fullName; department.headEmail = member.email; }
+      writeData(data); return member;
+    },
+    createProject(input) {
+      const data = readData(); const actor = requireActor(data);
+      const departmentIds = unique(input.departmentIds);
+      if (!isOwner(actor)) throw new Error("Only an administrator or Executive can create projects.");
+      if (!departmentIds.length) throw new Error("Select at least one department.");
+      const departments = departmentIds.map((departmentId) => data.departments.find((department) => department.id === departmentId && (!department.orgId || department.orgId === actor.orgId)));
+      if (departments.some((department) => !department)) throw new Error("One or more selected departments are not available in your organization.");
+      if (isExecutive(actor) && !departmentIds.includes(actor.departmentId)) throw new Error("Executives can create projects involving their own department.");
+      const code = String(input.code || "").trim().toUpperCase(); const name = String(input.name || "").trim();
+      if (!name || !code) throw new Error("Project name and code are required.");
+      if (data.projects.some((project) => project.orgId === actor.orgId && project.code.toUpperCase() === code)) throw new Error("A project with this code already exists.");
+      const memberIds = unique(input.memberIds); const managerIds = unique(input.managerIds); const teamLeadIds = unique(input.teamLeadIds);
+      const selectedMembers = memberIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      if (selectedMembers.some((member) => !member || !allowedMemberForActor(data, actor, member))) throw new Error("Every project member must belong to your authorized hierarchy.");
+      const selectedManagers = managerIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      if (selectedManagers.some((member) => !member || member.roleType !== "manager")) throw new Error("Only Managers can be responsible project managers.");
+      if (selectedManagers.some((member) => !allowedMemberForActor(data, actor, member))) throw new Error("You can assign a project only to Managers in your own reporting hierarchy.");
+      if (isExecutive(actor) && selectedManagers.some((member) => !departmentIds.includes(member.departmentId))) throw new Error("Managers must belong to a department in this project.");
+      const selectedTeamLeaders = teamLeadIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      if (selectedTeamLeaders.some((member) => !member || member.roleType !== "team_leader" || !allowedMemberForActor(data, actor, member))) throw new Error("Select Team Leaders from your authorized hierarchy.");
+      const project = { id: id("proj"), orgId: actor.orgId, name, code, desc: String(input.desc || "").trim(), departmentIds, departmentNames: departments.map((department) => department.name), department: departments[0].name, memberIds: unique([...memberIds, ...managerIds, ...teamLeadIds]), managerIds, teamLeadIds: [], status: input.status || "In Progress", startDate: input.startDate || new Date().toISOString().slice(0, 10), endDate: input.endDate || "", createdBy: actor.id, createdByName: actor.fullName, assignedBy: actor.id, assignedByName: actor.fullName, createdAt: today(), assignmentHistory: [] };
+      validateProjectParticipants(data, project, project.memberIds, teamLeadIds);
+      data.projects.push(project);
+      this.assignMembersToProject(project.id, { memberIds: project.memberIds, teamLeadIds, _data: data, _actor: actor });
+      writeData(data); return project;
+    },
+    assignMembersToProject(projectId, input) {
+      const data = input._data || readData(); const actor = input._actor || requireActor(data); const project = getProject(data, projectId);
+      if (!project || !canManageProject(data, actor, project)) throw new Error("You are not authorized to assign this project.");
+      const memberIds = unique([...(project.memberIds || []), ...(input.memberIds || [])]);
+      const managerIds = unique(input.managerIds || project.managerIds || []);
+      const teamLeadIds = unique(input.teamLeadIds || project.teamLeadIds || []);
+      validateProjectParticipants(data, project, memberIds, teamLeadIds);
+      const selectedMembers = memberIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      const newlyRequested = unique(input.memberIds || []);
+      if (newlyRequested.some((memberId) => !allowedMemberForActor(data, actor, data.members.find((member) => member.id === memberId)))) throw new Error("You can assign only members in your own reporting hierarchy.");
+      const selectedManagers = managerIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      if (selectedManagers.some((member) => !memberIds.includes(member && member.id) || member.roleType !== "manager")) throw new Error("Project managers must be assigned Managers in this project.");
+      if (selectedManagers.some((member) => !allowedMemberForActor(data, actor, member))) throw new Error("You can assign only Managers in your own reporting hierarchy.");
+      if (actor.roleType === "manager" && managerIds.some((memberId) => !project.managerIds.includes(memberId))) throw new Error("Managers cannot change project manager assignments.");
+      const selectedTeamLeaders = teamLeadIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      if (selectedTeamLeaders.some((member) => !member || member.roleType !== "team_leader" || !allowedMemberForActor(data, actor, member))) throw new Error("Team Leaders must belong to the assigning user's hierarchy.");
+      project.memberIds = memberIds; project.managerIds = managerIds; project.teamLeadIds = teamLeadIds;
+      const assignedAt = today();
+      project.assignmentHistory = Array.isArray(project.assignmentHistory) ? project.assignmentHistory : [];
+      project.assignmentHistory.unshift({ id: id("history"), action: "Project assignment updated", actorId: actor.id, actorName: actor.fullName, assignedTo: memberIds, assignedAt, at: assignedAt });
+      memberIds.forEach((memberId) => {
+        const member = data.members.find((item) => item.id === memberId);
+        let assignment = data.projectAssignments.find((item) => item.projectId === project.id && item.memberId === memberId);
+        if (!assignment) { assignment = { id: id("assignment"), projectId: project.id, memberId, departmentId: member.departmentId, isTeamLeader: false, assignedAt, assignedBy: actor.id, assignedByName: actor.fullName, history: [] }; data.projectAssignments.push(assignment); }
+        assignment.history = Array.isArray(assignment.history) ? assignment.history : [];
+        assignment.history.unshift({ actorId: actor.id, actorName: actor.fullName, at: assignedAt, action: "Assigned to project" });
+        assignment.isTeamLeader = teamLeadIds.includes(memberId);
+        member.projectIds = unique([...(member.projectIds || []), project.id]);
+      });
+      if (!input._data) writeData(data); return project;
+    },
+    addTask(taskInput, legacyTaskData) {
+      const input = typeof taskInput === "string" ? { ...(legacyTaskData || {}), employeeIds: [taskInput] } : (taskInput || {});
+      const data = readData(); const actor = requireActor(data); const project = getProject(data, input.projectId);
+      if (!project || !canManageProject(data, actor, project)) throw new Error("You are not authorized to assign work in this project.");
+      const employeeIds = unique(input.employeeIds); const teamLeadIds = unique(input.teamLeadIds || [input.teamLeadId]);
+      const projectMembers = new Set(project.memberIds || []);
+      if (!employeeIds.length || employeeIds.some((memberId) => !projectMembers.has(memberId))) throw new Error("Tasks may only be assigned to project members.");
+      if (teamLeadIds.some((memberId) => !project.teamLeadIds.includes(memberId))) throw new Error("Select a project Team Leader for this task.");
+      const teamLeaders = teamLeadIds.map((memberId) => data.members.find((member) => member.id === memberId));
+      if (teamLeaders.some((member) => !member || member.roleType !== "team_leader" || (actor.roleType === "manager" && !isUnderManager(member, actor)))) throw new Error("Managers can assign tasks only to Team Leaders in their own team.");
+      const assignedAt = today();
+      const task = { id: id("task"), projectId: project.id, managerIds: unique(input.managerIds || [actor.id]), teamLeadIds, employeeIds, assignedBy: actor.id, assignedByName: actor.fullName, assignedAt, title: String(input.title || "Untitled Task").trim(), desc: input.desc || "", priority: input.priority || "Medium", category: input.category || "General", dueDate: input.dueDate || "", status: "Assigned", progress: 0, completed: false, reviewStatus: "Not submitted", subtasks: [], assignmentHistory: [] };
+      history(task, "Task assigned", actor, `Assigned to ${employeeIds.length} project member(s).`); data.tasks.push(task); writeData(data); return task;
+    },
+    updateTask(taskId, updates) {
+      const data = readData(); const actor = requireActor(data); const task = data.tasks.find((item) => item.id === taskId); const project = task && getProject(data, task.projectId);
+      if (!task || !project) throw new Error("Task not found.");
+      const canManage = canManageProject(data, actor, project); const isLead = task.teamLeadIds.includes(actor.id); const isAssignee = task.employeeIds.includes(actor.id);
+      if (!canManage && !isLead && !isAssignee) throw new Error("You are not authorized to update this task.");
+      if (isAssignee && !isLead && !canManage && Object.keys(updates).some((key) => !["progress", "status"].includes(key))) throw new Error("Members may only update task progress.");
+      Object.assign(task, updates);
+      if (task.status === "Completed") { task.completed = true; task.progress = 100; task.reviewStatus = "Approved"; }
+      else if (task.status === "Pending Review") task.reviewStatus = "Awaiting review";
+      else task.completed = false;
+      history(task, task.status === "Completed" ? "Task approved" : "Task updated", actor, task.status);
+      writeData(data); return task;
+    },
+    deleteTask(taskId) {
+      const data = readData(); const actor = requireActor(data); const task = data.tasks.find((item) => item.id === taskId); const project = task && getProject(data, task.projectId);
+      if (!task || !canManageProject(data, actor, project)) throw new Error("You are not authorized to delete this task.");
+      data.tasks = data.tasks.filter((item) => item.id !== taskId); writeData(data); return true;
+    },
+    toggleTask(taskId) { const task = this.getStore().tasks.find((item) => item.id === taskId); return this.updateTask(taskId, { status: task && task.completed ? "In Progress" : "Completed" }); },
+    getSummaryStats() {
+      const scope = this.getScopedDirectoryData();
+      const completed = scope.projects.filter((project) => project.status === "Completed").length;
+      const working = scope.members.filter((member) => member.isCheckedIn).length;
+      const done = scope.tasks.filter((task) => task.completed || task.status === "Completed").length;
+      const overdue = scope.tasks.filter((task) => task.overdue || task.status === "Overdue").length;
+      return { totalDepartments: scope.departments.length, totalProjects: scope.projects.length, totalProjectsCompleted: completed, totalProjectsPending: scope.projects.length - completed, totalEmployees: scope.members.length, totalWorkingToday: working, totalNotWorkingToday: scope.members.length - working, totalTasks: scope.tasks.length, completedTasks: done, pendingTasks: scope.tasks.length - done, overdueTasks: overdue, completionRate: scope.tasks.length ? Math.round(done / scope.tasks.length * 100) : 0 };
+    },
+    getDepartmentDetail(departmentId) {
+      const scope = this.getScopedDirectoryData();
+      const department = scope.departments.find((item) => item.id === departmentId || item.name === departmentId);
+      if (!department) return null;
+      const projects = scope.projects.filter((project) => (project.departmentIds || []).includes(department.id) || project.department === department.name).map((project) => this.getProjectDetail(project.id)).filter(Boolean);
+      const members = scope.members.filter((member) => member.departmentId === department.id || member.department === department.name);
+      const projectIds = new Set(projects.map((item) => item.project.id));
+      const tasks = scope.tasks.filter((task) => projectIds.has(task.projectId) || task.employeeIds.some((id) => members.some((member) => member.id === id)));
+      const done = tasks.filter((task) => task.completed || task.status === "Completed").length;
+      return { department, projects, members, totalProjects: projects.length, totalEmployees: members.length, totalTasks: tasks.length, completedTasks: done, pendingTasks: tasks.length - done, completionRate: tasks.length ? Math.round(done / tasks.length * 100) : 0 };
+    },
+    getProjectDetail(projectId) {
+      const scope = this.getScopedDirectoryData();
+      const project = scope.projects.find((item) => item.id === projectId || item.code === projectId);
+      if (!project) return null;
+      const organization = scope.organizations.find((item) => item.id === project.orgId) || { name: "Organization", code: "ORG" };
+      const department = scope.departments.find((item) => (project.departmentIds || []).includes(item.id) || item.name === project.department) || { id: project.department, name: project.department || "Unassigned", head: "", headEmail: "" };
+      const team = getProjectMembers(scope.data, project);
+      const tasks = scope.tasks.filter((task) => task.projectId === project.id);
+      const completedTasks = tasks.filter((task) => task.completed || task.status === "Completed").length;
+      const overdueTasks = tasks.filter((task) => task.overdue || task.status === "Overdue").length;
+      const projectManager = team.find((member) => (project.managerIds || []).includes(member.id)) || null;
+      return { project, organization, department, team, projectManager, tasks, totalTasks: tasks.length, completedTasks, pendingTasks: tasks.length - completedTasks, overdueTasks, completionRate: tasks.length ? Math.round(completedTasks / tasks.length * 100) : 0, startDate: project.startDate || "", endDate: project.endDate || "", status: project.status || "Active" };
+    },
+    getMemberDetail(memberId) {
+      const scope = this.getScopedDirectoryData();
+      const member = scope.members.find((item) => item.id === memberId);
+      if (!member) return null;
+      const department = scope.departments.find((item) => item.id === member.departmentId || item.name === member.department) || { id: member.departmentId, name: member.department || "Unassigned", head: "", headEmail: "" };
+      const projects = scope.projects.filter((project) => (project.memberIds || []).includes(member.id) || project.id === member.projectId || project.code === member.projectCode);
+      const tasks = scope.tasks.filter((task) => (task.employeeIds || []).includes(member.id) || task.memberId === member.id || (member.roleType === "team_leader" && (task.teamLeadIds || []).includes(member.id)));
+      const completedTasks = tasks.filter((task) => task.completed || task.status === "Completed").length;
+      return { member, department, projects, projectContributions: projects.map((project) => ({ project, totalTasks: tasks.filter((task) => task.projectId === project.id).length })), tasks, totalTasks: tasks.length, completedTasks, pendingTasks: tasks.length - completedTasks, overdueTasks: tasks.filter((task) => task.overdue || task.status === "Overdue").length, completionRate: tasks.length ? Math.round(completedTasks / tasks.length * 100) : 0, attendance: { workingDaysInMonth: member.workingDaysInMonth || 0, daysPresent: member.daysPresent || 0, daysAbsent: member.daysAbsent || 0, daysOnLeave: member.daysOnLeave || 0, lateArrivals: member.lateArrivals || 0 } };
+    },
+    getScopedDirectoryData() {
+      const data = readData(); const user = getUser(data); const orgId = user && user.orgId;
+      const orgProjects = data.projects.filter((project) => !orgId || project.orgId === orgId);
+      const projects = user ? orgProjects.filter((project) => canViewProject(data, user, project)) : orgProjects;
+      const visibleProjectIds = new Set(projects.map((project) => project.id));
+      const orgMembers = data.members.filter((member) => !orgId || member.orgId === orgId);
+      const members = !user || isAdmin(user) ? orgMembers : orgMembers.filter((member) => member.id === user.id || projects.some((project) => (project.memberIds || []).includes(member.id)) || (user.roleType === "executive" && isUnderExecutive(data, member, user)) || (user.roleType === "manager" && member.managerId === user.id));
+      const names = new Set([...projects.map((project) => project.department).filter(Boolean), ...members.map((member) => member.department).filter(Boolean)]);
+      const departments = data.departments.filter((department) => !orgId || department.orgId === orgId || (!department.orgId && names.has(department.name)));
+      const tasks = data.tasks.filter((task) => visibleProjectIds.has(task.projectId) && (!user || isAdmin(user) || (user.roleType === "manager" && task.managerIds.includes(user.id)) || (user.roleType === "team_leader" && task.teamLeadIds.includes(user.id)) || task.employeeIds.includes(user.id)));
+      return { data, user, orgId, organizations: data.organizations || [], departments, projects, members, tasks };
+    }
+  };
+  window.TerraHireCorporateStore = window.TerraHireStore;
+})();
+
+/* =========================================================
    SAVE DATA TO LOCAL STORAGE
    This will save data only if it is not already available.
    ========================================================= */
@@ -1114,9 +1531,14 @@ window.TerraHireStore = {
 
     saveAppData(data);
 
-    return task;
+  return task;
   }
 
 
 
 };
+
+// The legacy demo helpers above are retained for pages that still reference
+// them; the corporate store is installed last so all public mutations use the
+// validated many-to-many model.
+window.TerraHireStore = window.TerraHireCorporateStore;

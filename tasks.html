@@ -3,140 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HUMN — Tasks & Projects</title>
+  <title>HUMN — Projects & Tasks</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./index.css">
 </head>
 <body class="workday-shell">
-
-  <!-- Left Sidebar Navigation -->
   <div id="sidebar-root"></div>
-
-  <!-- Main Tasks & Projects View -->
   <main class="workday-main">
     <div class="workday-top-bar">
       <div class="workday-greeting">
-        <h1>Tasks & Sprint Projects</h1>
-        <p>Monitor project deliverables, cross-functional sprints, and milestone velocity.</p>
+        <h1>Projects & Tasks</h1>
+        <p>Coordinate cross-department work, project teams, and delivery progress.</p>
       </div>
-
-      <div style="display:flex; align-items:center; gap:12px;">
-        <button class="btn btn-primary btn-sm" id="btn-open-task-modal" style="font-size:12.5px;">
-          ➕ Add Deliverable
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btn-quick-admin-switch" style="font-size:12px;">
-          🛡️ Admin Console
-        </button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm hidden" id="btn-create-project">+ Create Project</button>
+        <button class="btn btn-ghost btn-sm hidden" id="btn-assign-project-team">Assign Project Team</button>
+        <button class="btn btn-primary btn-sm hidden" id="btn-create-task">+ Add Deliverable</button>
       </div>
     </div>
 
-    <!-- Active Projects Ribbon -->
-    <div style="margin-bottom:24px;">
-      <h3 style="font-size:16px; font-weight:600; color:var(--white); margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-        <span>🚀 Active Project Portfolios</span>
-        <span class="badge badge-teal" style="font-size:11px;">4 Projects Live</span>
-      </h3>
+    <div id="projects-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(275px, 1fr)); gap:16px; margin-bottom:22px;"></div>
 
-      <div class="projects-grid" id="projects-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
-        <!-- Injected via JS -->
+    <section class="card-workday-detailed" style="padding:18px 22px; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:13px;">
+        <div class="detailed-card-title">Work Queue</div>
+        <input id="task-search" placeholder="Search tasks" style="max-width:230px;">
       </div>
-    </div>
-
-    <!-- Task Filter & KPI Strip -->
-    <div class="card-workday-detailed" style="margin-bottom:20px; padding:18px 24px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
-        <!-- Filter tabs -->
-        <div style="display:flex; gap:8px; flex-wrap:wrap;" id="task-filter-tabs">
-          <button class="btn btn-ghost btn-sm active-tab" data-filter="ALL">All Tasks (<span id="count-all">0</span>)</button>
-          <button class="btn btn-ghost btn-sm" data-filter="PENDING">Pending (<span id="count-pending">0</span>)</button>
-          <button class="btn btn-ghost btn-sm" data-filter="COMPLETED">Completed (<span id="count-completed">0</span>)</button>
-          <button class="btn btn-ghost btn-sm" data-filter="HIGH">High Priority</button>
-        </div>
-
-        <div style="display:flex; gap:10px; align-items:center;">
-          <input type="text" id="task-search-input" placeholder="🔍 Search tasks..." style="padding:8px 12px; background:var(--navy-950); border:1px solid var(--line); border-radius:7px; color:var(--white); font-size:13px;">
-        </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:10px;">
+        <select id="filter-project"><option value="ALL">All Projects</option></select>
+        <select id="filter-department"><option value="ALL">All Departments</option></select>
+        <select id="filter-manager"><option value="ALL">All Managers</option></select>
+        <select id="filter-lead"><option value="ALL">All Team Leaders</option></select>
+        <select id="filter-member"><option value="ALL">All Members</option></select>
+        <select id="filter-status"><option value="ALL">All Statuses</option><option>Assigned</option><option>In Progress</option><option>Pending Review</option><option>Completed</option></select>
       </div>
-    </div>
+    </section>
 
-    <!-- Tasks Grid / Kanban Columns -->
-    <div class="tasks-table-container card-workday-detailed">
-      <div class="detailed-card-title">
-        <span>📋 Sprint Task Queue & Deliverables</span>
-        <span style="font-size:12px; color:var(--mist-dim);" id="task-user-header">Assigned to Active Workspace</span>
-      </div>
-
-      <div class="data-table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width:40px;">Status</th>
-              <th>Task Title</th>
-              <th>Category</th>
-              <th>Priority</th>
-              <th>Due Date</th>
-              <th>Assignee</th>
-              <th style="text-align:right;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tasks-table-tbody">
-            <!-- Populated via JS -->
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <section class="tasks-table-container card-workday-detailed">
+      <div class="data-table-wrap"><table class="data-table"><thead><tr><th>Project</th><th>Task</th><th>Responsible Team</th><th>Priority</th><th>Due</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="tasks-table"></tbody></table></div>
+    </section>
+    <div id="task-feedback" class="note ok hidden" style="margin-top:16px;"></div><div id="task-error" class="err" style="margin-top:12px; font-weight:600;"></div>
   </main>
 
-  <!-- Create Task Modal -->
-  <div id="modal-task-create" class="modal-backdrop hidden">
-    <div class="modal-box">
-      <h3 style="font-size:20px; margin-bottom:4px;">➕ Create Sprint Deliverable</h3>
-      <p style="color:var(--mist); font-size:13.5px; margin-bottom:20px;">Assign a new milestone to the project sprint queue.</p>
+  <div class="modal-backdrop hidden" id="modal-project"><div class="modal-box" style="max-width:700px; max-height:85vh; overflow:auto;">
+    <h3 style="font-size:20px; margin-bottom:5px;">Create Cross-Department Project</h3><p style="color:var(--mist); font-size:13px; margin-bottom:18px;">Choose existing departments and existing people. Nothing new needs to be created.</p>
+    <form id="form-project"><div class="grid"><div class="field"><label>Project Name</label><input id="project-name" required></div><div class="field"><label>Project Code</label><input id="project-code" required></div><div class="field full"><label>Description</label><textarea id="project-description" rows="3"></textarea></div><div class="field"><label>Start Date</label><input id="project-start" type="date"></div><div class="field"><label>Target Date</label><input id="project-end" type="date"></div></div>
+      <div class="form-group"><label>Departments involved</label><div id="project-departments" class="selection-list"></div></div>
+      <div class="form-group"><label>Project members <span style="color:var(--mist-dim);">(optional)</span></label><div id="project-members" class="selection-list"></div></div>
+      <div class="form-group"><label>Responsible Managers <span style="color:var(--mist-dim);">(optional)</span></label><div id="project-managers" class="selection-list"></div></div>
+      <div class="form-group"><label>Project Team Leaders <span style="color:var(--mist-dim);">(project-specific, optional)</span></label><div id="project-leads" class="selection-list"></div></div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;"><button type="button" class="btn btn-ghost" data-close="modal-project">Cancel</button><button class="btn btn-primary">Create Project</button></div>
+    </form>
+  </div></div>
 
-      <form id="form-create-full-task">
-        <div class="form-group">
-          <label for="task-full-title">Task Title</label>
-          <input type="text" id="task-full-title" placeholder="e.g. Design System Review" required>
-        </div>
-        <div class="form-group">
-          <label for="task-full-priority">Priority Level</label>
-          <select id="task-full-priority">
-            <option value="Critical">Critical Priority</option>
-            <option value="High" selected>High Priority</option>
-            <option value="Medium">Medium Priority</option>
-            <option value="Low">Low Priority</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="task-full-category">Category / Tag</label>
-          <input type="text" id="task-full-category" placeholder="Design, UX, Backend, Security" value="Design">
-        </div>
-        <div class="form-group">
-          <label for="task-full-due">Due Date</label>
-          <input type="date" id="task-full-due" value="2026-08-22">
-        </div>
-        <div class="form-group">
-          <label for="task-full-assignee">Assignee</label>
-          <select id="task-full-assignee">
-            <!-- Populated via JS -->
-          </select>
-        </div>
+  <div class="modal-backdrop hidden" id="modal-team"><div class="modal-box" style="max-width:660px; max-height:85vh; overflow:auto;">
+    <h3 style="font-size:20px; margin-bottom:5px;">Assign Existing Members</h3><p style="color:var(--mist); font-size:13px; margin-bottom:18px;">Add people to an existing project and designate Team Leaders for this project only.</p>
+    <form id="form-team"><div class="form-group"><label>Project</label><select id="team-project" required></select></div><div class="form-group"><label>Members</label><div id="team-members" class="selection-list"></div></div><div class="form-group" id="team-manager-wrap"><label>Responsible Managers</label><div id="team-managers" class="selection-list"></div></div><div class="form-group"><label>Team Leaders</label><div id="team-leads" class="selection-list"></div></div><div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;"><button type="button" class="btn btn-ghost" data-close="modal-team">Cancel</button><button class="btn btn-primary">Save Team Assignment</button></div></form>
+  </div></div>
 
-        <div class="row" style="justify-content:flex-end; margin-top:20px;">
-          <button type="button" class="btn btn-ghost" id="btn-close-task-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-save-full-task">Create Deliverable</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <div class="modal-backdrop hidden" id="modal-task"><div class="modal-box" style="max-width:610px; max-height:85vh; overflow:auto;">
+    <h3 style="font-size:20px; margin-bottom:5px;">Create Deliverable</h3><p style="color:var(--mist); font-size:13px; margin-bottom:18px;">Assign work to existing members of the selected project.</p>
+    <form id="form-task"><div class="form-group"><label>Project</label><select id="task-project" required></select></div><div class="grid"><div class="field"><label>Task Title</label><input id="task-title" required></div><div class="field"><label>Priority</label><select id="task-priority"><option>Critical</option><option selected>High</option><option>Medium</option><option>Low</option></select></div><div class="field full"><label>Description</label><textarea id="task-description" rows="2"></textarea></div><div class="field"><label>Category</label><input id="task-category" placeholder="e.g. Backend"></div><div class="field"><label>Deadline</label><input id="task-due" type="date"></div></div><div class="form-group"><label>Project Team Lead</label><select id="task-lead" required></select></div><div class="form-group"><label>Assigned Members</label><div id="task-members" class="selection-list"></div></div><div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;"><button type="button" class="btn btn-ghost" data-close="modal-task">Cancel</button><button class="btn btn-primary">Assign Deliverable</button></div></form>
+  </div></div>
 
- <script src="./state.js"></script>
-<script src="./sidebar.js"></script>
-<script src="./tasks.js"></script>
+  <div class="modal-backdrop hidden" id="modal-detail"><div class="modal-box" style="max-width:650px; max-height:85vh; overflow:auto;"><div id="task-detail-content"></div><div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;"><button class="btn btn-ghost" data-close="modal-detail">Close</button><button class="btn btn-primary hidden" id="btn-progress">Update progress</button><button class="btn btn-primary hidden" id="btn-approve">Approve task</button></div></div></div>
+
+  <style>.selection-list{max-height:150px;overflow:auto;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--navy-950);display:flex;flex-direction:column;gap:7px}.selection-list label{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--mist);cursor:pointer}.selection-list input{width:auto}.selection-list .empty{font-size:12px;color:var(--mist-dim)}</style>
+  <script src="./state.js"></script><script src="./sidebar.js"></script><script src="./tasks.js"></script>
 </body>
 </html>
-
-
-
