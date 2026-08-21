@@ -1,12 +1,3 @@
-/**
- * HUMN / TerraHire — Hierarchical Admin Directory
- * 4-Tier Drill-Down:
- * Level 1: Directory Home (Summary KPIs + Department Grid + Filtered Search)
- * Level 2: Department Detail (Dept Summary + Department Projects List)
- * Level 3: Project Detail (Project Summary + Project Team Members + Task Breakdown)
- * Level 4: Employee / Manager Detail (Basic Profile + Attendance Summary + Work / Task Summary + Project Contribution)
- */
-
 
 "use strict";
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,9 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    // Keep the directory focused on the actual organization hierarchy.
-    // The old demo-only switcher and filter ribbon were not part of the
-    // directory workflow and also obscured the clickable department cards.
+
     document.getElementById("demo-member-switcher")?.remove();
     document.getElementById("directory-filter-ribbon")?.remove();
 

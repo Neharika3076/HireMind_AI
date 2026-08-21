@@ -1,14 +1,10 @@
-/**
- * TerraHire — Add Member / Organization / Project Logic
- * Direct localStorage version (No TerraHireStore required)
- */
+
 
 "use strict";
 
 
 document.addEventListener("DOMContentLoaded", () => {
-  const currentUser =
-        window.TerraHireStore.getCurrentUser();
+  const currentUser =window.TerraHireStore.getCurrentUser();
 
     if (!currentUser) {
         window.location.href = "./login.html";
@@ -28,10 +24,11 @@ document.addEventListener("DOMContentLoaded", () => {
      LOCAL STORAGE HELPERS
      ========================================================= */
 
-
+    //  correct
   function getStore() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // console.log(raw)
 
       if (!raw) {
         console.error(
@@ -57,23 +54,40 @@ document.addEventListener("DOMContentLoaded", () => {
       return false;
     }
   }
-
+  //  corrected
   function getCurrentUser() {
     try {
       const userId = sessionStorage.getItem(SESSION_KEY);
+      // console.log(userId+" print");
       const store = getStore();
 
       if (!userId || !store || !store.members) {
         return null;
       }
+      let targetId = userId;
+      if(userId.trim().startsWith("{")){
+        try {
+        const parsedUser = JSON.parse(userId);
+        targetId = parsedUser.id || parsedUser.email || rawSessionVal;
+        }  catch (e) {
+          console.warn("Could not parse session user JSON:", e);
+        }
+      }
 
-      return store.members.find((member) => member.id === userId) || null;
-    } catch (error) {
-      console.error("Could not get current user:", error);
-      return null;
+      return (
+            store.members.find(
+              (member) =>
+                member.id === targetId ||
+                member.email === targetId ||
+                member.fullName === targetId
+            ) || null
+          );
+        } catch (error) {
+          console.error("Could not get current user:", error);
+          return null;
     }
   }
-
+  // corrected
   function setCurrentUser(user) {
     if (user && user.id) {
       sessionStorage.setItem(SESSION_KEY, user.id);
@@ -122,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getOrganizationForDepartment(store, departmentName) {
+    if (activeAdmin && activeAdmin.orgId) {
+    return activeAdmin.orgId;
+    }
     const projectInDepartment = (store.projects || []).find(
       (project) => project.department === departmentName
     );
@@ -136,6 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* =========================================================
      INITIAL STORE CHECK
      ========================================================= */
+
 
   const initialStore = getStore();
 
@@ -158,6 +176,8 @@ document.addEventListener("DOMContentLoaded", () => {
      ========================================================= */
 
   const activeAdmin = getCurrentUser();
+  // console.log(activeAdmin);
+  console.log("run");
   const sbName = document.getElementById("sidebar-user-name");
   const sbAvatar = document.getElementById("sidebar-user-avatar");
 
@@ -657,45 +677,73 @@ document.addEventListener("DOMContentLoaded", () => {
      ========================================================= */
 
   function populateWizard() {
+    // console.log(activeAdmin);
     const store = getStore();
-    if (!store) return;
+    // if (!store) return;
+    if (!store || !activeAdmin) return;
+    console.log(activeAdmin)
+    const currentOrgId = activeAdmin.orgId;
 
+
+    // // 1. Get all projects for the current organization
+    // const orgProjects = (store.projects || []).filter(
+    //   (project) => project.orgId === currentOrgId
+    // );
+
+    // // 2. Identify projects that are NOT completed (Active, In Progress, Pending, etc.)
+    // const activeOrgProjects = orgProjects.filter(
+    //   (project) => String(project.status).toLowerCase() !== "completed"
+    // );
+
+    const orgDeptNames = new Set(
+    (store.projects || [])
+      .filter((project) => project.orgId === currentOrgId)
+      .map((project) => project.department)
+    );
+    const departmentList = (store.departments || [])
+    .filter(
+      (dept) => dept.orgId === currentOrgId || orgDeptNames.has(dept.name)
+    )
+    .map((department) => department.name);
+
+    // console.log(currentOrgId);
+    // console.log(orgDeptNames);
     const departmentSelect = document.getElementById("wiz-dept-select");
     const case2DepartmentSelect = document.getElementById(
       "wiz-case2-dept-select"
     );
 
-    const projectSelect = document.getElementById(
-      "wiz-dept-proj-select"
-    );
-
-    const projectCodeInput = document.getElementById(
-      "wiz-dept-proj-code-readonly"
-    );
-
-    const departmentList = (store.departments || []).map(
-      (department) => department.name
-    );
-
-    function fillDepartmentSelect(element, text) {
-      if (!element) return;
-
-      element.innerHTML = `<option value="">-- ${text} --</option>`;
-
-      departmentList.forEach((departmentName) => {
-        element.innerHTML += `
+    
+    // const departmentList = (store.departments || []).map(
+      //   (department) => department.name
+      // );
+      
+      function fillDepartmentSelect(element, text) {
+        if (!element) return;
+        
+        element.innerHTML = `<option value="">-- ${text} --</option>`;
+        
+        departmentList.forEach((departmentName) => {
+          element.innerHTML += `
           <option value="${escapeHtml(departmentName)}">
-            ${escapeHtml(departmentName)}
+          ${escapeHtml(departmentName)}
           </option>
-        `;
-      });
-    }
+          `;
+        });
+      }
+      fillDepartmentSelect(departmentSelect, "Choose Target Department");
+      fillDepartmentSelect(
+        case2DepartmentSelect,
+        "Choose Existing Department"
+      );
+      const projectSelect = document.getElementById(
+        "wiz-dept-proj-select"
+      );
+  
+      const projectCodeInput = document.getElementById(
+        "wiz-dept-proj-code-readonly"
+      );
 
-    fillDepartmentSelect(departmentSelect, "Choose Target Department");
-    fillDepartmentSelect(
-      case2DepartmentSelect,
-      "Choose Existing Department"
-    );
 
     const managerSelect = document.getElementById("wiz-mgr-select");
     const leaderSelect = document.getElementById("wiz-lead-select");
@@ -886,13 +934,12 @@ document.addEventListener("DOMContentLoaded", () => {
       projectSelect.onchange = () => {
         const projectId = projectSelect.value;
 
-        const newProjectFields = document.getElementById(
-          "new-proj-fields-2a"
-        );
+        const newProjectFields = document.getElementById("new-proj-fields-2a");
 
         const projectCodeWrap = document.getElementById(
           "proj-code-readonly-wrap"
         );
+        const errorMessage = document.getElementById("wiz-error-msg");
 
         if (projectId === "__new__") {
           newProjectFields?.classList.remove("hidden");
@@ -905,6 +952,7 @@ document.addEventListener("DOMContentLoaded", () => {
             projectCodeInput.value = "";
           }
         } else {
+          // find selectedProject ;
           newProjectFields?.classList.add("hidden");
 
           if (projectCodeWrap) {

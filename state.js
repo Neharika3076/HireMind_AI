@@ -15,12 +15,14 @@ const DEFAULT_STATE = {
     {
       id: "dept_eng",
       name: "Core Engineering",
+      orgId: "org_acme",
       head: "Dr. Ananya Roy",
       headEmail: "ananya.roy@acme.in",
       desc: "Distributed payment infrastructure, scalability, and API reliability."
     },
     {
       id: "dept_prod",
+      orgId: "org_beta",
       name: "Product Experience",
       head: "Claire Vance",
       headEmail: "claire.vance@beta.com",
@@ -28,6 +30,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "dept_ai",
+      orgId: "org_vertex",
       name: "Machine Intelligence",
       head: "Tariq Al-Mansoor",
       headEmail: "tariq.mansoor@vertexlabs.io",
@@ -35,6 +38,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "dept_ops",
+      orgId: "org_acme",
       name: "Global Operations & Governance",
       head: "Khushi Admin",
       headEmail: "khushi123@gmail.com",
@@ -81,6 +85,7 @@ const DEFAULT_STATE = {
     {
       id: "proj_bill",
       orgId: "org_acme",
+      deptId: "dept_eng",
       department: "Core Engineering",
       code: "BILL-01",
       name: "Billing System Revamp",
@@ -94,6 +99,7 @@ const DEFAULT_STATE = {
     },
     {
       id: "proj_beta_app",
+      deptId: "dept_prod",
       orgId: "org_beta",
       department: "Product Experience",
       code: "BETA-P01",
@@ -108,6 +114,7 @@ const DEFAULT_STATE = {
     {
       id: "proj_vtx_ai",
       orgId: "org_vertex",
+      deptId: "dept_ai",
       department: "Machine Intelligence",
       code: "VTX-AI",
       name: "Sourcing Intelligence API",
@@ -121,6 +128,7 @@ const DEFAULT_STATE = {
     {
       id: "proj_ghd_tele",
       orgId: "org_gamma",
+      deptId: "dept_eng",
       department: "Core Engineering",
       code: "GHD-44",
       name: "Telehealth Compliance Portal",
@@ -134,6 +142,7 @@ const DEFAULT_STATE = {
     {
       id: "proj_iam",
       orgId: "org_acme",
+      deptId: "dept_ops",
       department: "Global Operations & Governance",
       code: "IAM-02",
       name: "Enterprise SSO & IAM Gateway",
@@ -156,6 +165,7 @@ const DEFAULT_STATE = {
       password: "Khushi123@",
       projectCode: "BILL-01",
       orgId: "org_acme",
+      deptId: "dept_ops",
       projectId: "proj_bill",
       designation: "Chief Administrator & Head of Ops",
       department: "Global Operations & Governance",
@@ -192,6 +202,7 @@ const DEFAULT_STATE = {
       department: "Core Engineering",
       reportingManager: "Dr. Ananya Roy",
       reportingTeamLead: "Kavita Rao",
+      deptId: "dept_eng",
       headOfDept: "Dr. Ananya Roy",
       phone: "+91 98450 11223",
       location: "Mumbai, India",
@@ -215,6 +226,7 @@ const DEFAULT_STATE = {
       roleCategory: "Employee",
       fullName: "Sarah Johnson",
       email: "sarah.johnson@acme.in",
+      deptId: "dept_prod",
       password: "Khushi123@",
       projectCode: "BILL-01",
       orgId: "org_acme",
@@ -242,8 +254,8 @@ const DEFAULT_STATE = {
     },
     {
       id: "usr_ritu",
-      roleType: "team_leader",
-      roleCategory: "Team Leader",
+      roleType: "manager",
+      roleCategory: "Employee",
       fullName: "Ritu Sharma",
       email: "ritu.sharma@acme.in",
       password: "Khushi123@",
@@ -254,6 +266,7 @@ const DEFAULT_STATE = {
       department: "Core Engineering",
       reportingManager: "Kavita Rao",
       reportingTeamLead: "Ritu Sharma",
+      deptId: "dept_eng",
       headOfDept: "Dr. Ananya Roy",
       phone: "+91 98765 43210",
       location: "Bengaluru, India",
@@ -282,6 +295,7 @@ const DEFAULT_STATE = {
       orgId: "org_beta",
       projectId: "proj_beta_app",
       designation: "Senior UI/UX Product Designer",
+      deptId: "dept_prod",
       department: "Product Experience",
       reportingManager: "Sarah Jenkins",
       reportingTeamLead: "Liam Cooper",
@@ -314,6 +328,7 @@ const DEFAULT_STATE = {
       projectId: "proj_vtx_ai",
       designation: "Staff AI Solutions Architect",
       department: "Machine Intelligence",
+      deptId: "dept_ai",
       reportingManager: "Alexander Wright",
       reportingTeamLead: "Maya Lindqvist",
       headOfDept: "Tariq Al-Mansoor",
@@ -335,10 +350,11 @@ const DEFAULT_STATE = {
     },
     {
       id: "usr_aris",
-      roleType: "team_leader",
+      roleType: "manager",
       roleCategory: "Team Leader",
       fullName: "Dr. Aris Thorne",
       email: "aris.thorne@gammahealth.org",
+      deptId: "dept_eng",
       password: "Khushi123@",
       projectCode: "GHD-44",
       orgId: "org_gamma",
@@ -371,6 +387,7 @@ const DEFAULT_STATE = {
       id: "task_1",
       memberId: "usr_sarah",
       projectId: "proj_bill",
+      deptId: "dept_prod",
       title: "Design System Review",
       priority: "High",
       completed: true,
@@ -382,6 +399,7 @@ const DEFAULT_STATE = {
       id: "task_2",
       memberId: "usr_sarah",
       projectId: "proj_bill",
+      deptId: "dept_prod",
       title: "Wireframe User Flow",
       priority: "Medium",
       completed: false,
@@ -393,6 +411,7 @@ const DEFAULT_STATE = {
       id: "task_3",
       memberId: "usr_sarah",
       projectId: "proj_bill",
+      deptId: "dept_prod",
       title: "Component Accessibility Audit",
       priority: "High",
       completed: true,
@@ -406,6 +425,7 @@ const DEFAULT_STATE = {
       projectId: "proj_bill",
       title: "Design Tokens Synchronization",
       priority: "Medium",
+      deptId: "dept_prod",
       completed: true,
       status: "Done",
       dueDate: "2026-08-12",
@@ -414,6 +434,7 @@ const DEFAULT_STATE = {
     {
       id: "task_5",
       memberId: "usr_sarah",
+      deptId: "dept_prod",
       projectId: "proj_bill",
       title: "Interactive Prototype for Demo",
       priority: "Low",
@@ -425,6 +446,7 @@ const DEFAULT_STATE = {
     {
       id: "task_6",
       memberId: "usr_sarah",
+      deptId: "dept_prod",
       projectId: "proj_bill",
       title: "Q3 Design Sprint Documentation",
       priority: "Medium",
@@ -438,6 +460,7 @@ const DEFAULT_STATE = {
       id: "task_k1",
       memberId: "usr_kavita",
       projectId: "proj_bill",
+      deptId: "dept_eng",
       title: "Multi-Currency Ledger Architecture",
       priority: "Critical",
       completed: true,
@@ -448,6 +471,7 @@ const DEFAULT_STATE = {
     {
       id: "task_k2",
       memberId: "usr_kavita",
+      deptId: "dept_eng",
       projectId: "proj_bill",
       title: "Cross-Border Regulatory Sign-off",
       priority: "High",
@@ -460,6 +484,7 @@ const DEFAULT_STATE = {
       id: "task_r1",
       memberId: "usr_ritu",
       projectId: "proj_bill",
+      deptId: "dept_eng",
       title: "Distributed Payment Queue Sharding",
       priority: "High",
       completed: true,
@@ -473,6 +498,7 @@ const DEFAULT_STATE = {
       projectId: "proj_bill",
       title: "Tax Calculation Latency Benchmarks",
       priority: "Medium",
+      deptId: "dept_eng",
       completed: false,
       status: "In Progress",
       dueDate: "2026-08-19",
@@ -485,6 +511,7 @@ const DEFAULT_STATE = {
       title: "Idempotency Layer for Payout Retries",
       priority: "High",
       completed: true,
+      deptId: "dept_eng",
       status: "Done",
       dueDate: "2026-08-11",
       category: "Security"
@@ -495,6 +522,7 @@ const DEFAULT_STATE = {
       projectId: "proj_bill",
       title: "Vault Key Rotation Update",
       priority: "Low",
+      deptId: "dept_eng",
       completed: false,
       status: "Overdue",
       overdue: true,
@@ -510,6 +538,7 @@ const DEFAULT_STATE = {
       completed: true,
       status: "Done",
       dueDate: "2026-08-12",
+      deptId: "dept_prod",
       category: "Design"
     },
     {
@@ -518,6 +547,7 @@ const DEFAULT_STATE = {
       projectId: "proj_beta_app",
       title: "Touch Target Validation",
       priority: "High",
+      deptId: "dept_prod",
       completed: false,
       status: "In Progress",
       dueDate: "2026-08-20",
@@ -529,6 +559,7 @@ const DEFAULT_STATE = {
       projectId: "proj_beta_app",
       title: "Offline Storage Schema Definition",
       priority: "Medium",
+      deptId: "dept_prod",
       completed: false,
       status: "To Do",
       dueDate: "2026-08-24",
@@ -539,6 +570,7 @@ const DEFAULT_STATE = {
       memberId: "usr_amara",
       projectId: "proj_vtx_ai",
       title: "Neural Candidate Ranking Vector Indexing",
+      deptId: "dept_ai",
       priority: "Critical",
       completed: true,
       status: "Done",
@@ -549,6 +581,7 @@ const DEFAULT_STATE = {
       id: "task_am2",
       memberId: "usr_amara",
       projectId: "proj_vtx_ai",
+      deptId: "dept_ai",
       title: "Bias Elimination Layer",
       priority: "High",
       completed: true,
@@ -559,6 +592,7 @@ const DEFAULT_STATE = {
     {
       id: "task_am3",
       memberId: "usr_amara",
+      deptId: "dept_ai",
       projectId: "proj_vtx_ai",
       title: "Inference Latency Optimization",
       priority: "High",
@@ -573,6 +607,7 @@ const DEFAULT_STATE = {
       projectId: "proj_ghd_tele",
       title: "HIPAA Automated Audit Log Specification",
       priority: "High",
+      deptId: "dept_eng",
       completed: false,
       status: "To Do",
       dueDate: "2026-08-30",
@@ -585,6 +620,7 @@ const DEFAULT_STATE = {
       title: "Clinician License API Integration",
       priority: "Medium",
       completed: false,
+      deptId: "dept_eng",
       status: "To Do",
       dueDate: "2026-09-05",
       category: "API"
@@ -596,6 +632,7 @@ const DEFAULT_STATE = {
       title: "Global Contractor Compliance Audit",
       priority: "High",
       completed: true,
+      deptId: "dept_ops",
       status: "Done",
       dueDate: "2026-08-14",
       category: "Governance"
@@ -607,6 +644,7 @@ const DEFAULT_STATE = {
       title: "Q3 Budget and Payout Allocation",
       priority: "Medium",
       completed: true,
+      deptId: "dept_ops",
       status: "Done",
       dueDate: "2026-08-12",
       category: "Finance"
@@ -616,6 +654,7 @@ const DEFAULT_STATE = {
       memberId: "usr_admin",
       projectId: "proj_bill",
       title: "Enterprise SSO Key Re-authorization",
+      deptId: "dept_ops",
       priority: "Critical",
       completed: false,
       status: "In Progress",
@@ -626,6 +665,7 @@ const DEFAULT_STATE = {
       id: "task_a4",
       memberId: "usr_admin",
       projectId: "proj_bill",
+      deptId: "dept_ops",
       title: "Quarterly Department Expansion Review",
       priority: "Medium",
       completed: false,
@@ -720,9 +760,48 @@ const SESSION_KEY = "terrahire_session_user";
    and members for backwards compatibility.
    ========================================================= */
 
+// function getDirectoryScope() {
+//   const data = getAppData();
+//   const userId = sessionStorage.getItem(SESSION_KEY);
+//   const user = userId && Array.isArray(data.members)
+//     ? data.members.find((member) => member.id === userId)
+//     : null;
+//   const orgId = user && user.orgId ? user.orgId : null;
+
+//   const projects = (data.projects || []).filter((project) => !orgId || project.orgId === orgId);
+//   const members = (data.members || []).filter((member) => !orgId || member.orgId === orgId);
+//   const departmentNames = new Set([
+//     ...projects.map((project) => project.department).filter(Boolean),
+//     ...members.map((member) => member.department).filter(Boolean),
+//   ]);
+//   const departments = (data.departments || []).filter((department) => {
+//     if (department.orgId) return !orgId || department.orgId === orgId;
+//     return !orgId || departmentNames.has(department.name);
+//   });
+//   const tasks = (data.tasks || []).filter((task) => {
+//     const project = projects.find((item) => item.id === task.projectId);
+//     const member = members.find((item) => item.id === task.memberId);
+//     return Boolean(project || member);
+//   });
+
+//   return { data, user, orgId, organizations: data.organizations || [], departments, projects, members, tasks };
+// }
+
 function getDirectoryScope() {
   const data = getAppData();
-  const userId = sessionStorage.getItem(SESSION_KEY);
+  const rawUser = sessionStorage.getItem(SESSION_KEY);
+  let userId = null;
+
+  // Safely extract userId from JSON object or plain string
+  if (rawUser) {
+    try {
+      const parsed = JSON.parse(rawUser);
+      userId = typeof parsed === "object" && parsed !== null ? parsed.id : parsed;
+    } catch (e) {
+      userId = rawUser; // Fallback for plain ID strings
+    }
+  }
+
   const user = userId && Array.isArray(data.members)
     ? data.members.find((member) => member.id === userId)
     : null;
@@ -730,14 +809,17 @@ function getDirectoryScope() {
 
   const projects = (data.projects || []).filter((project) => !orgId || project.orgId === orgId);
   const members = (data.members || []).filter((member) => !orgId || member.orgId === orgId);
+  
   const departmentNames = new Set([
     ...projects.map((project) => project.department).filter(Boolean),
     ...members.map((member) => member.department).filter(Boolean),
   ]);
+
   const departments = (data.departments || []).filter((department) => {
     if (department.orgId) return !orgId || department.orgId === orgId;
     return !orgId || departmentNames.has(department.name);
   });
+
   const tasks = (data.tasks || []).filter((task) => {
     const project = projects.find((item) => item.id === task.projectId);
     const member = members.find((item) => item.id === task.memberId);
@@ -746,7 +828,6 @@ function getDirectoryScope() {
 
   return { data, user, orgId, organizations: data.organizations || [], departments, projects, members, tasks };
 }
-
 function getTaskMetrics(tasks) {
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((task) => task.completed || task.status === "Done").length;
@@ -798,28 +879,28 @@ window.TerraHireStore = {
   },
 
   getCurrentUser() {
-    const userId = sessionStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
 
-    if (!userId) {
-      return null;
+    try {
+      return JSON.parse(raw); // Returns full user object
+    } catch (e) {
+      const store = getAppData();
+      return store?.members?.find(m => m.id === raw) || null;
     }
-
-    const store = getAppData();
-
-    if (!store || !Array.isArray(store.members)) {
-      return null;
-    }
-
-    return store.members.find(member => member.id === userId) || null;
   },
 
   setCurrentUser(user) {
+  try {
     if (user && user.id) {
-      sessionStorage.setItem(SESSION_KEY, user.id);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
     } else {
       sessionStorage.removeItem(SESSION_KEY);
     }
-  },
+  } catch (error) {
+    console.error("Could not save user to sessionStorage:", error);
+  }
+},
 
   getSummaryStats() {
     const scope = getDirectoryScope();
