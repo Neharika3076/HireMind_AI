@@ -25,21 +25,395 @@
     </div>
 
     <div id="projects-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(275px, 1fr)); gap:16px; margin-bottom:22px;"></div>
+    
+<section
+    class="card-workday-detailed"
+    style="
+        padding: 20px 24px;
+        margin-bottom: 18px;
+        background: linear-gradient(145deg, #0b192c 0%, #091626 100%);
+        border: 1px solid #1d3148;
+        border-radius: 18px;
+        color: #f8fafc;
+        box-sizing: border-box;
+        box-shadow:
+            0 8px 25px rgba(0, 0, 0, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.025);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    "
+>
 
-    <section class="card-workday-detailed" style="padding:18px 22px; margin-bottom:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:13px;">
-        <div class="detailed-card-title">Work Queue</div>
-        <input id="task-search" placeholder="Search tasks" style="max-width:230px;">
-      </div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(145px, 1fr)); gap:10px;">
-        <select id="filter-project"><option value="ALL">All Projects</option></select>
-        <select id="filter-department"><option value="ALL">All Departments</option></select>
-        <select id="filter-manager"><option value="ALL">All Managers</option></select>
-        <select id="filter-lead"><option value="ALL">All Team Leaders</option></select>
-        <select id="filter-member"><option value="ALL">All Members</option></select>
-        <select id="filter-status"><option value="ALL">All Statuses</option><option>Assigned</option><option>In Progress</option><option>Pending Review</option><option>Completed</option></select>
-      </div>
-    </section>
+    <!-- =========================
+         Header
+    ========================== -->
+    <div
+        style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        "
+    >
+
+        <!-- Title -->
+        <div
+            class="detailed-card-title"
+            style="
+                margin: 0;
+                color: #f8fafc;
+                font-size: 21px;
+                font-weight: 700;
+                letter-spacing: -0.3px;
+                line-height: 1.2;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            "
+        >
+            <span
+                style="
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 8px;
+                    height: 28px;
+                    border-radius: 8px;
+                    background: #16e6d4;
+                    box-shadow: 0 0 12px rgba(22, 230, 212, 0.35);
+                "
+            ></span>
+
+            <span>Work Queue</span>
+        </div>
+
+
+        <!-- Search -->
+        <div
+            style="
+                position: relative;
+                width: 230px;
+                max-width: 100%;
+            "
+        >
+
+            <span
+                style="
+                    position: absolute;
+                    left: 12px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #8fa3ba;
+                    font-size: 15px;
+                    pointer-events: none;
+                "
+            >
+                🔍
+            </span>
+
+            <input
+                id="task-search"
+                type="search"
+                placeholder="Search tasks..."
+                aria-label="Search tasks"
+                onfocus="
+                    this.style.borderColor='#16e6d4';
+                    this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+                "
+                onblur="
+                    this.style.borderColor='#263b54';
+                    this.style.boxShadow='none';
+                "
+                style="
+                    width: 100%;
+                    height: 40px;
+                    padding: 0 14px 0 36px;
+                    box-sizing: border-box;
+
+                    background: #101f34;
+                    border: 1px solid #263b54;
+                    border-radius: 9px;
+
+                    color: #f8fafc;
+                    font-size: 14px;
+                    font-weight: 500;
+                    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                    outline: none;
+                    transition:
+                        border-color 0.2s ease,
+                        box-shadow 0.2s ease,
+                        background 0.2s ease;
+                "
+            >
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         Filter Container
+    ========================== -->
+    <div
+        style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+            gap: 11px;
+            width: 100%;
+        "
+    >
+
+        <!-- Project -->
+        <select
+            id="filter-project"
+            onfocus="
+                this.style.borderColor='#16e6d4';
+                this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+            "
+            onblur="
+                this.style.borderColor='#263b54';
+                this.style.boxShadow='none';
+            "
+            style="
+                width: 100%;
+                height: 40px;
+                min-width: 0;
+                padding: 0 12px;
+
+                background: #1c1c4a;
+                color: #f8fafc;
+
+                border: 1px solid #263b54;
+                border-radius: 9px;
+
+                font-size: 14px;
+                font-weight: 500;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                cursor: pointer;
+                outline: none;
+
+                box-sizing: border-box;
+                transition:
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease,
+                    background 0.2s ease;
+            "
+        >
+            <option value="ALL">All Projects</option>
+        </select>
+
+
+        <!-- Department -->
+        <select
+            id="filter-department"
+            onfocus="
+                this.style.borderColor='#16e6d4';
+                this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+            "
+            onblur="
+                this.style.borderColor='#263b54';
+                this.style.boxShadow='none';
+            "
+            style="
+                width: 100%;
+                height: 40px;
+                min-width: 0;
+                padding: 0 12px;
+
+                background: #1c1c4a;
+                color: #f8fafc;
+
+                border: 1px solid #263b54;
+                border-radius: 9px;
+
+                font-size: 14px;
+                font-weight: 500;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                cursor: pointer;
+                outline: none;
+
+                box-sizing: border-box;
+                transition:
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease;
+            "
+        >
+            <option value="ALL">All Departments</option>
+        </select>
+
+
+        <!-- Manager -->
+        <select
+            id="filter-manager"
+            onfocus="
+                this.style.borderColor='#16e6d4';
+                this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+            "
+            onblur="
+                this.style.borderColor='#263b54';
+                this.style.boxShadow='none';
+            "
+            style="
+                width: 100%;
+                height: 40px;
+                min-width: 0;
+                padding: 0 12px;
+
+                background: #1c1c4a;
+                color: #f8fafc;
+
+                border: 1px solid #263b54;
+                border-radius: 9px;
+
+                font-size: 14px;
+                font-weight: 500;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                cursor: pointer;
+                outline: none;
+
+                box-sizing: border-box;
+                transition:
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease;
+            "
+        >
+            <option value="ALL">All Managers</option>
+        </select>
+
+
+        <!-- Team Leader -->
+        <select
+            id="filter-lead"
+            onfocus="
+                this.style.borderColor='#16e6d4';
+                this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+            "
+            onblur="
+                this.style.borderColor='#263b54';
+                this.style.boxShadow='none';
+            "
+            style="
+                width: 100%;
+                height: 40px;
+                min-width: 0;
+                padding: 0 12px;
+
+                background: #1c1c4a;
+                color: #f8fafc;
+
+                border: 1px solid #263b54;
+                border-radius: 9px;
+
+                font-size: 14px;
+                font-weight: 500;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                cursor: pointer;
+                outline: none;
+
+                box-sizing: border-box;
+                transition:
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease;
+            "
+        >
+            <option value="ALL">All Team Leaders</option>
+        </select>
+
+
+        <!-- Member -->
+        <select
+            id="filter-member"
+            onfocus="
+                this.style.borderColor='#16e6d4';
+                this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+            "
+            onblur="
+                this.style.borderColor='#263b54';
+                this.style.boxShadow='none';
+            "
+            style="
+                width: 100%;
+                height: 40px;
+                min-width: 0;
+                padding: 0 12px;
+
+                background: #1c1c4a;
+                color: #f8fafc;
+
+                border: 1px solid #263b54;
+                border-radius: 9px;
+
+                font-size: 14px;
+                font-weight: 500;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                cursor: pointer;
+                outline: none;
+
+                box-sizing: border-box;
+                transition:
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease;
+            "
+        >
+            <option value="ALL">All Members</option>
+        </select>
+
+
+        <!-- Status -->
+        <select
+            id="filter-status"
+            onfocus="
+                this.style.borderColor='#16e6d4';
+                this.style.boxShadow='0 0 0 3px rgba(22,230,212,0.10)';
+            "
+            onblur="
+                this.style.borderColor='#263b54';
+                this.style.boxShadow='none';
+            "
+            style="
+                width: 100%;
+                height: 40px;
+                min-width: 0;
+                padding: 0 12px;
+
+                background: #1c1c4a;
+                color: #f8fafc;
+
+                border: 1px solid #263b54;
+                border-radius: 9px;
+
+                font-size: 14px;
+                font-weight: 600;
+                font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+
+                cursor: pointer;
+                outline: none;
+
+                box-sizing: border-box;
+                transition:
+                    border-color 0.2s ease,
+                    box-shadow 0.2s ease;
+            "
+        >
+            <option value="ALL">All Statuses</option>
+            <option value="Assigned">Assigned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Pending Review">Pending Review</option>
+            <option value="Completed">Completed</option>
+        </select>
+
+    </div>
+
+</section>
+
+
+
 
     <section class="tasks-table-container card-workday-detailed">
       <div class="data-table-wrap"><table class="data-table"><thead><tr><th>Project</th><th>Task</th><th>Responsible Team</th><th>Priority</th><th>Due</th><th>Progress</th><th>Status</th><th></th></tr></thead><tbody id="tasks-table"></tbody></table></div>
@@ -53,7 +427,7 @@
       <div class="form-group"><label>Departments involved</label><div id="project-departments" class="selection-list"></div></div>
       <div class="form-group"><label>Project members <span style="color:var(--mist-dim);">(optional)</span></label><div id="project-members" class="selection-list"></div></div>
       <div class="form-group"><label>Responsible Managers <span style="color:var(--mist-dim);">(optional)</span></label><div id="project-managers" class="selection-list"></div></div>
-      <div class="form-group"><label>Project Team Leaders <span style="color:var(--mist-dim);">(project-specific, optional)</span></label><div id="project-leads" class="selection-list"></div></div>
+      <!-- <div class="form-group"><label>Project Team Leaders <span style="color:var(--mist-dim);">(project-specific, optional)</span></label><div id="project-leads" class="selection-list"></div></div> -->
       <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;"><button type="button" class="btn btn-ghost" data-close="modal-project">Cancel</button><button class="btn btn-primary">Create Project</button></div>
     </form>
   </div></div>

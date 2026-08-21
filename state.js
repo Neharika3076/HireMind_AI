@@ -742,6 +742,10 @@ const DEFAULT_STATE = {
 
     data.members.forEach((member) => {
       member.departmentId = memberDepartmentId(data, member);
+      // Older records may have been saved with the Team Leader designation
+      // while retaining the generic employee role. Restore the hierarchy role
+      // before project and task selectors build their eligible lists.
+      if (member.roleType !== "team_leader" && (member.roleCategory === "Team Leader" || /team leader/i.test(String(member.designation || "")))) member.roleType = "team_leader";
       member.wasLegacyTeamLeader = member.wasLegacyTeamLeader || member.roleType === "team_leader";
       if (member.roleType === "department_head") member.roleType = "executive";
       if (member.roleType === "team_leader" && /manager/i.test(String(member.designation || ""))) member.roleType = "manager";
@@ -795,6 +799,9 @@ const DEFAULT_STATE = {
         if (manager) project.managerIds.push(manager.id);
       }
       project.teamLeadIds = unique(project.teamLeadIds || []);
+      // Keep responsible managers and Team Leaders addressable as project
+      // members even when an older record stored only their role-specific IDs.
+      project.memberIds = unique([...project.memberIds, ...project.managerIds, ...project.teamLeadIds]);
       project.assignmentHistory = Array.isArray(project.assignmentHistory) ? project.assignmentHistory : [];
       project.createdByName = project.createdByName || ((data.members.find((member) => member.id === project.createdBy) || {}).fullName || "");
       project.assignedBy = project.assignedBy || project.createdBy || "";
@@ -886,7 +893,7 @@ const DEFAULT_STATE = {
   function requireActor(data) { const user = getUser(data); if (!user) throw new Error("Please sign in to continue."); return user; }
   function getProject(data, projectId) { return data.projects.find((project) => project.id === projectId); }
   function getProjectMembers(data, project) {
-    const ids = unique([...(project.memberIds || []), ...(data.projectAssignments || []).filter((assignment) => assignment.projectId === project.id).map((assignment) => assignment.memberId)]);
+    const ids = unique([...(project.memberIds || []), ...(project.managerIds || []), ...(project.teamLeadIds || []), ...(data.projectAssignments || []).filter((assignment) => assignment.projectId === project.id).map((assignment) => assignment.memberId)]);
     return data.members.filter((member) => ids.includes(member.id));
   }
   function canManageProject(data, user, project) {
@@ -898,7 +905,12 @@ const DEFAULT_STATE = {
   function canViewProject(data, user, project) {
     if (!user || !project || project.orgId !== user.orgId) return false;
     if (isAdmin(user)) return true;
-    if (isExecutive(user)) return project.createdBy === user.id || project.assignedBy === user.id || (project.managerIds || []).some((managerId) => isUnderExecutive(data, data.members.find((member) => member.id === managerId), user));
+    if (isExecutive(user)) {
+      const departmentMatch = Boolean(user.departmentId && (project.departmentIds || []).includes(user.departmentId)) ||
+        Boolean(user.department && ((project.departmentNames || []).includes(user.department) || project.department === user.department));
+      return departmentMatch || project.createdBy === user.id || project.assignedBy === user.id ||
+        (project.managerIds || []).some((managerId) => isUnderExecutive(data, data.members.find((member) => member.id === managerId), user));
+    }
     return (project.managerIds || []).includes(user.id) || (project.memberIds || []).includes(user.id);
   }
   function history(task, action, actor, details) {
@@ -983,7 +995,7 @@ const DEFAULT_STATE = {
       if (selectedManagers.some((member) => !allowedMemberForActor(data, actor, member))) throw new Error("You can assign a project only to Managers in your own reporting hierarchy.");
       if (isExecutive(actor) && selectedManagers.some((member) => !departmentIds.includes(member.departmentId))) throw new Error("Managers must belong to a department in this project.");
       const selectedTeamLeaders = teamLeadIds.map((memberId) => data.members.find((member) => member.id === memberId));
-      if (selectedTeamLeaders.some((member) => !member || member.roleType !== "team_leader" || !allowedMemberForActor(data, actor, member))) throw new Error("Select Team Leaders from your authorized hierarchy.");
+      if (selectedTeamLeaders.some((member) => !member || member.roleType === "admin" || member.roleType === "executive" || !allowedMemberForActor(data, actor, member))) throw new Error("Select Team Leaders from your authorized hierarchy.");
       const project = { id: id("proj"), orgId: actor.orgId, name, code, desc: String(input.desc || "").trim(), departmentIds, departmentNames: departments.map((department) => department.name), department: departments[0].name, memberIds: unique([...memberIds, ...managerIds, ...teamLeadIds]), managerIds, teamLeadIds: [], status: input.status || "In Progress", startDate: input.startDate || new Date().toISOString().slice(0, 10), endDate: input.endDate || "", createdBy: actor.id, createdByName: actor.fullName, assignedBy: actor.id, assignedByName: actor.fullName, createdAt: today(), assignmentHistory: [] };
       validateProjectParticipants(data, project, project.memberIds, teamLeadIds);
       data.projects.push(project);
@@ -1005,7 +1017,7 @@ const DEFAULT_STATE = {
       if (selectedManagers.some((member) => !allowedMemberForActor(data, actor, member))) throw new Error("You can assign only Managers in your own reporting hierarchy.");
       if (actor.roleType === "manager" && managerIds.some((memberId) => !project.managerIds.includes(memberId))) throw new Error("Managers cannot change project manager assignments.");
       const selectedTeamLeaders = teamLeadIds.map((memberId) => data.members.find((member) => member.id === memberId));
-      if (selectedTeamLeaders.some((member) => !member || member.roleType !== "team_leader" || !allowedMemberForActor(data, actor, member))) throw new Error("Team Leaders must belong to the assigning user's hierarchy.");
+      if (selectedTeamLeaders.some((member) => !member || member.roleType === "admin" || member.roleType === "executive" || !allowedMemberForActor(data, actor, member))) throw new Error("Team Leaders must belong to the assigning user's hierarchy.");
       project.memberIds = memberIds; project.managerIds = managerIds; project.teamLeadIds = teamLeadIds;
       const assignedAt = today();
       project.assignmentHistory = Array.isArray(project.assignmentHistory) ? project.assignmentHistory : [];
@@ -1030,7 +1042,7 @@ const DEFAULT_STATE = {
       if (!employeeIds.length || employeeIds.some((memberId) => !projectMembers.has(memberId))) throw new Error("Tasks may only be assigned to project members.");
       if (teamLeadIds.some((memberId) => !project.teamLeadIds.includes(memberId))) throw new Error("Select a project Team Leader for this task.");
       const teamLeaders = teamLeadIds.map((memberId) => data.members.find((member) => member.id === memberId));
-      if (teamLeaders.some((member) => !member || member.roleType !== "team_leader" || (actor.roleType === "manager" && !isUnderManager(member, actor)))) throw new Error("Managers can assign tasks only to Team Leaders in their own team.");
+      if (teamLeaders.some((member) => !member || member.roleType === "admin" || member.roleType === "executive" || !allowedMemberForActor(data, actor, member) || (actor.roleType === "manager" && !isUnderManager(member, actor)))) throw new Error("Managers can assign tasks only to Team Leaders in their own team.");
       const assignedAt = today();
       const task = { id: id("task"), projectId: project.id, managerIds: unique(input.managerIds || [actor.id]), teamLeadIds, employeeIds, assignedBy: actor.id, assignedByName: actor.fullName, assignedAt, title: String(input.title || "Untitled Task").trim(), desc: input.desc || "", priority: input.priority || "Medium", category: input.category || "General", dueDate: input.dueDate || "", status: "Assigned", progress: 0, completed: false, reviewStatus: "Not submitted", subtasks: [], assignmentHistory: [] };
       history(task, "Task assigned", actor, `Assigned to ${employeeIds.length} project member(s).`); data.tasks.push(task); writeData(data); return task;

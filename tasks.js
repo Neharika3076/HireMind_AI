@@ -24,6 +24,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentUser.roleType === "manager") return item.managerId === currentUser.id;
     return item.id === currentUser.id;
   }
+  function isTeamLeader(item) {
+    return Boolean(item && (item.roleType === "team_leader" || item.wasLegacyTeamLeader || item.roleCategory === "Team Leader" || /team leader/i.test(String(item.designation || ""))));
+  }
+  function isProjectLeadCandidate(item) {
+    return Boolean(item && item.roleType !== "admin" && item.roleType !== "executive");
+  }
+  function eligibleTaskMembers(projectItem) {
+    const departmentIds = new Set(projectItem.departmentIds || []);
+    const assigned = membersForProject(projectItem).filter(inHierarchy);
+    const departmentMembers = data().members.filter((item) => item.orgId === currentUser.orgId && departmentIds.has(item.departmentId) && inHierarchy(item));
+    return unique([...assigned, ...departmentMembers].map((item) => item.id)).map(member).filter(Boolean);
+  }
   function visibleProjects() { return window.TerraHireStore.getAccessibleProjects(currentUser); }
   function visibleTasks() {
     const allowed = new Set(visibleProjects().map((item) => item.id));
@@ -101,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const people = data().members.filter((item) => item.orgId === currentUser.orgId && departmentIds.includes(item.departmentId) && inHierarchy(item));
       checkboxList(byId("project-members"), people, "project-member", (item) => `${item.fullName} - ${item.department}`);
       checkboxList(byId("project-managers"), people.filter((item) => item.roleType === "manager"), "project-manager", (item) => `${item.fullName} - ${item.managerPosition || "Manager"}`);
-      checkboxList(byId("project-leads"), people.filter((item) => item.roleType === "team_leader"), "project-lead", (item) => `${item.fullName} - Team Leader`);
+      checkboxList(byId("project-leads"), people.filter(isProjectLeadCandidate), "project-lead", (item) => `${item.fullName} - ${isTeamLeader(item) ? "Team Leader" : "Assign as Team Leader"}`);
     };
     byId("project-departments").onchange = refreshPeople;
     refreshPeople();
@@ -117,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const people = data().members.filter((item) => item.orgId === currentUser.orgId && projectItem.departmentIds.includes(item.departmentId) && inHierarchy(item));
       checkboxList(byId("team-members"), people, "team-member", (item) => `${item.fullName} - ${item.department}`, projectItem.memberIds);
       checkboxList(byId("team-managers"), people.filter((item) => item.roleType === "manager"), "team-manager", (item) => `${item.fullName} - ${item.managerPosition || "Manager"}`, projectItem.managerIds);
-      checkboxList(byId("team-leads"), people.filter((item) => item.roleType === "team_leader"), "team-lead", (item) => `${item.fullName} - Team Leader`, projectItem.teamLeadIds);
+      checkboxList(byId("team-leads"), people.filter(isProjectLeadCandidate), "team-lead", (item) => `${item.fullName} - ${isTeamLeader(item) ? "Team Leader" : "Assign as Team Leader"}`, projectItem.teamLeadIds);
       byId("team-manager-wrap").classList.toggle("hidden", currentUser.roleType === "manager");
     };
   }
@@ -129,10 +141,10 @@ document.addEventListener("DOMContentLoaded", () => {
     projects.forEach((item) => { const option = document.createElement("option"); option.value = item.id; option.textContent = `${item.code} - ${item.name}`; select.appendChild(option); });
     select.onchange = () => {
       const projectItem = project(select.value);
-      const people = membersForProject(projectItem);
+      const people = eligibleTaskMembers(projectItem);
       const lead = byId("task-lead");
       lead.innerHTML = '<option value="" disabled selected>Select Team Leader</option>';
-      people.filter((item) => projectItem.teamLeadIds.includes(item.id) && item.roleType === "team_leader" && (currentUser.roleType !== "manager" || item.managerId === currentUser.id)).forEach((item) => { const option = document.createElement("option"); option.value = item.id; option.textContent = `${item.fullName} - ${item.department}`; lead.appendChild(option); });
+      people.filter((item) => projectItem.teamLeadIds.includes(item.id) && (currentUser.roleType !== "manager" || item.managerId === currentUser.id)).forEach((item) => { const option = document.createElement("option"); option.value = item.id; option.textContent = `${item.fullName} - ${item.department}`; lead.appendChild(option); });
       checkboxList(byId("task-members"), people.filter((item) => item.roleType !== "executive" && (currentUser.roleType !== "manager" || item.managerId === currentUser.id)), "task-member", (item) => `${item.fullName} - ${item.department}`);
     };
   }
@@ -155,7 +167,23 @@ document.addEventListener("DOMContentLoaded", () => {
   byId("btn-create-task").onclick = () => { populateTaskForm(); open("modal-task"); };
   byId("form-project").onsubmit = (event) => { event.preventDefault(); try { const memberIds = unique([...selected(".project-member"), ...selected(".project-manager"), ...selected(".project-lead")]); window.TerraHireStore.createProject({ name: byId("project-name").value, code: byId("project-code").value, desc: byId("project-description").value, startDate: byId("project-start").value, endDate: byId("project-end").value, departmentIds: selected(".project-department"), memberIds, managerIds: selected(".project-manager"), teamLeadIds: selected(".project-lead") }); close("modal-project"); event.target.reset(); refresh(); message("Cross-department project created."); } catch (exception) { message(exception.message, true); } };
   byId("form-team").onsubmit = (event) => { event.preventDefault(); try { const projectItem = project(byId("team-project").value); const memberIds = unique([...selected(".team-member"), ...selected(".team-manager"), ...selected(".team-lead")]); window.TerraHireStore.assignMembersToProject(projectItem.id, { memberIds, managerIds: currentUser.roleType === "manager" ? projectItem.managerIds : selected(".team-manager"), teamLeadIds: selected(".team-lead") }); close("modal-team"); refresh(); message("Project team assignment saved."); } catch (exception) { message(exception.message, true); } };
-  byId("form-task").onsubmit = (event) => { event.preventDefault(); try { window.TerraHireStore.addTask({ projectId: byId("task-project").value, title: byId("task-title").value, desc: byId("task-description").value, priority: byId("task-priority").value, category: byId("task-category").value, dueDate: byId("task-due").value, teamLeadId: byId("task-lead").value, employeeIds: selected(".task-member") }); close("modal-task"); event.target.reset(); refresh(); message("Deliverable assigned."); } catch (exception) { message(exception.message, true); } };
+  byId("form-task").onsubmit = (event) => {
+    event.preventDefault();
+    try {
+      const projectItem = project(byId("task-project").value);
+      const employeeIds = selected(".task-member");
+      const missingMemberIds = employeeIds.filter((memberId) => !(projectItem.memberIds || []).includes(memberId));
+      if (missingMemberIds.length) {
+        window.TerraHireStore.assignMembersToProject(projectItem.id, {
+          memberIds: [...(projectItem.memberIds || []), ...missingMemberIds],
+          managerIds: projectItem.managerIds,
+          teamLeadIds: projectItem.teamLeadIds
+        });
+      }
+      window.TerraHireStore.addTask({ projectId: projectItem.id, title: byId("task-title").value, desc: byId("task-description").value, priority: byId("task-priority").value, category: byId("task-category").value, dueDate: byId("task-due").value, teamLeadId: byId("task-lead").value, employeeIds });
+      close("modal-task"); event.target.reset(); refresh(); message("Deliverable assigned.");
+    } catch (exception) { message(exception.message, true); }
+  };
   ["filter-project", "filter-department", "filter-manager", "filter-lead", "filter-member", "filter-status"].forEach((id) => byId(id).onchange = renderTasks); byId("task-search").oninput = renderTasks;
   function refresh() { populateFilters(); renderProjectCards(); renderTasks(); }
   if (isOwner) byId("btn-create-project").classList.remove("hidden"); if (visibleProjects().some(canManage)) { byId("btn-assign-project-team").classList.remove("hidden"); byId("btn-create-task").classList.remove("hidden"); }
