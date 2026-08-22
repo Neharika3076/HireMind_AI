@@ -934,7 +934,7 @@ const DEFAULT_STATE = {
     setStore: writeData,
     getCurrentUser() { return getUser(readData()); },
     setCurrentUser(user) { if (user && user.id) sessionStorage.setItem(CORPORATE_SESSION_KEY, user.id); else sessionStorage.removeItem(CORPORATE_SESSION_KEY); },
-    getDashboardForRole(user) { if (!user) return "./login.html"; if (isAdmin(user)) return "./admin.html"; if (user.roleType === "executive" || user.roleType === "manager") return "./tasks.html"; return "./employee.html"; },
+    getDashboardForRole(user) { if (!user) return "./login.html"; if (isAdmin(user)) return "./admin.html"; return "./employee.html"; },
     getOrganizationDepartments(orgId) { return readData().departments.filter((department) => !department.orgId || department.orgId === orgId); },
     getProjectMembers(projectId) { const data = readData(); const project = getProject(data, projectId); return project ? getProjectMembers(data, project) : []; },
     getProjectAssignments(projectId) { return readData().projectAssignments.filter((assignment) => assignment.projectId === projectId); },
@@ -1003,7 +1003,9 @@ const DEFAULT_STATE = {
       writeData(data); return project;
     },
     assignMembersToProject(projectId, input) {
-      const data = input._data || readData(); const actor = input._actor || requireActor(data); const project = getProject(data, projectId);
+      const data = input._data || readData(); 
+      const actor = input._actor || requireActor(data); 
+      const project = getProject(data, projectId);
       if (!project || !canManageProject(data, actor, project)) throw new Error("You are not authorized to assign this project.");
       const memberIds = unique([...(project.memberIds || []), ...(input.memberIds || [])]);
       const managerIds = unique(input.managerIds || project.managerIds || []);
@@ -1048,7 +1050,10 @@ const DEFAULT_STATE = {
       history(task, "Task assigned", actor, `Assigned to ${employeeIds.length} project member(s).`); data.tasks.push(task); writeData(data); return task;
     },
     updateTask(taskId, updates) {
-      const data = readData(); const actor = requireActor(data); const task = data.tasks.find((item) => item.id === taskId); const project = task && getProject(data, task.projectId);
+      const data = readData(); 
+      const actor = requireActor(data); 
+      const task = data.tasks.find((item) => item.id === taskId); 
+      const project = task && getProject(data, task.projectId);
       if (!task || !project) throw new Error("Task not found.");
       const canManage = canManageProject(data, actor, project); const isLead = task.teamLeadIds.includes(actor.id); const isAssignee = task.employeeIds.includes(actor.id);
       if (!canManage && !isLead && !isAssignee) throw new Error("You are not authorized to update this task.");
