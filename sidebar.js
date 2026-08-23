@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="workday-brand">
 
         <a
-          href="./employee.html"
+          href="./index.html"
           class="workday-brand-logo"
           id="link-brand-home"
         >
@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
               letter-spacing:-0.02em;
             "
           >
-            HUMN
+            EMP
           </span>
 
           <span class="humn-badge">
@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
               margin-top:2px;
             "
           >
-            ★ Premium Account
+            Premium Account
           </div>
 
         </div>
@@ -144,7 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="employee.html"
           >
-            <span class="nav-icon">⚡</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
             <span>Dashboard</span>
           </a>
         </li>
@@ -156,7 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="directory.html"
           >
-            <span class="nav-icon">👥</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
             <span>Directory</span>
           </a>
         </li>
@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="attendance.html"
           >
-            <span class="nav-icon">📅</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
             <span>Attendance</span>
           </a>
         </li>
@@ -180,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="tasks.html"
           >
-            <span class="nav-icon">📋</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></span>
             <span>Tasks & Projects</span>
           </a>
         </li>
@@ -194,7 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="add-member.html"
           >
-            <span class="nav-icon">➕</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span>
             <span>Add Member</span>
           </a>
         </li>
@@ -206,7 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="payroll.html"
           >
-            <span class="nav-icon">💳</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
             <span>Payroll</span>
           </a>
         </li>
@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
             class="workday-nav-item"
             data-page="admin.html"
           >
-            <span class="nav-icon">🛡️</span>
+            <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
             <span>Admin Console</span>
           </a>
         </li>

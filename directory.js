@@ -226,27 +226,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const s = window.TerraHireStore.getScopedDirectoryData();
 
     let crumbs = [
-      { label: "📁 Directory Home", level: "home", payload: {} },
+      { label: "Directory Home", level: "home", payload: {} },
     ];
 
     if (state.level === "department" || state.level === "project" || state.level === "employee") {
       const dept = (s.departments || []).find((d) => d.id === state.selectedDeptId || d.name === state.selectedDeptId);
       if (dept) {
-        crumbs.push({ label: `🏢 ${dept.name}`, level: "department", payload: { deptId: dept.id } });
+        crumbs.push({ label: `${dept.name}`, level: "department", payload: { deptId: dept.id } });
       }
     }
 
     if (state.level === "project" || (state.level === "employee" && state.selectedProjectId)) {
       const proj = (s.projects || []).find((p) => p.id === state.selectedProjectId || p.code === state.selectedProjectId);
       if (proj) {
-        crumbs.push({ label: `🚀 ${proj.name} (${proj.code})`, level: "project", payload: { deptId: state.selectedDeptId, projectId: proj.id } });
+        crumbs.push({ label: `${proj.name} (${proj.code})`, level: "project", payload: { deptId: state.selectedDeptId, projectId: proj.id } });
       }
     }
 
     if (state.level === "employee") {
       const mem = (s.members || []).find((m) => m.id === state.selectedMemberId);
       if (mem) {
-        crumbs.push({ label: `👤 ${mem.fullName}`, level: "employee", payload: { memberId: mem.id }, active: true });
+        crumbs.push({ label: `${mem.fullName}`, level: "employee", payload: { memberId: mem.id }, active: true });
       }
     }
 
@@ -323,8 +323,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <div>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
               <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:44px; height:44px; border-radius:10px; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.3); display:flex; align-items:center; justify-content:center; font-size:22px;">
-                  🏢
+                <div style="width:44px; height:44px; border-radius:10px; background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.3); display:flex; align-items:center; justify-content:center; color:var(--teal-300);">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 11h2M9 15h2M13 11h2M13 15h2"/></svg>
                 </div>
                 <div>
                   <h3 style="font-size:16px; font-weight:700; color:var(--white);">${dept.name}</h3>
@@ -553,10 +553,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (filterBadge && filterText) {
       if (selectedStatus === "WORKING") {
         filterBadge.style.display = "inline-flex";
-        filterText.textContent = "Showing: 🟢 Working Today (Checked In)";
+        filterText.textContent = "Showing: Working Today (Checked In)";
       } else if (selectedStatus === "OFFLINE") {
         filterBadge.style.display = "inline-flex";
-        filterText.textContent = "Showing: ⭕ Non-Working Today (Offline / On Leave)";
+        filterText.textContent = "Showing: Non-Working Today (Offline / On Leave)";
       } else {
         filterBadge.style.display = "none";
       }
@@ -650,7 +650,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         <div style="border-top:1px solid var(--line); padding-top:12px; display:flex; gap:8px;">
           <button type="button" class="btn btn-ghost btn-sm btn-open-profile" style="flex:1; justify-content:center; font-size:12px;">
-            👤 View Profile & Work
+            View Profile & Work
           </button>
         </div>
       `;
@@ -684,7 +684,6 @@ document.addEventListener("DOMContentLoaded", () => {
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
           <div style="flex:1; min-width:300px;">
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
-              <span style="font-size:24px;">🏢</span>
               <h2 style="font-size:22px; font-weight:700; color:var(--white);">${department.name}</h2>
               <span class="badge badge-teal" style="font-size:11.5px;">Active Department</span>
             </div>
@@ -953,7 +952,7 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
 
               <div style="border-top:1px solid var(--line); padding-top:10px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:12px; color:var(--mist-dim);">📍 ${mem.location || "Global Remote"}</span>
+                <span style="font-size:12px; color:var(--mist-dim);">${mem.location || "Global Remote"}</span>
                 <span style="font-size:12px; color:var(--teal-300); font-weight:600;">Open Profile →</span>
               </div>
             </div>
@@ -972,9 +971,9 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
 
           <div style="display:flex; gap:12px; align-items:center; font-size:12px;">
-            <span style="color:var(--success); font-weight:600;">✓ ${completedTasks} Done</span>
-            <span style="color:var(--teal-300); font-weight:600;">⏳ ${pendingTasks} In Progress</span>
-            <span style="color:var(--err); font-weight:600;">⚠️ ${overdueTasks} Overdue</span>
+            <span style="color:var(--success); font-weight:600;">${completedTasks} Done</span>
+            <span style="color:var(--teal-300); font-weight:600;">${pendingTasks} In Progress</span>
+            <span style="color:var(--err); font-weight:600;">${overdueTasks} Overdue</span>
           </div>
         </div>
 
@@ -1071,7 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
               <div style="font-size:14px; color:var(--teal-300); font-weight:500; margin-top:2px;">${member.designation || "Product Specialist"}</div>
               <div style="font-size:12.5px; color:var(--mist); margin-top:4px;">
-                🏢 <strong>${member.department}</strong> • 📍 ${member.location || "San Francisco, USA"} • Joined: ${member.joinedDate || "2025-01-01"}
+                <strong>${member.department}</strong> • ${member.location || "San Francisco, USA"} • Joined: ${member.joinedDate || "2025-01-01"}
               </div>
             </div>
           </div>
@@ -1079,10 +1078,10 @@ document.addEventListener("DOMContentLoaded", () => {
           <!-- Direct Actions -->
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <a href="mailto:${member.email}" class="btn btn-ghost btn-sm" style="font-size:12.5px;">
-              ✉️ Email Member
+              Email Member
             </a>
             <button type="button" class="btn btn-primary btn-sm btn-switch-session-user" data-user-id="${member.id}" style="font-size:12.5px;">
-              ⚡ Preview As Member
+              Preview As Member
             </button>
           </div>
         </div>

@@ -200,7 +200,7 @@ if (logoutBtn) {
     if (statusCheckoutTime) statusCheckoutTime.textContent = `Check-out: ${cur.lastCheckOut || "--:--"}`;
    if (statusLocationTag) {
     statusLocationTag.textContent =
-        `📍 Logged from ${cur.location || "Office"}`;
+        `Logged from ${cur.location || "Office"}`;
 }
 
     if (cur.isCheckedIn) {
@@ -215,7 +215,7 @@ if (logoutBtn) {
 
       if (btnCheckin) {
         btnCheckin.disabled = true;
-        btnCheckin.textContent = "Checked in ✓";
+        btnCheckin.textContent = "Checked in";
         btnCheckin.classList.remove("active-btn");
       }
       if (btnCheckout) {
@@ -264,7 +264,7 @@ if (logoutBtn) {
       );
 
       showToast(
-        `✅ Checked in successfully at ${updated.lastCheckIn}`
+        `Checked in successfully at ${updated.lastCheckIn}`
       );
 
       renderAll();
@@ -277,7 +277,7 @@ if (logoutBtn) {
       );
 
       showToast(
-        `❌ ${error.message}`
+        `${error.message}`
       );
     }
   };
@@ -300,7 +300,7 @@ if (btnCheckout) {
       );
 
       showToast(
-        `👋 Checked out successfully at ${updated.lastCheckOut}`
+        `Checked out successfully at ${updated.lastCheckOut}`
       );
 
       renderAll();
@@ -313,7 +313,7 @@ if (btnCheckout) {
       );
 
       showToast(
-        `❌ ${error.message}`
+        `${error.message}`
       );
     }
   };
@@ -876,7 +876,7 @@ const totalWorking =
         window.TerraHireStore.setStore(s);
         refForm.reset();
         renderReferrals();
-        showToast(`🎉 Referral for ${name} submitted successfully!`);
+        showToast(`Referral for ${name} submitted successfully!`);
       }
     };
   }
@@ -929,7 +929,7 @@ const totalWorking =
 
       if (modalProfile) modalProfile.classList.add("hidden");
       renderAll();
-      showToast("📍 Coordinates and location updated in directory!");
+      showToast("Coordinates and location updated in directory!");
     };
   }
 
@@ -966,7 +966,7 @@ const totalWorking =
         formCreateTask.reset();
         if (modalTask) modalTask.classList.add("hidden");
         renderAll();
-        showToast("📌 New task deliverable added to sprint!");
+        showToast("New task deliverable added to sprint!");
       }
     };
   }

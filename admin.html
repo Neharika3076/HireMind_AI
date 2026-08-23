@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TerraHire — Admin Command Center</title>
+  <title>Krew — Admin Command Center</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -27,9 +27,9 @@
         <span class="badge badge-admin">ADMIN CONSOLE</span>
       </div>
       <nav class="dash-nav-tabs" style="border:none; padding:0; background:transparent;">
-        <button class="dash-tab-link active" id="tab-btn-overview">📊 Overview</button>
-        <button class="dash-tab-link" id="tab-btn-add" onclick="window.location.href='./add-member.html'">➕ Add Member / Org</button>
-        <button class="dash-tab-link" id="tab-btn-directory">🗂️ Directory</button>
+        <button class="dash-tab-link active" id="tab-btn-overview">Overview</button>
+        <button class="dash-tab-link" id="tab-btn-add" onclick="window.location.href='./add-member.html'">Add Member / Org</button>
+        <button class="dash-tab-link" id="tab-btn-directory">Directory</button>
       </nav>
     </div>
 
@@ -39,32 +39,32 @@
         <div class="stat-card">
           <div class="stat-card-label">TOTAL ORGANIZATIONS</div>
           <div class="stat-card-value" id="stat-total-orgs">0</div>
-          <div class="stat-card-delta">✓ Active enterprises</div>
+          <div class="stat-card-delta">Active enterprises</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-label">ACTIVE PROJECT CODES</div>
           <div class="stat-card-value" id="stat-total-projects">0</div>
-          <div class="stat-card-delta">⚡ Sprints in flight</div>
+          <div class="stat-card-delta">Sprints in flight</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-label">PROVISIONED MEMBERS</div>
           <div class="stat-card-value" id="stat-total-members">0</div>
-          <div class="stat-card-delta">👤 Active logins</div>
+          <div class="stat-card-delta">Active logins</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-label">ACTIVE DEPARTMENTS</div>
           <div class="stat-card-value" id="stat-total-departments">0</div>
-          <div class="stat-card-delta">✉️ Awaiting signup</div>
+          <div class="stat-card-delta">Awaiting signup</div>
         </div>
       </div>
 
       <div class="dash-panel">
         <div class="dash-panel-header">
-          <h3 class="dash-panel-title">⚡ Quick Management Actions</h3>
+          <h3 class="dash-panel-title">Quick Management Actions</h3>
         </div>
         <div class="row">
-          <button class="btn btn-primary" id="btn-quick-add">➕ Launch Member & Org Creator Form</button>
-          <button class="btn btn-ghost" id="btn-quick-dir">🗂️ View Complete Member Directory</button>
+          <button class="btn btn-primary" id="btn-quick-add">Launch Member & Org Creator Form</button>
+          <button class="btn btn-ghost" id="btn-quick-dir">View Complete Member Directory</button>
         </div>
       </div>
     </div>
@@ -73,9 +73,9 @@
     <div id="subview-directory" class="hidden">
       <div class="dash-panel">
         <div class="dash-panel-header">
-          <h3 class="dash-panel-title">🗂️ Global Organization & Member Directory</h3>
+          <h3 class="dash-panel-title">Global Organization & Member Directory</h3>
           <button class="btn btn-primary btn-sm" id="btn-dir-add-member">
-            ➕ Add New Member
+            Add New Member
           </button>
         </div>
         

@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TerraHire — Hire Anywhere on Earth</title>
-<meta name="description" content="TerraHire is the hiring platform built for global teams — sourcing, interviews and offers on one map.">
+<title>Krew — From Hire to Higher Performance</title>
+<meta name="description" content="Manage the entire employee journey — from hiring and onboarding to performance and growth. One platform. Every employee. One Krew.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   /* ============ TOKENS ============ */
   :root{
@@ -25,8 +25,8 @@
     --line:rgba(193,220,235,0.13);
     --glow:0 0 40px rgba(49,209,189,0.36);
 
-    --font-display:'Space Grotesk', sans-serif;
-    --font-body:'Inter', sans-serif;
+    --font-display:'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-body:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono:'JetBrains Mono', monospace;
 
     --ease-premium:cubic-bezier(.16,1,.3,1);
@@ -819,7 +819,7 @@
 <!-- ============ LOADER ============ -->
 <div id="loader" role="status" aria-live="polite">
   <canvas id="loader-canvas"></canvas>
-  <div class="loader-text"><span class="dot"></span> Loading TerraHire…</div>
+  <div class="loader-text"><span class="dot"></span> Loading Krew…</div>
   <div class="loader-bar"><div class="loader-bar-fill" id="loader-bar-fill"></div></div>
 </div>
 
@@ -828,7 +828,7 @@
   <!-- ============ NAV ============ -->
   <header id="nav">
     <div class="wrap nav-inner">
-      <a href="#hero" class="nav-logo"><span class="mark" aria-hidden="true"></span>TerraHire</a>
+      <a href="#hero" class="nav-logo"><span class="mark" aria-hidden="true"></span>Krew</a>
       <nav aria-label="Primary">
         <ul class="nav-links">
           <li style="animation-delay:.12s"><a href="job-openings.html">Job Openings</a></li>
@@ -855,26 +855,27 @@
     <div class="hero-grid" aria-hidden="true"></div>
     <div class="wrap hero-inner">
       <div class="hero-copy">
-        <span class="eyebrow">Global hiring, one coordinate</span>
+        <span class="eyebrow">From hire to higher performance.</span>
         <h1 class="hero-title">
-          <span class="word" style="animation-delay:.55s">Hire</span>
-          <span class="word" style="animation-delay:.68s">talent</span>
-          <span class="word" style="animation-delay:.81s">anywhere</span>
-          <span class="word accent" style="animation-delay:.94s">on&nbsp;Earth.</span>
+          <span class="word" style="animation-delay:.55s">Your</span>
+          <span class="word" style="animation-delay:.68s">people.</span>
+          <span class="word" style="animation-delay:.81s">Your</span>
+          <span class="word" style="animation-delay:.94s">workflow.</span>
+          <span class="word accent" style="animation-delay:1.07s">One&nbsp;Krew.</span>
         </h1>
-        <p class="hero-sub">TerraHire maps sourcing, interviews and offers onto a single global view — so distributed teams hire with the same clarity as a room down the hall.</p>
+        <p class="hero-sub">Manage the entire employee journey — from hiring and onboarding to performance and growth.</p>
         <div class="hero-ctas">
           <a href="#contact" class="btn btn-primary">Get Started</a>
-          <a href="#how" class="btn btn-ghost">See how it works</a>
+          <a href="#how" class="btn btn-ghost">See How It Works</a>
         </div>
         <div class="hero-stats">
-          <div><strong class="counter" data-count="128">0</strong><span>Countries reached</span></div>
-          <div><strong class="counter" data-count="42" data-suffix="k">0</strong><span>Hires made</span></div>
-          <div><strong class="counter" data-count="9" data-suffix=" days">0</strong><span>Avg. time to offer</span></div>
+          <div><strong class="counter" data-count="1">0</strong><span>Connected Platform</span></div>
+          <div><strong class="counter" data-count="360" data-suffix="°">0</strong><span>Employee Visibility</span></div>
+          <div><strong style="font-family:var(--font-display);font-weight:700;color:var(--teal-300);font-size:clamp(22px,2.2vw,30px);">AI</strong><span>Built In</span></div>
         </div>
       </div>
       <div class="hero-scene">
-        <canvas id="hero-canvas" role="img" aria-label="Rotating wireframe globe representing global hiring network"></canvas>
+        <canvas id="hero-canvas" role="img" aria-label="Rotating wireframe globe representing employee management network"></canvas>
       </div>
     </div>
     <div class="scroll-cue"><span>SCROLL</span><span class="line"></span></div>
@@ -885,35 +886,35 @@
     <div class="wrap">
       <div class="section-head" data-animate="fade-up">
         <span class="eyebrow">The gap</span>
-        <h2 class="section-title">Hiring broke the moment teams went global.</h2>
+        <h2 class="section-title">Your people are connected.<br>Your systems aren't.</h2>
       </div>
       <div class="split">
         <div>
           <div class="pain-card" data-animate="fade-left" style="transition-delay:0s">
             <span class="num">01</span>
-            <div><h4>Scattered pipelines</h4><p>Candidates live in five different tools across five time zones, and nobody owns the full picture.</p></div>
+            <div><h4>Scattered Information</h4><p>Employee data lives across tools, sheets, emails, and documents.</p></div>
           </div>
           <div class="pain-card" data-animate="fade-left" style="transition-delay:.12s">
             <span class="num">02</span>
-            <div><h4>Slow, siloed decisions</h4><p>Interview feedback arrives late, out of context, and rarely reaches the person who needs it.</p></div>
+            <div><h4>Disconnected Processes</h4><p>Hiring ends. Onboarding starts. Performance lives somewhere else.</p></div>
           </div>
           <div class="pain-card" data-animate="fade-left" style="transition-delay:.24s">
             <span class="num">03</span>
-            <div><h4>Compliance guesswork</h4><p>Contracts, pay bands and local law shift by region — and manual checks don't scale.</p></div>
+            <div><h4>Decisions Without Context</h4><p>Too much data. Not enough clarity.</p></div>
           </div>
         </div>
         <ul class="solution-list">
           <li class="solution-item" data-animate="fade-right" style="transition-delay:0s">
-            <h4>One shared map</h4>
-            <p>Every candidate, role and region lives in a single pipeline view, updated in real time.</p>
+            <h4>One connected view</h4>
+            <p>Every employee, role, task, and milestone — in one place.</p>
           </li>
           <li class="solution-item" data-animate="fade-right" style="transition-delay:.12s">
-            <h4>Decisions in context</h4>
-            <p>Structured scorecards route straight to the right reviewer, in the right language, instantly.</p>
+            <h4>One continuous journey</h4>
+            <p>From candidate to contributor, nothing gets lost between stages.</p>
           </li>
           <li class="solution-item" data-animate="fade-right" style="transition-delay:.24s">
-            <h4>Compliance built in</h4>
-            <p>TerraHire checks contracts and pay bands against local requirements automatically, region by region.</p>
+            <h4>Intelligence built in</h4>
+            <p>AI helps your team move faster, without taking people out of the loop.</p>
           </li>
         </ul>
       </div>
@@ -924,9 +925,9 @@
   <section id="features">
     <div class="wrap">
       <div class="section-head" data-animate="fade-up">
-        <span class="eyebrow">Platform</span>
-        <h2 class="section-title">Everything a global hiring team needs, in one place.</h2>
-        <p class="section-sub">From first outreach to signed offer — built for teams hiring across borders, not just departments.</p>
+        <span class="eyebrow">The Platform</span>
+        <h2 class="section-title">Everything your people need.<br>Nothing they don't.</h2>
+        <p class="section-sub">One platform for the entire employee journey.</p>
       </div>
       <div class="feature-grid stagger" id="feature-grid">
         <!-- cards injected with alternating animation types via JS for variety, but static markup fallback below -->
@@ -939,52 +940,52 @@
     <canvas class="how-particles" id="how-canvas" aria-hidden="true"></canvas>
     <div class="wrap">
       <div class="section-head" data-animate="fade-up">
-        <span class="eyebrow">Process</span>
-        <h2 class="section-title">From open role to signed offer in five moves.</h2>
+        <span class="eyebrow">The Employee Journey</span>
+        <h2 class="section-title">From first hello<br>to next big milestone.</h2>
       </div>
       <div class="how-layout">
       <div class="timeline" id="timeline">
         <div class="timeline-track"><div class="timeline-track-fill" id="timeline-fill"></div></div>
         <div class="step" data-animate="fade-right">
           <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
-          <div class="step-body"><span class="step-tag">Step 01</span><h4>Define the role</h4><p>Set scope, level and pay band once — TerraHire checks it against local norms as you type.</p></div>
+          <div class="step-body"><span class="step-tag">Step 01</span><h4>Find the right people</h4><p>Hire with confidence.</p></div>
         </div>
         <div class="step" data-animate="fade-right" style="transition-delay:.1s">
           <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></div>
-          <div class="step-body"><span class="step-tag">Step 02</span><h4>Source, worldwide</h4><p>Reach candidates across 180+ markets through one search, ranked by fit and availability.</p></div>
+          <div class="step-body"><span class="step-tag">Step 02</span><h4>Start them right</h4><p>Make onboarding effortless.</p></div>
         </div>
         <div class="step" data-animate="fade-right" style="transition-delay:.2s">
           <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 13h4"/></svg></div>
-          <div class="step-body"><span class="step-tag">Step 03</span><h4>Interview, structured</h4><p>Shared scorecards keep every interviewer aligned, no matter their time zone.</p></div>
+          <div class="step-body"><span class="step-tag">Step 03</span><h4>Keep work moving</h4><p>Manage everyday employee needs in one place.</p></div>
         </div>
         <div class="step" data-animate="fade-right" style="transition-delay:.3s">
           <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
-          <div class="step-body"><span class="step-tag">Step 04</span><h4>Decide together</h4><p>Feedback rolls up automatically into one recommendation, ready for sign-off.</p></div>
+          <div class="step-body"><span class="step-tag">Step 04</span><h4>Build better performance</h4><p>Goals. Feedback. Growth.</p></div>
         </div>
         <div class="step" data-animate="fade-right" style="transition-delay:.4s">
           <div class="step-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M12 3v18"/></svg></div>
-          <div class="step-body"><span class="step-tag">Step 05</span><h4>Offer, compliantly</h4><p>Generate a locally compliant offer and contract in minutes, in the candidate's language.</p></div>
+          <div class="step-body"><span class="step-tag">Step 05</span><h4>Grow together</h4><p>Turn great people into a stronger organization.</p></div>
         </div>
       </div>
-      <aside class="process-visual" data-animate="fade-left" aria-label="Live global hiring workflow visualization">
+      <aside class="process-visual" data-animate="fade-left" aria-label="Live employee journey workflow visualization">
         <div class="process-visual-head">
-          <div><span class="process-visual-kicker">Live workflow</span><h3>One role. Every handoff.</h3></div>
-          <span class="process-live">Network live</span>
+          <div><span class="process-visual-kicker">ONE EMPLOYEE</span><h3>ONE JOURNEY.</h3></div>
+          <span class="process-live">Active flow</span>
         </div>
         <div class="process-stage">
           <div class="route-orbit" aria-hidden="true">
-            <div class="route-core"><div><strong>72%</strong><span>on track</span></div></div>
+            <div class="route-core"><div><strong>100%</strong><span>aligned</span></div></div>
             <svg class="route-path" viewBox="0 0 520 430" preserveAspectRatio="none" aria-hidden="true">
               <defs><linearGradient id="routeGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset=".52" stop-color="#31d1bd"/><stop offset="1" stop-color="#0f8f9f"/></linearGradient></defs>
               <path d="M65 105 C150 12 238 92 275 205 S380 405 465 302 C495 267 455 128 350 101 S152 145 94 300 C70 361 190 384 271 281 S399 84 463 140"/>
             </svg>
-            <span class="route-node n1"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg><small>Role brief</small></span>
-            <span class="route-node n2"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><small>Global search</small></span>
-            <span class="route-node n3"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg><small>Decision</small></span>
-            <span class="route-node n4"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M12 4v16"/></svg><small>Offer ready</small></span>
+            <span class="route-node n1"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg><small>HIRE</small></span>
+            <span class="route-node n2"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><small>ONBOARD</small></span>
+            <span class="route-node n3"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg><small>MANAGE</small></span>
+            <span class="route-node n4"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M12 4v16"/></svg><small>PERFORM</small></span>
           </div>
         </div>
-        <div class="process-feed"><span class="feed-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/></svg></span><div><strong>Compliance check complete</strong><span>São Paulo · 0.8s ago</span></div><span class="process-progress"><i></i></span></div>
+        <div class="process-feed"><span class="feed-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/></svg></span><div><strong>GROW</strong><span>Continuous milestone reached</span></div><span class="process-progress"><i></i></span></div>
       </aside>
       </div>
     </div>
@@ -995,40 +996,42 @@
     <div class="wrap">
       <div class="section-head" data-animate="fade-up">
         <span class="eyebrow">Dashboards</span>
-        <h2 class="section-title">One dataset, a different view for everyone.</h2>
+        <h2 class="section-title">One workforce.<br>A view for everyone.</h2>
       </div>
       <div class="role-stack">
         <div class="role-card" data-animate="fade-up" style="transition-delay:0s">
           <span class="role-label">EMPLOYEE</span>
-          <h4>Referral tracker</h4>
+          <h4>My Journey</h4>
           <div class="bar-chart" data-chart>
             <div class="bar" data-height="40"></div><div class="bar" data-height="65"></div><div class="bar" data-height="30"></div><div class="bar" data-height="80"></div><div class="bar" data-height="55"></div>
           </div>
-          <p class="section-sub" style="font-size:13px;margin-top:0;">Referrals sent this quarter, by week.</p>
+          <p class="section-sub" style="font-size:13px;margin-top:0;">Leave · Goals · Documents · Performance</p>
         </div>
         <div class="role-card" data-animate="fade-up" style="transition-delay:.1s">
           <span class="role-label">MANAGER</span>
-          <h4>Pipeline health</h4>
+          <h4>My Team</h4>
           <div class="ring-wrap">
-            <svg width="80" height="80" viewBox="0 0 80 80"><circle class="ring-bg" cx="40" cy="40" r="35"/><circle class="ring-fg" cx="40" cy="40" r="35" data-ring="72"/></svg>
-            <div class="ring-label"><strong>72%</strong><span>roles on track</span></div>
+            <svg width="80" height="80" viewBox="0 0 80 80"><circle class="ring-bg" cx="40" cy="40" r="35"/><circle class="ring-fg" cx="40" cy="40" r="35" data-ring="85"/></svg>
+            <div class="ring-label"><strong>85%</strong><span>goals active</span></div>
           </div>
+          <p class="section-sub" style="font-size:13px;margin-top:0;">Goals · Performance · Attendance · Insights</p>
         </div>
         <div class="role-card" data-animate="fade-up" style="transition-delay:.2s">
-          <span class="role-label">CEO</span>
-          <h4>Headcount plan</h4>
+          <span class="role-label">LEADERSHIP</span>
+          <h4>The Big Picture</h4>
           <div class="bar-chart" data-chart>
             <div class="bar" data-height="90"></div><div class="bar" data-height="60"></div><div class="bar" data-height="75"></div><div class="bar" data-height="45"></div>
           </div>
-          <p class="section-sub" style="font-size:13px;margin-top:0;">Plan vs. actual across four regions.</p>
+          <p class="section-sub" style="font-size:13px;margin-top:0;">People · Growth · Performance · Trends</p>
         </div>
         <div class="role-card" data-animate="fade-up" style="transition-delay:.3s">
           <span class="role-label">HR</span>
-          <h4>Time to offer</h4>
+          <h4>People Pulse</h4>
           <div class="ring-wrap">
-            <svg width="80" height="80" viewBox="0 0 80 80"><circle class="ring-bg" cx="40" cy="40" r="35"/><circle class="ring-fg" cx="40" cy="40" r="35" data-ring="88"/></svg>
-            <div class="ring-label"><strong>9d</strong><span>avg. this month</span></div>
+            <svg width="80" height="80" viewBox="0 0 80 80"><circle class="ring-bg" cx="40" cy="40" r="35"/><circle class="ring-fg" cx="40" cy="40" r="35" data-ring="94"/></svg>
+            <div class="ring-label"><strong>94%</strong><span>retention</span></div>
           </div>
+          <p class="section-sub" style="font-size:13px;margin-top:0;">Headcount · Hiring · Onboarding · Workforce</p>
         </div>
       </div>
     </div>
@@ -1039,30 +1042,37 @@
     <div class="wrap hr-grid">
       <div>
         <div data-animate="fade-right"><span class="eyebrow">For HR teams</span>
-          <h2 class="section-title">The control tower for global hiring operations.</h2>
+          <h2 class="section-title">Less admin.<br>More impact.</h2>
+          <p class="section-sub" style="margin-bottom:20px;">Give HR one place to manage people, processes, and performance.</p>
         </div>
         <div class="hr-block" data-animate="fade-right" style="transition-delay:.1s">
-          <h4>Compliance, region by region</h4>
-          <p>Contract templates and pay bands update automatically as local regulations shift — no legal fire drills.</p>
+          <h4>One source of truth</h4>
+          <p>Everything about your people, connected.</p>
         </div>
         <div class="hr-block" data-animate="fade-right" style="transition-delay:.2s">
-          <h4>Real-time headcount visibility</h4>
-          <p>See every open role, offer and start date across the org, filtered by region or team.</p>
+          <h4>Fewer follow-ups</h4>
+          <p>Automate the work that shouldn't need chasing.</p>
         </div>
         <div class="hr-block" data-animate="fade-right" style="transition-delay:.3s">
-          <h4>Audit-ready by default</h4>
-          <p>Every decision and approval is logged automatically, so reporting season stops being a scramble.</p>
+          <h4>Clearer decisions</h4>
+          <p>Turn workforce data into useful insight.</p>
+        </div>
+        <div class="hr-block" data-animate="fade-right" style="transition-delay:.4s">
+          <h4>Built for people</h4>
+          <p>Technology handles the process. HR handles the people.</p>
         </div>
       </div>
       <div class="hr-panel" data-animate="fade-left">
-        <div class="hr-metric-row"><span class="label">Open roles</span><span class="value counter" data-count="34">0</span></div>
-        <div class="hr-metric-row"><span class="label">Offers this month</span><span class="value counter" data-count="112">0</span></div>
-        <div class="hr-metric-row"><span class="label">Countries active</span><span class="value counter" data-count="27">0</span></div>
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;color:var(--teal-300);text-transform:uppercase;margin-bottom:12px;font-weight:600;">THE PEOPLE CONTROL CENTER</div>
+        <div class="hr-metric-row"><span class="label">Employees</span><span class="value counter" data-count="248">0</span></div>
+        <div class="hr-metric-row"><span class="label">Departments</span><span class="value counter" data-count="18">0</span></div>
+        <div class="hr-metric-row"><span class="label">Open Roles</span><span class="value counter" data-count="12">0</span></div>
+        <div class="hr-metric-row"><span class="label">Pending Actions</span><span class="value counter" data-count="24">0</span></div>
         <div class="candidate-list">
-          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Amara Okafor</span><span class="role">Product · Lagos</span></div>
-          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Lucas Ferreira</span><span class="role">Design · São Paulo</span></div>
-          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Priya Nair</span><span class="role">Engineering · Bengaluru</span></div>
-          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Elin Karlsson</span><span class="role">Finance · Stockholm</span></div>
+          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Amara Okafor</span><span class="role">Engineering Lead · Active</span></div>
+          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Lucas Ferreira</span><span class="role">Product Design · Onboarding</span></div>
+          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Priya Nair</span><span class="role">HR Manager · Reviewing</span></div>
+          <div class="candidate-item"><span class="candidate-avatar"></span><span class="name">Elin Karlsson</span><span class="role">Operations · Active</span></div>
         </div>
       </div>
     </div>
@@ -1073,34 +1083,34 @@
     <div class="wrap">
       <div class="section-head" data-animate="fade-up">
         <span class="eyebrow">Plans that scale</span>
-        <h2 class="section-title">Start focused. Grow without friction.</h2>
-        <p class="section-sub">Choose the operating layer your team needs today. Upgrade when your hiring map gets bigger.</p>
+        <h2 class="section-title">Start simple.<br>Grow without friction.</h2>
+        <p class="section-sub">The right tools for where your team is today — and where it's going next.</p>
       </div>
       <div class="pricing-grid">
         <article class="pricing-card" data-animate="fade-up">
           <span class="pricing-kicker">FOUNDATIONS</span>
           <h3>Starter</h3>
-          <p class="pricing-copy">For small teams making their first global hires.</p>
+          <p class="pricing-copy">For teams getting started.</p>
           <div class="price"><strong>$299</strong><span>/month</span></div>
-          <ul class="pricing-list"><li>Up to 5 active roles</li><li>Core pipeline and scorecards</li><li>Regional pay-band guidance</li></ul>
+          <ul class="pricing-list"><li>Employee management</li><li>Employee profiles</li><li>Onboarding</li><li>Leave management</li></ul>
           <a class="btn btn-ghost pricing-btn" href="#contact">Start with Starter <span aria-hidden="true">→</span></a>
         </article>
         <article class="pricing-card recommended" data-animate="scale-in">
           <span class="popular-badge">Most popular</span>
           <span class="pricing-kicker">OPERATIONS</span>
           <h3>Scale</h3>
-          <p class="pricing-copy">For growing teams hiring across multiple regions.</p>
+          <p class="pricing-copy">For growing organizations.</p>
           <div class="price"><strong>$799</strong><span>/month</span></div>
-          <ul class="pricing-list"><li>Unlimited active roles</li><li>Compliance automation and audit trails</li><li>Dashboards for every stakeholder</li></ul>
+          <ul class="pricing-list"><li>Everything in Starter</li><li>Hiring & AI interviews</li><li>Performance management</li><li>Advanced dashboards</li></ul>
           <a class="btn btn-primary pricing-btn" href="#contact">Choose Scale <span aria-hidden="true">→</span></a>
         </article>
         <article class="pricing-card" data-animate="fade-up" style="transition-delay:.12s">
           <span class="pricing-kicker">CONTROL TOWER</span>
           <h3>Enterprise</h3>
-          <p class="pricing-copy">For distributed organizations with complex hiring systems.</p>
+          <p class="pricing-copy">For organizations at scale.</p>
           <div class="price"><strong>Custom</strong><span>tailored</span></div>
-          <ul class="pricing-list"><li>Multi-entity governance</li><li>Advanced integrations and API access</li><li>Dedicated implementation partner</li></ul>
-          <a class="btn btn-ghost pricing-btn" href="#contact">Talk to our team <span aria-hidden="true">→</span></a>
+          <ul class="pricing-list"><li>Advanced controls</li><li>Custom workflows</li><li>Workforce intelligence</li><li>Integrations</li></ul>
+          <a class="btn btn-ghost pricing-btn" href="#contact">Talk to Krew <span aria-hidden="true">→</span></a>
         </article>
       </div>
     </div>
@@ -1111,20 +1121,20 @@
     <div class="wrap">
       <div class="section-head" data-animate="scale-in">
         <span class="eyebrow">Social proof</span>
-        <h2 class="section-title">Teams hiring across borders, without the chaos.</h2>
+        <h2 class="section-title">Teams growing with clarity, without the chaos.</h2>
       </div>
       <div class="testi-carousel" data-carousel data-animate="fade-up">
         <div class="testi-card is-active" data-carousel-slide>
-          <p class="testi-quote">“We went from six spreadsheets to one map. Our first cross-region hire took nine days instead of six weeks.”</p>
-          <div class="testi-person"><span class="testi-avatar"></span><div><strong>Naomi Reyes</strong><span>Head of Talent, Fenwick Labs</span></div></div>
+          <p class="testi-quote">“We went from six spreadsheets to one connected platform. Onboarding and performance reviews are finally in sync.”</p>
+          <div class="testi-person"><span class="testi-avatar"></span><div><strong>Naomi Reyes</strong><span>Head of People, Fenwick Labs</span></div></div>
         </div>
         <div class="testi-card" data-carousel-slide>
-          <p class="testi-quote">“The compliance layer alone paid for itself. Legal stopped flagging our offer letters within a month.”</p>
-          <div class="testi-person"><span class="testi-avatar"></span><div><strong>Daniel Osei</strong><span>VP People, Northlane</span></div></div>
+          <p class="testi-quote">“From hiring to everyday employee management, Krew gives our leadership full visibility without the administrative chaos.”</p>
+          <div class="testi-person"><span class="testi-avatar"></span><div><strong>Daniel Osei</strong><span>VP Operations, Northlane</span></div></div>
         </div>
         <div class="testi-card" data-carousel-slide>
-          <p class="testi-quote">“Every interviewer, in every timezone, finally looks at the same scorecard. Decisions got faster and fairer.”</p>
-          <div class="testi-person"><span class="testi-avatar"></span><div><strong>Marta Kowalski</strong><span>Recruiting Lead, Ridgeform</span></div></div>
+          <p class="testi-quote">“Every employee and manager finally has one clear view. Goals, leave, and milestones are effortless to track.”</p>
+          <div class="testi-person"><span class="testi-avatar"></span><div><strong>Marta Kowalski</strong><span>People Operations, Ridgeform</span></div></div>
         </div>
         <div class="carousel-controls" aria-label="Testimonial controls">
           <button class="carousel-btn" type="button" data-carousel-prev aria-label="Previous testimonial">←</button>
@@ -1141,32 +1151,36 @@
     <div class="wrap">
       <div class="section-head" data-animate="fade-up">
         <span class="eyebrow">Questions</span>
-        <h2 class="section-title">Answers, before you ask twice.</h2>
-        <p class="faq-intro">A clearer hiring map means fewer unknowns. Explore the answers teams ask before they take their first role global.</p>
+        <h2 class="section-title">Everything you wanted to know.</h2>
+        <p class="faq-intro">Clear answers about how Krew connects people, workflows, and performance.</p>
       </div>
       <div class="faq-list" id="faq-list">
         <div class="faq-item" data-animate="fade-up">
-          <div class="faq-q"><h4>How fast can we get started?</h4><span class="faq-icon"></span></div>
-          <div class="faq-a"><p>Most teams import their first pipeline and post a role within a day. Full regional compliance setup typically takes a week.</p></div>
+          <div class="faq-q"><h4>What is Krew?</h4><span class="faq-icon"></span></div>
+          <div class="faq-a"><p>Krew is an employee management platform that connects hiring, onboarding, everyday HR, performance, and growth.</p></div>
         </div>
         <div class="faq-item" data-animate="fade-up" style="transition-delay:.08s">
-          <div class="faq-q"><h4>Which countries does TerraHire support?</h4><span class="faq-icon"></span></div>
-          <div class="faq-a"><p>Compliant contracts and pay-band guidance are available in 27 countries today, with new regions added quarterly.</p></div>
+          <div class="faq-q"><h4>Is Krew only for HR?</h4><span class="faq-icon"></span></div>
+          <div class="faq-a"><p>No. Krew gives employees, managers, HR, and leadership their own view of the same organization.</p></div>
         </div>
         <div class="faq-item" data-animate="fade-up" style="transition-delay:.16s">
-          <div class="faq-q"><h4>Can we migrate our existing pipelines?</h4><span class="faq-icon"></span></div>
-          <div class="faq-a"><p>Yes — bulk import from spreadsheets or common ATS exports, with a guided mapping step and no downtime.</p></div>
+          <div class="faq-q"><h4>Does Krew support hiring?</h4><span class="faq-icon"></span></div>
+          <div class="faq-a"><p>Yes. Hiring is where the journey begins — not where it ends.</p></div>
         </div>
         <div class="faq-item" data-animate="fade-up" style="transition-delay:.24s">
-          <div class="faq-q"><h4>Does TerraHire integrate with our tools?</h4><span class="faq-icon"></span></div>
-          <div class="faq-a"><p>TerraHire connects to common calendar, payroll and communication tools, and exposes an open API for anything else.</p></div>
+          <div class="faq-q"><h4>What can Krew AI do?</h4><span class="faq-icon"></span></div>
+          <div class="faq-a"><p>From AI interviews to workforce insights, Krew helps teams work smarter and faster.</p></div>
         </div>
         <div class="faq-item" data-animate="fade-up" style="transition-delay:.32s">
-          <div class="faq-q"><h4>What does pricing look like?</h4><span class="faq-icon"></span></div>
-          <div class="faq-a"><p>Pricing scales with active roles rather than seats, so growing interview panels never inflate your bill.</p></div>
+          <div class="faq-q"><h4>Can employees use Krew?</h4><span class="faq-icon"></span></div>
+          <div class="faq-a"><p>Yes. Employees can manage their information, leave, goals, documents, and more.</p></div>
+        </div>
+        <div class="faq-item" data-animate="fade-up" style="transition-delay:.40s">
+          <div class="faq-q"><h4>Can Krew grow with our organization?</h4><span class="faq-icon"></span></div>
+          <div class="faq-a"><p>That's the idea.</p></div>
         </div>
       </div>
-      <div class="faq-note" data-animate="fade-up">Still curious? We make global hiring feel local.</div>
+      <div class="faq-note" data-animate="fade-up">Still curious? From hire to higher performance.</div>
     </div>
   </section>
 
@@ -1177,8 +1191,8 @@
       <div class="contact-inner">
         <div data-animate="scale-in">
           <span class="eyebrow">Get started</span>
-          <h2 class="contact-title">Ready to hire on one map?</h2>
-          <p class="section-sub">Tell us about your team, and we'll set up a walkthrough tailored to how you hire across regions.</p>
+          <h2 class="contact-title">Better people management<br>starts here.</h2>
+          <p class="section-sub">One platform. Every employee. One Krew.</p>
         </div>
         <form id="contact-form" data-animate="fade-left" novalidate>
           <div class="field">
@@ -1201,7 +1215,7 @@
             <label for="message">What are you hoping to solve?</label>
             <span class="underline"></span>
           </div>
-          <button type="submit" class="btn btn-primary submit-btn">Request a walkthrough</button>
+          <button type="submit" class="btn btn-primary submit-btn">Get Started →</button>
           <p id="form-status" class="visually-hidden" role="status" aria-live="polite"></p>
         </form>
       </div>
@@ -1212,16 +1226,19 @@
   <footer data-animate="fade-up">
     <div class="wrap">
       <div class="footer-top">
-        <div class="footer-logo"><span class="mark" aria-hidden="true"></span>TerraHire</div>
+        <div>
+          <div class="footer-logo"><span class="mark" aria-hidden="true"></span>Krew</div>
+          <p style="color:var(--mist-dim);font-size:12.5px;margin-top:8px;font-family:var(--font-mono);letter-spacing:0.06em;">FROM HIRE TO HIGHER PERFORMANCE.</p>
+        </div>
         <div class="footer-cols">
-          <div class="footer-col"><h5>Product</h5><ul><li><a href="#features">Features</a></li><li><a href="#dashboards">Dashboards</a></li><li><a href="#how">How it works</a></li></ul></div>
-          <div class="footer-col"><h5>Company</h5><ul><li><a href="#testimonials">Customers</a></li><li><a href="#forhr">For HR</a></li><li><a href="#contact">Contact</a></li></ul></div>
-          <div class="footer-col"><h5>Resources</h5><ul><li><a href="#faq">FAQ</a></li><li><a href="#hero">Overview</a></li></ul></div>
+          <div class="footer-col"><h5>Product</h5><ul><li><a href="#features">Features</a></li><li><a href="job-openings.html">Hiring</a></li><li><a href="login.html">Employees</a></li><li><a href="#dashboards">Performance</a></li><li><a href="#dashboards">Dashboards</a></li><li><a href="#features">Krew AI</a></li></ul></div>
+          <div class="footer-col"><h5>Company</h5><ul><li><a href="#problem">About</a></li><li><a href="#forhr">For HR</a></li><li><a href="#contact">Contact</a></li></ul></div>
+          <div class="footer-col"><h5>Resources</h5><ul><li><a href="#faq">FAQ</a></li><li><a href="#features">Documentation</a></li><li><a href="#hero">Overview</a></li></ul></div>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© 2026 TerraHire. All rights reserved.</span>
-        <span>Made for teams hiring everywhere.</span>
+        <span>© 2026 Krew. All rights reserved.</span>
+        <span>Built for better work.</span>
       </div>
     </div>
   </footer>
@@ -1377,12 +1394,12 @@
      FEATURE CARDS — generated for varied entrance animations
   ============================================================ */
   var featureData = [
-    {icon:'M3 12l6 6L21 6', title:'Unified pipeline', body:'Every candidate across every region lives in one board, always in sync.', anim:'fade-up'},
-    {icon:'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z', title:'Smart matching', body:'Rank candidates by real fit signals, not just keyword overlap.', anim:'scale-in'},
-    {icon:'M4 4h16v16H4z M4 9h16 M9 4v16', title:'Structured interviews', body:'Shared scorecards keep every panel consistent, in any language.', anim:'fade-down'},
-    {icon:'M12 21c-4-3-8-6.5-8-11a8 8 0 0116 0c0 4.5-4 8-8 11z', title:'Local compliance', body:'Contracts and pay bands stay aligned with regional law, automatically.', anim:'blur-in'},
-    {icon:'M3 3v18h18 M7 15l3-4 3 3 5-7', title:'Live analytics', body:'Time-to-offer, funnel health and diversity metrics update in real time.', anim:'fade-up'},
-    {icon:'M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75', title:'Team collaboration', body:'Comment, tag and hand off candidates without leaving the pipeline.', anim:'scale-in'}
+    {icon:'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z', title:'Smart Hiring', body:'Find, screen, interview, and hire better.', anim:'fade-up'},
+    {icon:'M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75', title:'Easy Onboarding', body:'Turn new hires into team members, faster.', anim:'scale-in'},
+    {icon:'M3 12l6 6L21 6', title:'Employee Management', body:'One place for every employee, every day.', anim:'fade-down'},
+    {icon:'M12 8v4l3 3 M12 22A10 10 0 1 0 12 2a10 10 0 0 0 0 20z', title:'Time & Leave', body:'Less paperwork. More time.', anim:'blur-in'},
+    {icon:'M3 3v18h18 M7 15l3-4 3 3 5-7', title:'Performance', body:'Turn goals into progress.', anim:'fade-up'},
+    {icon:'M13 2L3 14h9l-1 8 10-12h-9l1-8z', title:'Workforce Insights', body:'See what matters. Act on it.', anim:'scale-in'}
   ];
   var grid = document.getElementById('feature-grid');
   featureData.forEach(function(f, i){

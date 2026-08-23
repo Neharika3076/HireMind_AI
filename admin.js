@@ -56,7 +56,7 @@ if (currentUser.roleType !== "admin") {
       sessionStorage.removeItem("currentUser");
       sessionStorage.removeItem("user");
 
-      console.log("✅ User signed out successfully");
+      console.log("User signed out successfully");
 
       // Go back to login page
       window.location.replace("./login.html");

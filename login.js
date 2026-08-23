@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sessionStorage.setItem("terrahire_session_user", JSON.stringify(matchedMember));
     }
 
-    console.log("✅ Login successful for:", matchedMember.fullName);
+    console.log("Login successful for:", matchedMember.fullName);
 
     /* 4. REDIRECT VIA ROLE ROUTER */
     let dashboardPath = "./employee.html";

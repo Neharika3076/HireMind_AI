@@ -120,14 +120,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (statusCheckinTime) statusCheckinTime.textContent = cur.lastCheckIn || "--:--";
     if (statusCheckoutTime) statusCheckoutTime.textContent = `Check-out: ${cur.lastCheckOut || "--:--"}`;
-    if (statusLocationTag) statusLocationTag.textContent = `📍 Logged from ${cur.location || "Office"}`;
+    if (statusLocationTag) statusLocationTag.textContent = `Logged from ${cur.location || "Office"}`;
     if (locationInput && !locationInput.value) locationInput.value = cur.location || "Office";
 
     if (cur.isCheckedIn) {
       if (statusDot) statusDot.className = "status-dot-working";
       if (statusWorkingText) { statusWorkingText.textContent = "Working"; statusWorkingText.style.color = "var(--white)"; }
       if (statusDetailSubtext) statusDetailSubtext.textContent = "Current Status: Checked In (Working)";
-      if (btnCheckin) { btnCheckin.disabled = true; btnCheckin.textContent = "Checked in ✓"; btnCheckin.classList.remove("active-btn"); }
+      if (btnCheckin) { btnCheckin.disabled = true; btnCheckin.textContent = "Checked in"; btnCheckin.classList.remove("active-btn"); }
       if (btnCheckout) { btnCheckout.disabled = false; btnCheckout.classList.add("active-btn"); }
     } else {
       if (statusDot) statusDot.className = "status-dot-offline";
@@ -143,12 +143,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const location = (locationInput && locationInput.value.trim()) || "Office";
           const updated = window.TerraHireStore.checkIn(cur.id, location);
           window.TerraHireStore.setCurrentUser(updated);
-          showToast(`✅ Checked in successfully at ${updated.lastCheckIn} — 📍 ${location}`);
+          showToast(`Checked in successfully at ${updated.lastCheckIn} — ${location}`);
           renderStatusCard();
           renderAttendance();
         } catch (error) {
           console.error("Check-in error:", error);
-          showToast(`❌ ${error.message}`, true);
+          showToast(`${error.message}`, true);
         }
       };
     }
@@ -158,12 +158,12 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const updated = window.TerraHireStore.checkOut(cur.id);
           window.TerraHireStore.setCurrentUser(updated);
-          showToast(`👋 Checked out successfully at ${updated.lastCheckOut}`);
+          showToast(`Checked out successfully at ${updated.lastCheckOut}`);
           renderStatusCard();
           renderAttendance();
         } catch (error) {
           console.error("Check-out error:", error);
-          showToast(`❌ ${error.message}`, true);
+          showToast(`${error.message}`, true);
         }
       };
     }
@@ -637,7 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 color:var(--mist-dim);
                 font-size:12.5px;
             ">
-                📍 ${record.location || "Office"}
+                ${record.location || "Office"}
             </td>
         `;
 
@@ -770,13 +770,13 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.onclick = () => {
         try {
           window.TerraHireStore.cancelLeaveRequest(btn.getAttribute("data-withdraw-id"));
-          showToast("🗑️ Leave request withdrawn.");
+          showToast("Leave request withdrawn.");
           renderLeaveBalance();
           renderMyLeaveRequests();
           renderLeaveApprovals();
           renderAttendance();
         } catch (error) {
-          showToast(`❌ ${error.message}`, true);
+          showToast(`${error.message}`, true);
         }
       };
     });
@@ -831,13 +831,13 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.onclick = () => {
         try {
           window.TerraHireStore.decideLeaveRequest(btn.getAttribute("data-approve-id"), "Approved");
-          showToast("✅ Leave request approved.");
+          showToast("Leave request approved.");
           renderLeaveBalance();
           renderMyLeaveRequests();
           renderLeaveApprovals();
           renderAttendance();
         } catch (error) {
-          showToast(`❌ ${error.message}`, true);
+          showToast(`${error.message}`, true);
         }
       };
     });
@@ -845,13 +845,13 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.onclick = () => {
         try {
           window.TerraHireStore.decideLeaveRequest(btn.getAttribute("data-reject-id"), "Rejected");
-          showToast("🚫 Leave request rejected.");
+          showToast("Leave request rejected.");
           renderLeaveBalance();
           renderMyLeaveRequests();
           renderLeaveApprovals();
           renderAttendance();
         } catch (error) {
-          showToast(`❌ ${error.message}`, true);
+          showToast(`${error.message}`, true);
         }
       };
     });
@@ -915,6 +915,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (formLeave) {
     formLeave.onsubmit = (e) => {
       e.preventDefault();
+
       try {
         const cur = window.TerraHireStore.getCurrentUser() || currentUser;
         const type = document.getElementById("leave-input-type").value;
@@ -923,14 +924,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const reason = document.getElementById("leave-input-reason").value;
 
         const request = window.TerraHireStore.submitLeaveRequest({
-          memberId: cur.id, type, startDate, endDate, reason,
+          memberId: cur.id,
+          type,
+          startDate,
+          endDate,
+          reason,
         });
 
         const message = request.status === "Approved"
-          ? `✅ Leave auto-approved (${request.days} day(s)).`
-          : `📨 Leave request submitted (${request.days} day(s)) — pending approval from your ${(request.requiredApproverRoles || []).join(" or ")}.`;
+          ? `Leave auto-approved (${request.days} day(s)).`
+          : `Leave request submitted (${request.days} day(s)) — pending approval from your ${(request.requiredApproverRoles || []).join(" or ")}.`;
 
         showToast(message);
+
         modalLeave.classList.add("hidden");
         formLeave.reset();
 
@@ -938,8 +944,12 @@ document.addEventListener("DOMContentLoaded", () => {
         renderMyLeaveRequests();
         renderLeaveApprovals();
         renderAttendance();
+
       } catch (error) {
-        showToast(`❌ ${error.message}`, true);
+        if (leaveDaysPreview) {
+          leaveDaysPreview.textContent = error.message;
+          leaveDaysPreview.style.color = "var(--err)";
+        }
       }
     };
   }

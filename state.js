@@ -1027,8 +1027,8 @@ const DEFAULT_STATE = {
       writeData(data); return project;
     },
     assignMembersToProject(projectId, input) {
-      const data = input._data || readData(); 
-      const actor = input._actor || requireActor(data); 
+      const data = input._data || readData();
+      const actor = input._actor || requireActor(data);
       const project = getProject(data, projectId);
       if (!project || !canManageProject(data, actor, project)) throw new Error("You are not authorized to assign this project.");
       const memberIds = unique([...(project.memberIds || []), ...(input.memberIds || [])]);
@@ -1074,9 +1074,9 @@ const DEFAULT_STATE = {
       history(task, "Task assigned", actor, `Assigned to ${employeeIds.length} project member(s).`); data.tasks.push(task); writeData(data); return task;
     },
     updateTask(taskId, updates) {
-      const data = readData(); 
-      const actor = requireActor(data); 
-      const task = data.tasks.find((item) => item.id === taskId); 
+      const data = readData();
+      const actor = requireActor(data);
+      const task = data.tasks.find((item) => item.id === taskId);
       const project = task && getProject(data, task.projectId);
       if (!task || !project) throw new Error("Task not found.");
       const canManage = canManageProject(data, actor, project); const isLead = task.teamLeadIds.includes(actor.id); const isAssignee = task.employeeIds.includes(actor.id);
@@ -1140,7 +1140,7 @@ const DEFAULT_STATE = {
       const dateStr = now.toISOString().slice(0, 10);
 
       if (!Array.isArray(data.attendanceRecords)) data.attendanceRecords = [];
-           const record = data.attendanceRecords.find((item) => item.userId === userId && item.checkInTimestamp === member.checkInTimestamp);
+      const record = data.attendanceRecords.find((item) => item.userId === userId && item.checkInTimestamp === member.checkInTimestamp);
       // Only one check-out is allowed per calendar day.
       if (record && record.checkOutTimestamp) throw new Error("You have already checked out today. Only one check-out is allowed per day.");
 
@@ -1182,7 +1182,23 @@ const DEFAULT_STATE = {
       if (!startDate || !endDate) throw new Error("Please select a leave date.");
       const days = countLeaveDays(startDate, endDate);
       if (days < 1) throw new Error("End date must be on or after the start date.");
-      if (!reason) throw new Error("Please provide a reason for your leave.");
+      const todayDate = new Date().toISOString().slice(0, 10);
+
+      if (startDate < todayDate) {
+        throw new Error("You cannot apply for leave for a past date.");
+      }
+      const checkedInToday = data.attendanceRecords.some(
+        (record) =>
+          record.userId === member.id &&
+          record.date === todayDate &&
+          record.checkInTimestamp
+      );
+
+      if (checkedInToday && startDate <= todayDate && endDate >= todayDate) {
+        throw new Error(
+          "You cannot apply for leave for today because you have already checked in."
+        );
+      }
 
       const balance = computeLeaveBalance(data, member.id, new Date(`${startDate}T00:00:00`).getFullYear());
       if (days > balance.remaining) throw new Error(`You only have ${balance.remaining} leave day(s) remaining this year (of ${LEAVE_ANNUAL_QUOTA}).`);
@@ -1324,12 +1340,12 @@ try {
 
   if (!savedData) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_STATE));
-    console.log("✅ TerraHire data successfully saved in localStorage.");
+    console.log("TerraHire data successfully saved in localStorage.");
   } else {
-    console.log("✅ TerraHire data already exists in localStorage.");
+    console.log("TerraHire data already exists in localStorage.");
   }
 } catch (error) {
-  console.error("❌ Error while saving data in localStorage:", error);
+  console.error("Error while saving data in localStorage:", error);
 }
 
 // NOTE: the legacy plain-object helpers (getDirectoryScope, a second

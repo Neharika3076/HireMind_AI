@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HUMN — Attendance & Time Tracking</title>
+  <title>Krew — Attendance & Time Tracking</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -24,10 +24,10 @@
 
       <div style="display:flex; align-items:center; gap:12px;">
         <button class="btn btn-primary btn-sm" id="btn-open-leave-modal" style="font-size:12.5px;">
-          ➕ Request Leave
+          Request Leave
         </button>
         <button class="btn btn-ghost btn-sm" id="btn-quick-admin-switch" style="font-size:12px;">
-          🛡️ Admin Console
+          Admin Console
         </button>
       </div>
     </div>
@@ -63,7 +63,7 @@
               style="max-width:220px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(255,255,255,0.03); color:var(--white); font-size:13px;">
           </div>
           <div style="font-size:12px; color:var(--mist-dim); margin-top:6px;" id="status-location-tag">
-            📍 Logged from Office
+            Logged from Office
           </div>
         </div>
 
@@ -83,7 +83,7 @@
     <!-- 6 Stat KPI Ribbon -->
     <div class="card-workday-detailed" style="margin-bottom:24px;">
       <div class="detailed-card-title">
-        <span>📊 Current Month Summary</span>
+        <span>Current Month Summary</span>
         <span class="badge badge-teal" id="att-badge-rate">96% Attendance</span>
       </div>
 
@@ -139,7 +139,7 @@
     <!-- Leave Balance -->
     <div class="card-workday-detailed" style="margin-bottom:24px;">
       <div class="detailed-card-title">
-        <span>🏖️ Leave Balance</span>
+        <span>Leave Balance</span>
         <span class="badge badge-teal" id="leave-badge-year">2026</span>
       </div>
 
@@ -170,7 +170,7 @@
     <!-- Pending Leave Approvals (visible to Managers, Executives, Admin) -->
     <div class="card-workday-detailed" id="card-leave-approvals" style="margin-bottom:24px; display:none;">
       <div class="detailed-card-title">
-        <span>✅ Pending Leave Approvals</span>
+        <span>Pending Leave Approvals</span>
         <span style="font-size:12px; color:var(--mist-dim);" id="leave-approvals-count">0 awaiting your decision</span>
       </div>
 
@@ -197,7 +197,7 @@
     <!-- My Leave Requests -->
     <div class="card-workday-detailed" style="margin-bottom:24px;">
       <div class="detailed-card-title">
-        <span>📋 My Leave Requests</span>
+        <span>My Leave Requests</span>
         <span style="font-size:12px; color:var(--mist-dim);">Most recent first</span>
       </div>
 
@@ -224,7 +224,7 @@
     <!-- Detailed Daily Time Log Table -->
     <div class="card-workday-detailed">
       <div class="detailed-card-title">
-        <span>🕒 Daily Check-In & Time Logs</span>
+        <span>Daily Check-In & Time Logs</span>
         <span style="font-size:12px; color:var(--mist-dim);">Last 10 Logged Workdays</span>
       </div>
 
@@ -251,7 +251,7 @@
   <!-- Leave Request Modal -->
   <div id="modal-leave" class="modal-backdrop hidden">
     <div class="modal-box">
-      <h3 style="font-size:20px; margin-bottom:4px;">➕ Submit Leave Request</h3>
+      <h3 style="font-size:20px; margin-bottom:4px;">Submit Leave Request</h3>
       <p style="color:var(--mist); font-size:13.5px; margin-bottom:12px;">Submit casual or medical leave for approval.</p>
 
       <div id="leave-modal-balance-note" style="font-size:12.5px; color:var(--mist); margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:8px;">
