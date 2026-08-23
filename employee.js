@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
-    const currentUser =
+    let currentUser =
         window.TerraHireStore.getCurrentUser();
 
     if (!currentUser) {
@@ -193,9 +193,15 @@ if (logoutBtn) {
     const btnCheckin = document.getElementById("btn-action-checkin");
     const btnCheckout = document.getElementById("btn-action-checkout");
 
-    if (statusCheckinTime) statusCheckinTime.textContent = cur.lastCheckIn || "09:12 AM";
+    if (statusCheckinTime) {
+    statusCheckinTime.textContent =
+        cur.lastCheckIn || "--:--";
+      }
     if (statusCheckoutTime) statusCheckoutTime.textContent = `Check-out: ${cur.lastCheckOut || "--:--"}`;
-    if (statusLocationTag) statusLocationTag.textContent = `📍 Logged from ${cur.location || "New York, USA"}`;
+   if (statusLocationTag) {
+    statusLocationTag.textContent =
+        `📍 Logged from ${cur.location || "Office"}`;
+}
 
     if (cur.isCheckedIn) {
       if (statusDot) {
@@ -241,27 +247,77 @@ if (logoutBtn) {
     startWorkingHoursTimer(cur);
 
     // 5. Check in / Check out Action Handlers
-    if (btnCheckin) {
-      btnCheckin.onclick = () => {
-        const updated = window.TerraHireStore.checkIn(cur.id, cur.location);
-        if (updated) {
-          window.TerraHireStore.setCurrentUser(updated);
-          showToast(`✅ Checked in successfully at ${updated.lastCheckIn}`);
-          renderAll();
-        }
-      };
-    }
+   if (btnCheckin) {
 
-    if (btnCheckout) {
-      btnCheckout.onclick = () => {
-        const updated = window.TerraHireStore.checkOut(cur.id);
-        if (updated) {
-          window.TerraHireStore.setCurrentUser(updated);
-          showToast(`👋 Checked out successfully at ${updated.lastCheckOut}`);
-          renderAll();
-        }
-      };
+  btnCheckin.onclick = () => {
+
+    try {
+
+      const updated =
+        window.TerraHireStore.checkIn(
+          cur.id,
+          cur.location
+        );
+
+      window.TerraHireStore.setCurrentUser(
+        updated
+      );
+
+      showToast(
+        `✅ Checked in successfully at ${updated.lastCheckIn}`
+      );
+
+      renderAll();
+
+    } catch (error) {
+
+      console.error(
+        "Check-in error:",
+        error
+      );
+
+      showToast(
+        `❌ ${error.message}`
+      );
     }
+  };
+}
+
+
+if (btnCheckout) {
+
+  btnCheckout.onclick = () => {
+
+    try {
+
+      const updated =
+        window.TerraHireStore.checkOut(
+          cur.id
+        );
+
+      window.TerraHireStore.setCurrentUser(
+        updated
+      );
+
+      showToast(
+        `👋 Checked out successfully at ${updated.lastCheckOut}`
+      );
+
+      renderAll();
+
+    } catch (error) {
+
+      console.error(
+        "Check-out error:",
+        error
+      );
+
+      showToast(
+        `❌ ${error.message}`
+      );
+    }
+  };
+}
 
     // 6. Metrics & Tasks
     renderTasksAndMetrics(cur, s);
@@ -385,12 +441,78 @@ if (logoutBtn) {
   }
 
   function renderAttendanceSummary(user) {
-    const totalWorking = user.workingDaysInMonth || 22;
-    const present = user.daysPresent || 20;
-    const absent = user.daysAbsent || 1;
-    const leave = user.daysOnLeave || 1;
-    const late = user.lateArrivals || 2;
-    const overtime = user.overtimeHours ? `${user.overtimeHours} hrs` : "5.5 hrs";
+    const data =
+    window.TerraHireStore.getStore();
+
+const attendanceRecords =
+    Array.isArray(data.attendanceRecords)
+        ? data.attendanceRecords
+        : [];
+
+const userRecords =
+    attendanceRecords.filter(
+        record => record.userId === user.id
+    );
+
+const now =
+    new Date();
+
+const currentYear =
+    now.getFullYear();
+
+const currentMonth =
+    now.getMonth();
+
+const monthRecords =
+    userRecords.filter(record => {
+
+        const recordDate =
+            new Date(
+                record.date + "T00:00:00"
+            );
+
+        return (
+            recordDate.getFullYear() ===
+                currentYear &&
+            recordDate.getMonth() ===
+                currentMonth
+        );
+    });
+
+const present =
+    monthRecords.length;
+
+const workingDays =
+    now.getDate();
+
+const absent =
+    Math.max(
+        0,
+        workingDays - present
+    );
+
+const leave =
+    0;
+
+const late =
+    0;
+
+const overtimeMinutes =
+    monthRecords.reduce(
+        (total, record) =>
+            total +
+            Number(
+                record.overtimeMinutes || 0
+            ),
+        0
+    );
+
+const overtime =
+    `${Math.floor(overtimeMinutes / 60)}h ` +
+    `${overtimeMinutes % 60}m`;
+
+const totalWorking =
+    workingDays;
 
     const statWorking = document.getElementById("stat-total-working-days");
     const statPresent = document.getElementById("stat-days-present");
@@ -413,76 +535,239 @@ if (logoutBtn) {
     const detailBody = document.getElementById("cal-detail-body");
 
     if (calGrid) {
-      calGrid.innerHTML = "";
 
-      // Day of week headers
-      const daysOfWeek = ["M", "T", "W", "T", "F", "S", "S"];
-      daysOfWeek.forEach((d) => {
-        const head = document.createElement("div");
-        head.className = "cal-day-name";
-        head.textContent = d;
-        calGrid.appendChild(head);
-      });
+    calGrid.innerHTML = "";
 
-      // August 2026 starts on Saturday (5 empty slots for Mon-Fri)
-      for (let pad = 0; pad < 5; pad++) {
-        const emptyCell = document.createElement("div");
-        emptyCell.className = "cal-day-cell weekend";
-        emptyCell.style.opacity = "0.15";
-        calGrid.appendChild(emptyCell);
-      }
+    const now =
+        new Date();
 
-      // Populate 31 days of August 2026
-      for (let day = 1; day <= 31; day++) {
-        const cell = document.createElement("div");
-        cell.className = "cal-day-cell";
-        cell.textContent = day;
+    const year =
+        now.getFullYear();
 
-        // Day of week for August 2026 (Aug 1 is Sat)
-        const dayOfWeekIndex = (5 + (day - 1)) % 7; // 5=Sat, 6=Sun
-        const isWeekend = dayOfWeekIndex === 5 || dayOfWeekIndex === 6;
+    const month =
+        now.getMonth();
 
-        let statusText = "Present";
-        let detailMsg = `Full workday logged (9h 15m). Checked in: 09:00 AM, Out: 06:15 PM.`;
+    const daysInMonth =
+        new Date(
+            year,
+            month + 1,
+            0
+        ).getDate();
 
-        if (isWeekend) {
-          cell.classList.add("weekend");
-          statusText = "Weekend";
-          detailMsg = "Non-working weekend.";
-        } else if (day === 15) {
-          cell.classList.add("today");
-          cell.classList.add("present");
-          detailMsg = `Today: Checked in at ${user.lastCheckIn || "09:12 AM"}. Active workday session.`;
-        } else if (day === 6) {
-          cell.classList.add("absent");
-          statusText = "Absent";
-          detailMsg = "Unexcused absence recorded.";
-        } else if (day === 11) {
-          cell.classList.add("leave");
-          statusText = "Leave";
-          detailMsg = "Approved annual casual leave.";
-        } else if (day < 15) {
-          cell.classList.add("present");
-          if (day === 4 || day === 12) {
-            detailMsg = "Late arrival (09:42 AM). Full 8.5h workday completed.";
-          }
+    const firstDay =
+        new Date(
+            year,
+            month,
+            1
+        ).getDay();
+
+    // Monday = 0
+    const mondayFirst =
+        firstDay === 0
+            ? 6
+            : firstDay - 1;
+
+    const data =
+        window.TerraHireStore.getStore();
+
+    const records =
+        Array.isArray(data.attendanceRecords)
+            ? data.attendanceRecords
+            : [];
+
+    const userRecords =
+        records.filter(
+            record =>
+                record.userId === user.id
+        );
+
+    // Week headers
+    const daysOfWeek =
+        ["M", "T", "W", "T", "F", "S", "S"];
+
+    daysOfWeek.forEach(dayName => {
+
+        const header =
+            document.createElement("div");
+
+        header.className =
+            "cal-day-name";
+
+        header.textContent =
+            dayName;
+
+        calGrid.appendChild(header);
+    });
+
+    // Empty cells before first day
+    for (
+        let i = 0;
+        i < mondayFirst;
+        i++
+    ) {
+
+        const empty =
+            document.createElement("div");
+
+        empty.className =
+            "cal-day-cell weekend";
+
+        empty.style.opacity =
+            "0.15";
+
+        calGrid.appendChild(empty);
+    }
+
+    // Actual days
+    for (
+        let day = 1;
+        day <= daysInMonth;
+        day++
+    ) {
+
+        const cell =
+            document.createElement("div");
+
+        cell.className =
+            "cal-day-cell";
+
+        cell.textContent =
+            day;
+
+        const date =
+            `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+        const record =
+            userRecords.find(
+                r => r.date === date
+            );
+
+        const currentDate =
+            new Date(
+                year,
+                month,
+                day
+            );
+
+        const dayOfWeek =
+            currentDate.getDay();
+
+        const isWeekend =
+            dayOfWeek === 0 ||
+            dayOfWeek === 6;
+
+        let statusText =
+            "Upcoming";
+
+        let detailMsg =
+            "Upcoming day.";
+
+        if (record) {
+
+            if (
+                record.status === "Active"
+            ) {
+
+                cell.classList.add(
+                    "today"
+                );
+
+                cell.classList.add(
+                    "present"
+                );
+
+                statusText =
+                    "Working";
+
+                detailMsg =
+                    `Checked in at ${new Date(
+                        record.checkIn
+                    ).toLocaleTimeString(
+                        "en-IN",
+                        {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: true
+                        }
+                    )}. Currently working.`;
+
+            } else {
+
+                cell.classList.add(
+                    "present"
+                );
+
+                statusText =
+                    "Present";
+
+                detailMsg =
+                    `Attendance completed.`;
+            }
+
+        } else if (isWeekend) {
+
+            cell.classList.add(
+                "weekend"
+            );
+
+            statusText =
+                "Weekend";
+
+            detailMsg =
+                "Non-working weekend.";
+
+        } else if (
+            currentDate < now
+        ) {
+
+            cell.classList.add(
+                "absent"
+            );
+
+            statusText =
+                "Absent";
+
+            detailMsg =
+                "No attendance recorded.";
+
         } else {
-          // Upcoming days
-          cell.style.opacity = "0.7";
-          detailMsg = "Upcoming scheduled working day.";
+
+            cell.style.opacity =
+                "0.7";
+
+            statusText =
+                "Upcoming";
+
+            detailMsg =
+                "Upcoming working day.";
         }
 
-        cell.addEventListener("click", () => {
-          if (detailBox && detailTitle && detailBody) {
-            detailBox.style.display = "block";
-            detailTitle.textContent = `Aug ${day} (${statusText}):`;
-            detailBody.textContent = detailMsg;
-          }
-        });
+        cell.addEventListener(
+            "click",
+            () => {
+
+                if (
+                    detailBox &&
+                    detailTitle &&
+                    detailBody
+                ) {
+
+                    detailBox.style.display =
+                        "block";
+
+                    detailTitle.textContent =
+                        `${date} (${statusText})`;
+
+                    detailBody.textContent =
+                        detailMsg;
+                }
+            }
+        );
 
         calGrid.appendChild(cell);
-      }
     }
+}
   }
 
   function renderLeadershipAndTeammates(cur, s, proj) {
