@@ -1,0 +1,796 @@
+!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TerraHire - Performance Dashboard</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+ <script src="./state.js"></script>
+<script src="./sidebar.js"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#03c6b2",
+                    "background": "#0c1321",
+                    "on-secondary-fixed": "#00201c",
+                    "on-tertiary-fixed": "#001a42",
+                    "tertiary-container": "#75a3ff",
+                    "on-secondary-fixed-variant": "#005047",
+                    "surface-container": "#19202d",
+                    "secondary-fixed-dim": "#3cddc7",
+                    "primary-container": "#14b8a6",
+                    "primary-fixed-dim": "#4fdbc8",
+                    "on-secondary-container": "#004d44",
+                    "surface": "#0c1321",
+                    "outline-variant": "#3c4947",
+                    "on-primary": "#003731",
+                    "on-secondary": "#003731",
+                    "tertiary": "#adc6ff",
+                    "surface-container-high": "#232a38",
+                    "surface-container-low": "#141c29",
+                    "outline": "#859490",
+                    "on-error-container": "#ffdad6",
+                    "surface-variant": "#2e3543",
+                    "on-background": "#dce2f5",
+                    "inverse-on-surface": "#29303f",
+                    "inverse-surface": "#dce2f5",
+                    "surface-bright": "#323948",
+                    "on-error": "#690005",
+                    "on-surface": "#dce2f5",
+                    "tertiary-fixed": "#d8e2ff",
+                    "on-primary-fixed": "#00201c",
+                    "on-primary-fixed-variant": "#005048",
+                    "primary": "#4fdbc8",
+                    "inverse-primary": "#006b5f",
+                    "secondary": "#44e2cd",
+                    "surface-container-highest": "#2e3543",
+                    "tertiary-fixed-dim": "#adc6ff",
+                    "surface-tint": "#4fdbc8",
+                    "on-tertiary-fixed-variant": "#004395",
+                    "secondary-fixed": "#62fae3",
+                    "on-tertiary-container": "#00377d",
+                    "primary-fixed": "#71f8e4",
+                    "error": "#ffb4ab",
+                    "surface-container-lowest": "#070e1b",
+                    "surface-dim": "#0c1321",
+                    "on-surface-variant": "#bbcac6",
+                    "on-primary-container": "#00423b",
+                    "on-tertiary": "#002e6a",
+                    "error-container": "#93000a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "40px",
+                    "margin-mobile": "16px",
+                    "xl": "32px",
+                    "lg": "24px",
+                    "gutter": "20px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "xs": "4px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Space Grotesk"],
+                    "display-lg": ["Space Grotesk"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "headline-sm": ["Space Grotesk"],
+                    "headline-md": ["Space Grotesk"],
+                    "mono-data": ["Space Grotesk"]
+            },
+            "fontSize": {
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "mono-data": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+        body {
+            background-color: #0c1321;
+            color: #dce2f5;
+        }
+        
+        .glass-panel {
+            background: rgba(25, 32, 45, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(133, 148, 144, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-card {
+            background: linear-gradient(180deg, rgba(25, 32, 45, 0.6) 0%, rgba(20, 28, 41, 0.8) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(133, 148, 144, 0.15);
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 10px rgba(79, 219, 200, 0.3);
+        }
+        
+        .glow-box:hover {
+            box-shadow: 0 0 20px rgba(20, 184, 166, 0.15);
+            border-color: rgba(79, 219, 200, 0.4);
+        }
+    </style>
+
+<link rel="stylesheet" href="./index.css">
+<style>
+  /* =========================================================
+     Performance page — matched to the existing HUMN sidebar
+     ========================================================= */
+  :root {
+    --perf-bg: #070e1b;
+    --perf-surface: #0b1728;
+    --perf-surface-2: #101d30;
+    --perf-line: rgba(255,255,255,.09);
+    --perf-line-strong: rgba(255,255,255,.14);
+    --perf-text: #f4f7fb;
+    --perf-muted: #9eacbd;
+    --perf-lime: #ccff00;
+    --perf-lime-soft: rgba(204,255,0,.12);
+    --perf-blue: #8eb7ff;
+  }
+
+  html, body {
+    background: var(--perf-bg) !important;
+  }
+
+  body.workday-shell {
+    color: var(--perf-text);
+    overflow-x: hidden;
+  }
+
+  .workday-main.performance-page {
+    min-height: 100vh;
+    
+    margin-left: 260px;
+    background:
+      radial-gradient(circle at 75% 0%, rgba(204,255,0,.055), transparent 28rem),
+      var(--perf-bg) !important;
+    box-sizing: border-box;
+  }
+
+  .performance-page .performance-canvas {
+    width: 100%;
+    max-width: 1540px;
+    margin: 0 auto;
+    padding: 32px 36px 48px;
+    box-sizing: border-box;
+  }
+
+  .performance-page .page-kicker {
+    color: var(--perf-lime);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  .performance-page .page-title {
+    margin: 0;
+    color: var(--perf-text);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: clamp(28px, 3vw, 38px);
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -.03em;
+  }
+
+  .performance-page .page-subtitle {
+    margin: 9px 0 0;
+    color: var(--perf-muted);
+    font-size: 14px;
+  }
+
+  .performance-page .live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid rgba(204,255,0,.24);
+    border-radius: 999px;
+    color: var(--perf-lime);
+    background: rgba(204,255,0,.06);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .performance-page .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--perf-lime);
+    box-shadow: 0 0 10px rgba(204,255,0,.65);
+  }
+
+
+  .performance-page .kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .performance-page .kpi-grid > .perf-card {
+    min-width: 0;
+  }
+
+  @media (max-width: 900px) {
+    .performance-page .kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .performance-page .kpi-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  .performance-page .perf-card,
+  .performance-page .perf-panel {
+    background: linear-gradient(145deg, rgba(16,29,48,.96), rgba(8,19,33,.96));
+    border: 1px solid var(--perf-line);
+    border-radius: 14px;
+    box-shadow: 0 12px 35px rgba(0,0,0,.18);
+  }
+
+  .performance-page .perf-card {
+    min-height: 150px;
+    padding: 18px;
+    transition: .2s ease;
+  }
+
+  .performance-page .perf-card:hover {
+    border-color: rgba(204,255,0,.22);
+    transform: translateY(-2px);
+    box-shadow: 0 16px 38px rgba(0,0,0,.24);
+  }
+
+  .performance-page .metric-label {
+    color: var(--perf-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .performance-page .metric-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    color: var(--perf-lime);
+    background: var(--perf-lime-soft);
+    border: 1px solid rgba(204,255,0,.15);
+  }
+
+  .performance-page .metric-value {
+  
+    color: var(--perf-text);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -.03em;
+}
+
+  .performance-page .metric-meta {
+   
+    color: var(--perf-muted);
+    font-size: 12px;
+  }
+
+  .performance-page .metric-highlight {
+    color: var(--perf-lime);
+  }
+
+  .performance-page .perf-panel {
+    padding: 22px;
+  }
+
+  .performance-page .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 15px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--perf-line);
+  }
+
+  .performance-page .panel-title {
+    margin: 0;
+    color: var(--perf-text);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .performance-page .panel-subtitle {
+    margin-top: 4px;
+    color: var(--perf-muted);
+    font-size: 12px;
+  }
+
+  .performance-page .chart-wrap {
+    height: 380px;
+    position: relative;
+  }
+
+  .performance-page .small-chart-wrap {
+    height: 285px;
+    position: relative;
+  }
+
+  .performance-page .chart-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+    gap: 20px;
+  }
+
+  @media (max-width: 1100px) {
+    .workday-main.performance-page {
+      width: calc(100% - 260px);
+      margin-left: 260px;
+    }
+    .performance-page .performance-canvas {
+      padding: 0 36px 48px;
+    }
+    .performance-page .chart-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .workday-main.performance-page {
+      width: 100%;
+      margin-left: 0;
+    }
+    .performance-page .performance-canvas {
+      padding: 22px 16px 32px;
+    }
+  }
+</style>
+</head>
+<body class="workday-shell">
+
+<!-- Shared TerraHire Sidebar -->
+<div id="sidebar-root"></div>
+<!-- Main Content Canvas -->
+<main class="workday-main performance-page">
+<!-- Decorative Ambient Light -->
+<div class="absolute top-0 left-1/4 w-1/2 h-96 bg-primary-container/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+<!-- Top App Bar -->
+
+<!-- Dashboard Canvas -->
+<div class="performance-canvas">
+<!-- Context & Controls -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-xl gap-md">
+  <div>
+    <div class="page-kicker">Admin analytics</div>
+    <h1 class="page-title">Performance</h1>
+    <p class="page-subtitle">Track workforce performance, attendance, and task completion.</p>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="live-pill"><span class="live-dot"></span>Live Data</span>
+  </div>
+</div>
+<!-- KPI Grid -->
+<div class="kpi-grid mb-5">
+
+  <div class="perf-card">
+    <div class="flex justify-between items-start">
+      <span class="metric-label">Avg. Score</span>
+      <div class="metric-icon"><span class="material-symbols-outlined text-[19px]">speed</span></div>
+    </div>
+    <div class="metric-value" id="kpi-avg-score">--</div>
+    <div class="metric-meta"><span class="metric-highlight">↑</span> Overall workforce score</div>
+  </div>
+
+  <div class="perf-card">
+    <div class="flex justify-between items-start">
+      <span class="metric-label">Top Department</span>
+      <div class="metric-icon"><span class="material-symbols-outlined text-[19px]">domain</span></div>
+    </div>
+    <div class="metric-value text-[22px] truncate" id="kpi-top-dept">--</div>
+    <div class="metric-meta" id="kpi-top-dept-score">Score: --</div>
+  </div>
+
+  <div class="perf-card">
+    <div class="flex justify-between items-start">
+      <span class="metric-label">Top Member</span>
+      <div class="metric-icon"><span class="material-symbols-outlined text-[19px]">person</span></div>
+    </div>
+    <div class="metric-value text-[22px] truncate" id="kpi-top-member">--</div>
+    <div class="metric-meta" id="kpi-top-member-score">Score: --</div>
+  </div>
+
+  <div class="perf-card">
+    <div class="flex justify-between items-start">
+      <span class="metric-label">Workforce</span>
+      <div class="metric-icon"><span class="material-symbols-outlined text-[19px]">group</span></div>
+    </div>
+    <div class="metric-value" id="kpi-workforce">--</div>
+    <div class="metric-meta">Active personnel</div>
+  </div>
+
+</div>
+
+<!-- Chart Visualization Area -->
+<div class="perf-panel w-full mb-5">
+<div class="panel-header">
+<div><h3 class="panel-title" id="chart-title">Department Performance Overview</h3><div class="panel-subtitle">Click a department to view individual scores</div></div>
+<div class="flex gap-2">
+     <button class="hidden items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/[.03] hover:bg-white/[.06] text-sm transition-colors" id="back-btn" title="Back to Departments">
+      <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+      <span>Back to Departments</span>
+    </button>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-container/10 border border-primary/20 text-primary text-xs font-label-md">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                            LIVE DATA
+                        </span>
+
+</div>
+
+</div>
+<div class="chart-wrap" id="chart-container">
+<canvas id="performanceChart"></canvas>
+</div>
+</div>
+<!-- Additional Charts Row -->
+<div class="chart-grid">
+<!-- Task Completion Status -->
+<div class="perf-panel w-full">
+<div class="panel-header">
+<div><h3 class="panel-title">Task Completion Status</h3><div class="panel-subtitle">Current task distribution</div></div>
+</div>
+<div class="small-chart-wrap">
+<canvas id="taskStatusChart"></canvas>
+</div>
+</div>
+<!-- Performance Distribution -->
+<div class="perf-panel w-full">
+<div class="panel-header">
+<div><h3 class="panel-title">Performance Distribution</h3><div class="panel-subtitle">Workforce score breakdown</div></div>
+</div>
+<div class="small-chart-wrap">
+<canvas id="perfDistChart"></canvas>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+<script src="./state.js"></script>
+<script src="./sidebar.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const currentUser = window.TerraHireStore?.getCurrentUser();
+
+  // Performance is an ADMIN-ONLY page.
+  if (!currentUser) {
+    window.location.href = "./login.html";
+    return;
+  }
+
+  if (currentUser.roleType !== "admin") {
+    window.location.href = window.TerraHireStore.getDashboardForRole(currentUser);
+    return;
+  }
+
+  const store = window.TerraHireStore.getStore();
+  const members = Array.isArray(store.members) ? store.members : [];
+  const departments = Array.isArray(store.departments) ? store.departments : [];
+  const tasks = Array.isArray(store.tasks) ? store.tasks : [];
+
+  const canvas = document.getElementById("performanceChart");
+  const ctx = canvas.getContext("2d");
+  const backBtn = document.getElementById("back-btn");
+  const chartTitle = document.getElementById("chart-title");
+
+  let currentChart = null;
+
+  Chart.defaults.color = "#9eacbd";
+  Chart.defaults.font.family = "Inter, sans-serif";
+  Chart.defaults.plugins.tooltip.backgroundColor = "rgba(25, 32, 45, 0.9)";
+  Chart.defaults.plugins.tooltip.titleColor = "#ccff00";
+  Chart.defaults.plugins.tooltip.padding = 12;
+  Chart.defaults.plugins.tooltip.borderColor = "rgba(133, 148, 144, 0.2)";
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+
+  const getMemberTasks = (member) =>
+    tasks.filter(task =>
+      task.memberId === member.id ||
+      (Array.isArray(task.employeeIds) && task.employeeIds.includes(member.id)) ||
+      (Array.isArray(task.assigneeIds) && task.assigneeIds.includes(member.id))
+    );
+
+  const calculateScore = (member) => {
+    const workingDays = Number(member.workingDaysInMonth) || 0;
+    const daysPresent = Number(member.daysPresent) || 0;
+    const attendance = workingDays > 0
+      ? (daysPresent / workingDays) * 80
+      : 0;
+
+    const memberTasks = getMemberTasks(member);
+    const completed = memberTasks.filter(task =>
+      task.completed === true || String(task.status || "").toLowerCase() === "done"
+    ).length;
+
+    const taskTotal = memberTasks.length;
+    const taskScore = taskTotal > 0 ? (completed / taskTotal) * 20 : 0;
+
+    return Number(Math.min(100, attendance + taskScore).toFixed(1));
+  };
+
+  const processedMembers = members.map(member => ({
+    ...member,
+    score: calculateScore(member)
+  }));
+
+  const deptStats = departments.map(dept => {
+    const deptMembers = processedMembers.filter(member =>
+      member.deptId === dept.id ||
+      member.departmentId === dept.id
+    );
+    const avgScore = deptMembers.length
+      ? deptMembers.reduce((sum, member) => sum + member.score, 0) / deptMembers.length
+      : 0;
+
+    return {
+      ...dept,
+      avgScore: Number(avgScore.toFixed(1)),
+      members: deptMembers
+    };
+  }).filter(dept => dept.members.length > 0)
+    .sort((a, b) => b.avgScore - a.avgScore);
+
+  const updateKPIs = () => {
+    const totalScore = processedMembers.reduce((sum, member) => sum + member.score, 0);
+    const overallAvg = processedMembers.length
+      ? (totalScore / processedMembers.length).toFixed(1)
+      : "0.0";
+
+    document.getElementById("kpi-avg-score").textContent = overallAvg;
+
+    if (deptStats.length) {
+      document.getElementById("kpi-top-dept").textContent = deptStats[0].name;
+      document.getElementById("kpi-top-dept-score").textContent = `Score: ${deptStats[0].avgScore}`;
+    } else {
+      document.getElementById("kpi-top-dept").textContent = "—";
+      document.getElementById("kpi-top-dept-score").textContent = "Score: —";
+    }
+
+    const topMember = [...processedMembers].sort((a, b) => b.score - a.score)[0];
+    if (topMember) {
+      document.getElementById("kpi-top-member").textContent = topMember.fullName;
+      document.getElementById("kpi-top-member-score").textContent = `Score: ${topMember.score}`;
+    } else {
+      document.getElementById("kpi-top-member").textContent = "—";
+      document.getElementById("kpi-top-member-score").textContent = "Score: —";
+    }
+
+    document.getElementById("kpi-workforce").textContent = processedMembers.length;
+  };
+
+  const renderChart = (labels, data, onClickCallback) => {
+    if (currentChart) currentChart.destroy();
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, "rgba(79, 219, 200, 0.8)");
+    gradient.addColorStop(1, "rgba(20, 184, 166, 0.2)");
+
+    const hoverGradient = ctx.createLinearGradient(0, 0, 0, 400);
+    hoverGradient.addColorStop(0, "rgba(113, 248, 228, 0.9)");
+    hoverGradient.addColorStop(1, "rgba(79, 219, 200, 0.4)");
+
+    currentChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "Performance Score",
+          data,
+          backgroundColor: gradient,
+          hoverBackgroundColor: hoverGradient,
+          borderColor: "#ccff00",
+          borderWidth: { top: 1, right: 1, bottom: 0, left: 1 },
+          borderRadius: 4,
+          barPercentage: 0.6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length && onClickCallback) {
+            onClickCallback(elements[0].index);
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            grid: { color: "rgba(133, 148, 144, 0.1)", drawBorder: false },
+            ticks: { font: { family: "Space Grotesk" } }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { family: "Inter" } }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: context => `Score: ${context.raw}`
+            }
+          }
+        }
+      }
+    });
+  };
+
+  const showOverview = () => {
+    backBtn.classList.add("hidden");
+    chartTitle.textContent = "Department Performance Overview";
+
+    renderChart(
+      deptStats.map(dept => dept.name),
+      deptStats.map(dept => dept.avgScore),
+      index => showDepartmentDetail(deptStats[index])
+    );
+  };
+
+  const showDepartmentDetail = (dept) => {
+    backBtn.classList.remove("hidden");
+    chartTitle.textContent = `${dept.name} - Individual Performance`;
+
+    const deptMembers = [...dept.members].sort((a, b) => b.score - a.score);
+
+    renderChart(
+      deptMembers.map(member => member.fullName),
+      deptMembers.map(member => member.score),
+      null
+    );
+  };
+
+  updateKPIs();
+  backBtn.addEventListener("click", showOverview);
+  showOverview();
+
+  const taskCanvas = document.getElementById("taskStatusChart");
+  const perfCanvas = document.getElementById("perfDistChart");
+
+  let totalCompleted = 0;
+  let totalTasks = tasks.length;
+
+  tasks.forEach(task => {
+    if (task.completed === true || String(task.status || "").toLowerCase() === "done") {
+      totalCompleted++;
+    }
+  });
+
+  const remaining = Math.max(0, totalTasks - totalCompleted);
+  const inProgress = tasks.filter(task =>
+    String(task.status || "").toLowerCase() === "in progress"
+  ).length;
+  const toDo = tasks.filter(task =>
+    ["to do", "todo", "assigned"].includes(String(task.status || "").toLowerCase()) &&
+    !task.completed
+  ).length;
+  const overdue = tasks.filter(task =>
+    task.overdue === true || String(task.status || "").toLowerCase() === "overdue"
+  ).length;
+
+  new Chart(taskCanvas.getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels: ["Completed", "In Progress", "To Do", "Overdue"],
+      datasets: [{
+        data: [totalCompleted, inProgress, toDo, overdue],
+        backgroundColor: [
+          "rgba(79, 219, 200, 0.8)",
+          "rgba(3, 198, 178, 0.6)",
+          "rgba(117, 163, 255, 0.6)",
+          "rgba(255, 180, 171, 0.6)"
+        ],
+        borderColor: "#070e1b",
+        borderWidth: 2,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#bbcac6", padding: 20, font: { family: "Inter" } }
+        }
+      },
+      cutout: "70%"
+    }
+  });
+
+  let high = 0, average = 0, low = 0;
+  processedMembers.forEach(member => {
+    if (member.score >= 90) high++;
+    else if (member.score >= 70) average++;
+    else low++;
+  });
+
+  new Chart(perfCanvas.getContext("2d"), {
+    type: "polarArea",
+    data: {
+      labels: ["High Performers", "Average", "Needs Attention"],
+      datasets: [{
+        data: [high, average, low],
+        backgroundColor: [
+          "rgba(79, 219, 200, 0.7)",
+          "rgba(117, 163, 255, 0.7)",
+          "rgba(255, 180, 171, 0.7)"
+        ],
+        borderColor: "#070e1b",
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          ticks: { display: false },
+          grid: { color: "rgba(133, 148, 144, 0.1)" },
+          angleLines: { color: "rgba(133, 148, 144, 0.1)" }
+        }
+      },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#bbcac6", padding: 20, font: { family: "Inter" } }
+        }
+      }
+    }
+  });
+});
+</script>
+</body>
+</html>
