@@ -169,507 +169,808 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderAttendance() {
-    const cur = window.TerraHireStore.getCurrentUser() || currentUser;
+function renderAttendance() {
 
-    // ==========================================
-    // COMPUTE REAL STATS FROM SAVED ATTENDANCE RECORDS
-    // (for the current calendar month, up to today)
-    // ==========================================
+  const cur =
+    window.TerraHireStore.getCurrentUser() || currentUser;
 
-    const statsData = window.TerraHireStore.getStore();
-    const statsRecords = Array.isArray(statsData.attendanceRecords) ? statsData.attendanceRecords : [];
-    const statsUserRecords = statsRecords.filter(record => record.userId === cur.id);
+  if (!cur) return;
 
-    const statsNow = new Date();
-    const year = statsNow.getFullYear();
-    const month = statsNow.getMonth();
-    const todayDate = statsNow.getDate();
 
-    let totalWorking = 0;
-    let present = 0;
-    let absent = 0;
-    let late = 0;
-    let overtimeMinutes = 0;
+  // =========================================================
+  // GET STORE DATA
+  // =========================================================
 
-    for (let day = 1; day <= todayDate; day++) {
-      const cellDate = new Date(year, month, day);
-      const dayOfWeek = cellDate.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      if (isWeekend) continue;
+  const store =
+    window.TerraHireStore.getStore();
 
-      totalWorking++;
+  const attendanceRecords =
+    Array.isArray(store.attendanceRecords)
+      ? store.attendanceRecords
+      : [];
 
-      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const record = statsUserRecords.find(r => r.date === dateStr);
 
-      if (record && record.checkInTimestamp) {
-        present++;
+  const userRecords =
+    attendanceRecords.filter(
+      record => record.userId === cur.id
+    );
 
-        const checkInDate = new Date(record.checkInTimestamp);
-        if (checkInDate.getHours() > 9 || (checkInDate.getHours() === 9 && checkInDate.getMinutes() > 15)) {
-          late++;
-        }
 
-        const minutes = Number(record.durationMinutes || 0);
-        if (minutes > 8 * 60) overtimeMinutes += (minutes - 8 * 60);
-      } else {
-        absent++;
+  // =========================================================
+  // CURRENT DATE
+  // =========================================================
+
+  const now = new Date();
+
+  const year =
+    now.getFullYear();
+
+  const month =
+    now.getMonth();
+
+  const todayDate =
+    now.getDate();
+
+
+  const monthName =
+    now.toLocaleDateString(
+      "en-IN",
+      {
+        month: "long",
+        year: "numeric"
       }
-    }
+    );
 
-    const leave = 0; // Leave requests are informational only in this demo; not tracked against attendance yet.
-    const overtime = `${(overtimeMinutes / 60).toFixed(1)} hrs`;
-    const attRate = totalWorking ? Math.round((present / totalWorking) * 100) : 0;
 
-    const statTotal = document.getElementById("stat-total-working-days");
-    const statPres = document.getElementById("stat-days-present");
-    const statAbs = document.getElementById("stat-days-absent");
-    const statLeave = document.getElementById("stat-days-leave");
-    const statLate = document.getElementById("stat-late-arrivals");
-    const statOt = document.getElementById("stat-overtime-hours");
-    const badgeRate = document.getElementById("att-badge-rate");
+  // =========================================================
+  // UPDATE TITLES
+  // =========================================================
 
-    if (statTotal) statTotal.textContent = totalWorking;
-    if (statPres) statPres.textContent = present;
-    if (statAbs) statAbs.textContent = absent;
-    if (statLeave) statLeave.textContent = leave;
-    if (statLate) statLate.textContent = late;
-    if (statOt) statOt.textContent = overtime;
-    if (badgeRate) badgeRate.textContent = `${attRate}% Attendance`;
+  const monthTitle =
+    document.getElementById(
+      "attendance-month-title"
+    );
 
-    // Render Calendar
-    const calGrid = document.getElementById("attendance-calendar-grid");
-    const detailBox = document.getElementById("calendar-day-detail-box");
-    const detailTitle = document.getElementById("cal-detail-title");
-    const detailBody = document.getElementById("cal-detail-body");
+  const calendarTitle =
+    document.getElementById(
+      "attendance-calendar-title"
+    );
 
-    const now = new Date();
 
-    const monthName =
-      now.toLocaleDateString(
-        "en-IN",
-        {
-          month: "long",
-          year: "numeric"
-        }
+  if (monthTitle) {
+
+    monthTitle.textContent =
+      `📊 Current Month Summary (${monthName})`;
+
+  }
+
+
+  if (calendarTitle) {
+
+    calendarTitle.textContent =
+      `Monthly Calendar Overview — ${monthName}`;
+
+  }
+
+
+  // =========================================================
+  // GET LEAVE REQUESTS
+  // =========================================================
+
+  let leaveRequests = [];
+
+  try {
+
+    leaveRequests =
+      window.TerraHireStore
+        .getLeaveRequestsForMember(cur.id) || [];
+
+  } catch (error) {
+
+    console.warn(
+      "Could not load leave requests:",
+      error
+    );
+
+  }
+
+
+  // =========================================================
+  // CHECK IF DATE IS INSIDE A LEAVE REQUEST
+  // =========================================================
+
+  function getLeaveForDate(dateString) {
+
+    return leaveRequests.find(request => {
+
+      if (
+        !request.startDate ||
+        !request.endDate
+      ) {
+        return false;
+      }
+
+
+      // Only approved leave should mark
+      // the calendar as actual leave.
+
+      if (
+        request.status !== "Approved"
+      ) {
+        return false;
+      }
+
+
+      return (
+        dateString >= request.startDate &&
+        dateString <= request.endDate
       );
 
-    const monthTitle =
-      document.getElementById(
-        "attendance-month-title"
+    });
+
+  }
+
+
+  // =========================================================
+  // MONTH ATTENDANCE STATISTICS
+  // =========================================================
+
+  let totalWorking = 0;
+  let present = 0;
+  let absent = 0;
+  let leave = 0;
+  let late = 0;
+  let overtimeMinutes = 0;
+
+
+  for (
+    let day = 1;
+    day <= todayDate;
+    day++
+  ) {
+
+    const cellDate =
+      new Date(
+        year,
+        month,
+        day
       );
 
-    const calendarTitle =
-      document.getElementById(
-        "attendance-calendar-title"
+
+    const dayOfWeek =
+      cellDate.getDay();
+
+
+    const isWeekend =
+      dayOfWeek === 0 ||
+      dayOfWeek === 6;
+
+
+    // Ignore Saturday/Sunday
+    if (isWeekend) continue;
+
+
+    totalWorking++;
+
+
+    const dateString =
+      `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+
+    const record =
+      userRecords.find(
+        r => r.date === dateString
       );
 
-    if (monthTitle) {
-      monthTitle.textContent =
-        `📊 Current Month Summary (${monthName})`;
+
+    const leaveRequest =
+      getLeaveForDate(dateString);
+
+
+    // ---------------------------------------------------------
+    // APPROVED LEAVE
+    // ---------------------------------------------------------
+
+    if (leaveRequest) {
+
+      leave++;
+
+      continue;
+
     }
 
-    if (calendarTitle) {
-      calendarTitle.textContent =
-        `Monthly Calendar Overview — ${monthName}`;
-    }
-    if (calGrid) {
-      calGrid.innerHTML = "";
-      const daysOfWeek =
-        ["M", "T", "W", "T", "F", "S", "S"];
 
-      daysOfWeek.forEach((d) => {
-        const headerCell = document.createElement("div");
-        headerCell.className = "calendar-day-cell header-cell";
-        headerCell.textContent = d;
-        calGrid.appendChild(headerCell);
-      });
+    // ---------------------------------------------------------
+    // PRESENT
+    // ---------------------------------------------------------
+
+    if (
+      record &&
+      record.checkInTimestamp
+    ) {
+
+      present++;
 
 
-      const year =
-        now.getFullYear();
+      // Late after 09:15 AM
 
-      const month =
-        now.getMonth();
-
-      const daysInMonth =
+      const checkInDate =
         new Date(
-          year,
-          month + 1,
-          0
-        ).getDate();
-
-      const firstDay =
-        new Date(
-          year,
-          month,
-          1
-        ).getDay();
-
-      // Convert Sunday-first to Monday-first
-      const mondayFirst =
-        firstDay === 0
-          ? 6
-          : firstDay - 1;
-
-      const data =
-        window.TerraHireStore.getStore();
-
-      const records =
-        Array.isArray(data.attendanceRecords)
-          ? data.attendanceRecords
-          : [];
-
-      const userRecords =
-        records.filter(
-          record =>
-            record.userId === cur.id
+          record.checkInTimestamp
         );
 
 
-
-
-      daysOfWeek.forEach(dayName => {
-
-        const header =
-          document.createElement("div");
-
-        header.className =
-          "calendar-day-cell header-cell";
-
-        header.textContent =
-          dayName;
-
-        calGrid.appendChild(header);
-      });
-
-
-      // Empty cells before day 1
-      for (
-        let i = 0;
-        i < mondayFirst;
-        i++
+      if (
+        checkInDate.getHours() > 9 ||
+        (
+          checkInDate.getHours() === 9 &&
+          checkInDate.getMinutes() > 15
+        )
       ) {
 
-        const empty =
-          document.createElement("div");
+        late++;
 
-        empty.className =
-          "calendar-day-cell empty-cell";
-
-        calGrid.appendChild(empty);
       }
 
 
-      // Actual days
-      for (
-        let day = 1;
-        day <= daysInMonth;
-        day++
+      // Overtime after 8 hours
+
+      const minutes =
+        Number(
+          record.durationMinutes || 0
+        );
+
+
+      if (
+        minutes > 8 * 60
       ) {
 
-        const cell =
-          document.createElement("div");
+        overtimeMinutes +=
+          minutes - (8 * 60);
 
-        cell.className =
-          "calendar-day-cell";
-
-        cell.textContent =
-          day;
-
-        const date =
-          `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-        const record =
-          userRecords.find(
-            r => r.date === date
-          );
-
-        const cellDate =
-          new Date(
-            year,
-            month,
-            day
-          );
-
-        const dayOfWeek =
-          cellDate.getDay();
-
-        const isWeekend =
-          dayOfWeek === 0 ||
-          dayOfWeek === 6;
-
-        let status = "future";
-
-        let tooltip =
-          `${date}: No attendance record.`;
-
-        if (record) {
-
-          if (
-            record.status === "Active"
-          ) {
-
-            status = "today";
-
-            tooltip =
-              `${date}: Checked in at ${new Date(
-                record.checkIn
-              ).toLocaleTimeString(
-                "en-IN",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                  hour12: true
-                }
-              )}. Currently working.`;
-
-          } else {
-
-            status = "present";
-
-            tooltip =
-              `${date}: Checked in and checked out.`;
-          }
-
-        } else if (isWeekend) {
-
-          status = "weekend";
-
-          tooltip =
-            `${date}: Weekend.`;
-
-        } else if (
-          cellDate < new Date(
-            year,
-            month,
-            now.getDate()
-          )
-        ) {
-
-          status = "absent";
-
-          tooltip =
-            `${date}: No attendance recorded.`;
-        }
-
-        cell.classList.add(
-          `day-${status}`
-        );
-
-        cell.title =
-          tooltip;
-
-        cell.addEventListener(
-          "click",
-          () => {
-
-            if (
-              detailBox &&
-              detailTitle &&
-              detailBody
-            ) {
-
-              detailBox.style.display =
-                "block";
-
-              detailTitle.textContent =
-                date;
-
-              detailBody.textContent =
-                tooltip;
-            }
-          }
-        );
-
-        calGrid.appendChild(cell);
       }
 
     }
 
-    // ==========================================
-    // RENDER REAL ATTENDANCE LOGS
-    // ==========================================
 
-    const tbody =
-      document.getElementById("att-logs-tbody");
+    // ---------------------------------------------------------
+    // ABSENT
+    // ---------------------------------------------------------
 
-    if (tbody) {
+    else {
 
-      tbody.innerHTML = "";
+      absent++;
 
-      const data =
-        window.TerraHireStore.getStore();
-
-      const records =
-        Array.isArray(data.attendanceRecords)
-          ? data.attendanceRecords
-          : [];
-
-      const userRecords =
-        records
-          .filter(
-            record =>
-              record.userId === cur.id
-          )
-          .sort(
-            (a, b) =>
-              b.date.localeCompare(a.date)
-          );
-
-      userRecords.forEach(record => {
-
-        const tr =
-          document.createElement("tr");
-
-        const checkIn =
-          record.checkIn
-            ? new Date(
-              record.checkIn
-            ).toLocaleTimeString(
-              "en-IN",
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true
-              }
-            )
-            : "--:--";
-
-        const checkOut =
-          record.checkOut
-            ? new Date(
-              record.checkOut
-            ).toLocaleTimeString(
-              "en-IN",
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true
-              }
-            )
-            : "--:--";
-
-        const minutes =
-          Number(
-            record.durationMinutes || 0
-          );
-
-        const hours =
-          Math.floor(minutes / 60);
-
-        const mins =
-          minutes % 60;
-
-        const duration =
-          `${String(hours).padStart(2, "0")}h ` +
-          `${String(mins).padStart(2, "0")}m`;
-
-        let status =
-          record.status || "Present";
-
-        let badgeClass =
-          "badge-teal";
-
-        if (status === "Active") {
-          badgeClass = "badge-admin";
-        }
-
-        if (status === "Completed") {
-          badgeClass = "badge-teal";
-        }
-
-        const formattedDate =
-          new Date(
-            record.date + "T00:00:00"
-          ).toLocaleDateString(
-            "en-IN",
-            {
-              day: "2-digit",
-              month: "short",
-              year: "numeric"
-            }
-          );
-
-        tr.innerHTML = `
-            <td style="
-                font-weight:600;
-                color:var(--white);
-            ">
-                ${formattedDate}
-            </td>
-
-            <td>
-                <span
-                    class="badge ${badgeClass}"
-                    style="font-size:11px;"
-                >
-                    ${status}
-                </span>
-            </td>
-
-            <td style="
-                font-family:var(--font-mono);
-                color:var(--white);
-            ">
-                ${checkIn}
-            </td>
-
-            <td style="
-                font-family:var(--font-mono);
-                color:var(--mist);
-            ">
-                ${checkOut}
-            </td>
-
-            <td style="
-                font-family:var(--font-mono);
-                color:#ccff00;
-            ">
-                ${duration}
-            </td>
-
-            <td style="
-                color:var(--mist-dim);
-                font-size:12.5px;
-            ">
-                ${record.location || "Office"}
-            </td>
-        `;
-
-        tbody.appendChild(tr);
-      });
-
-
-      // No attendance records
-      if (userRecords.length === 0) {
-
-        const tr =
-          document.createElement("tr");
-
-        tr.innerHTML = `
-            <td
-                colspan="6"
-                style="
-                    text-align:center;
-                    padding:30px;
-                    color:var(--mist);
-                "
-            >
-                No attendance records found.
-            </td>
-        `;
-
-        tbody.appendChild(tr);
-      }
     }
 
   }
 
+
+  const overtime =
+    `${(overtimeMinutes / 60).toFixed(1)} hrs`;
+
+
+  const attendanceRate =
+    totalWorking
+      ? Math.round(
+          ((present + leave) /
+            totalWorking) * 100
+        )
+      : 0;
+
+
+  // =========================================================
+  // UPDATE STAT CARDS
+  // =========================================================
+
+  const statTotal =
+    document.getElementById(
+      "stat-total-working-days"
+    );
+
+  const statPresent =
+    document.getElementById(
+      "stat-days-present"
+    );
+
+  const statAbsent =
+    document.getElementById(
+      "stat-days-absent"
+    );
+
+  const statLeave =
+    document.getElementById(
+      "stat-days-leave"
+    );
+
+  const statLate =
+    document.getElementById(
+      "stat-late-arrivals"
+    );
+
+  const statOvertime =
+    document.getElementById(
+      "stat-overtime-hours"
+    );
+
+  const badgeRate =
+    document.getElementById(
+      "att-badge-rate"
+    );
+
+
+  if (statTotal) {
+
+    statTotal.textContent =
+      totalWorking;
+
+  }
+
+
+  if (statPresent) {
+
+    statPresent.textContent =
+      present;
+
+  }
+
+
+  if (statAbsent) {
+
+    statAbsent.textContent =
+      absent;
+
+  }
+
+
+  if (statLeave) {
+
+    statLeave.textContent =
+      leave;
+
+  }
+
+
+  if (statLate) {
+
+    statLate.textContent =
+      late;
+
+  }
+
+
+  if (statOvertime) {
+
+    statOvertime.textContent =
+      overtime;
+
+  }
+
+
+  if (badgeRate) {
+
+    badgeRate.textContent =
+      `${attendanceRate}% Attendance`;
+
+  }
+
+
+  // =========================================================
+  // UPDATE ATTENDANCE INSIGHT
+  // =========================================================
+
+  const insightPresent =
+    document.getElementById(
+      "insight-present"
+    );
+
+  const insightAbsent =
+    document.getElementById(
+      "insight-absent"
+    );
+
+  const insightLeave =
+    document.getElementById(
+      "insight-leave"
+    );
+
+
+  if (insightPresent) {
+
+    insightPresent.textContent =
+      `${present} day${present === 1 ? "" : "s"}`;
+
+  }
+
+
+  if (insightAbsent) {
+
+    insightAbsent.textContent =
+      `${absent} day${absent === 1 ? "" : "s"}`;
+
+  }
+
+
+  if (insightLeave) {
+
+    insightLeave.textContent =
+      `${leave} day${leave === 1 ? "" : "s"}`;
+
+  }
+
+
+  // =========================================================
+  // UPDATE LARGE ATTENDANCE PERCENTAGE
+  // =========================================================
+
+  const attendanceRateValue =
+    document.querySelector(
+      ".attendance-rate-value"
+    );
+
+
+  if (attendanceRateValue) {
+
+    attendanceRateValue.textContent =
+      `${attendanceRate}%`;
+
+  }
+
+
+  // =========================================================
+  // CALENDAR
+  // =========================================================
+
+  const calGrid =
+    document.getElementById(
+      "attendance-calendar-grid"
+    );
+
+  const detailBox =
+    document.getElementById(
+      "calendar-day-detail-box"
+    );
+
+  const detailTitle =
+    document.getElementById(
+      "cal-detail-title"
+    );
+
+  const detailBody =
+    document.getElementById(
+      "cal-detail-body"
+    );
+
+
+  if (!calGrid) return;
+
+
+  // VERY IMPORTANT:
+  // Clear the calendar before rendering.
+
+  calGrid.innerHTML = "";
+
+
+  // =========================================================
+  // WEEKDAY HEADER — ONLY ONCE
+  // =========================================================
+
+  const daysOfWeek =
+    [
+      "M",
+      "T",
+      "W",
+      "T",
+      "F",
+      "S",
+      "S"
+    ];
+
+
+  daysOfWeek.forEach(dayName => {
+
+    const header =
+      document.createElement("div");
+
+
+    header.className =
+      "calendar-day-cell header-cell";
+
+
+    header.textContent =
+      dayName;
+
+
+    calGrid.appendChild(
+      header
+    );
+
+  });
+
+
+  // =========================================================
+  // MONTH INFORMATION
+  // =========================================================
+
+  const daysInMonth =
+    new Date(
+      year,
+      month + 1,
+      0
+    ).getDate();
+
+
+  const firstDay =
+    new Date(
+      year,
+      month,
+      1
+    ).getDay();
+
+
+  // Convert Sunday-first to Monday-first
+
+  const mondayFirst =
+    firstDay === 0
+      ? 6
+      : firstDay - 1;
+
+
+  // =========================================================
+  // EMPTY CELLS BEFORE DAY 1
+  // =========================================================
+
+  for (
+    let i = 0;
+    i < mondayFirst;
+    i++
+  ) {
+
+    const empty =
+      document.createElement("div");
+
+
+    empty.className =
+      "calendar-day-cell empty-cell";
+
+
+    calGrid.appendChild(
+      empty
+    );
+
+  }
+
+
+  // =========================================================
+  // CREATE EACH DAY
+  // =========================================================
+
+  for (
+    let day = 1;
+    day <= daysInMonth;
+    day++
+  ) {
+
+    const cell =
+      document.createElement("div");
+
+
+    cell.className =
+      "calendar-day-cell";
+
+
+    cell.textContent =
+      day;
+
+
+    // YYYY-MM-DD
+
+    const dateString =
+      `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+
+    // Attendance record
+
+    const record =
+      userRecords.find(
+        r => r.date === dateString
+      );
+
+
+    // Leave request
+
+    const leaveRequest =
+      getLeaveForDate(dateString);
+
+
+    // Date object
+
+    const cellDate =
+      new Date(
+        year,
+        month,
+        day
+      );
+
+
+    const dayOfWeek =
+      cellDate.getDay();
+
+
+    const isWeekend =
+      dayOfWeek === 0 ||
+      dayOfWeek === 6;
+
+
+    let status =
+      "future";
+
+
+    let tooltip =
+      `${dateString}: No attendance record.`;
+
+
+    // =======================================================
+    // LEAVE HAS HIGHEST PRIORITY
+    // =======================================================
+
+    if (leaveRequest) {
+
+      status =
+        "leave";
+
+
+      tooltip =
+        `${dateString}: Approved leave — ${leaveRequest.leaveType || "Leave"}.`;
+
+    }
+
+
+    // =======================================================
+    // ATTENDANCE RECORD
+    // =======================================================
+
+    else if (record) {
+
+      if (
+        record.status === "Active"
+      ) {
+
+        status =
+          "today";
+
+
+        const checkInTime =
+          record.checkInTimestamp ||
+          record.checkIn;
+
+
+        tooltip =
+          `${dateString}: Checked in at ${
+            checkInTime
+              ? new Date(checkInTime)
+                  .toLocaleTimeString(
+                    "en-IN",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true
+                    }
+                  )
+              : "--:--"
+          }. Currently working.`;
+
+      }
+
+      else {
+
+        status =
+          "present";
+
+
+        tooltip =
+          `${dateString}: Present. Checked in and checked out.`;
+
+      }
+
+    }
+
+
+    // =======================================================
+    // WEEKEND
+    // =======================================================
+
+    else if (isWeekend) {
+
+      status =
+        "weekend";
+
+
+      tooltip =
+        `${dateString}: Weekend.`;
+
+    }
+
+
+    // =======================================================
+    // PAST WEEKDAY WITHOUT RECORD
+    // =======================================================
+
+    else if (
+      cellDate <
+      new Date(
+        year,
+        month,
+        todayDate
+      )
+    ) {
+
+      status =
+        "absent";
+
+
+      tooltip =
+        `${dateString}: Absent — no attendance recorded.`;
+
+    }
+
+
+    // =======================================================
+    // APPLY STATUS
+    // =======================================================
+
+    cell.classList.add(
+      `day-${status}`
+    );
+
+
+    cell.title =
+      tooltip;
+
+
+    // =======================================================
+    // CLICK DATE
+    // =======================================================
+
+    cell.addEventListener(
+      "click",
+      () => {
+
+        if (
+          detailBox &&
+          detailTitle &&
+          detailBody
+        ) {
+
+          detailBox.style.display =
+            "block";
+
+
+          detailTitle.textContent =
+            dateString;
+
+
+          detailBody.textContent =
+            tooltip;
+
+        }
+
+      }
+    );
+
+
+    calGrid.appendChild(
+      cell
+    );
+
+  }
+
+
+  // =========================================================
+  // FINISHED
+  // =========================================================
+
+}
   // ==========================================
   // LEAVE MANAGEMENT — balance, requests, approvals
   // ==========================================
