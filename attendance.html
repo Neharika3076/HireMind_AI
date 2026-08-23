@@ -32,10 +32,58 @@
       </div>
     </div>
 
+    <!-- Today's Check-in / Check-out -->
+    <div class="card-workday-status" id="card-current-status" style="margin-bottom:24px;">
+      <div class="status-card-header">
+        <div class="status-card-header-left">
+          <span class="status-eyebrow">TODAY'S STATUS</span>
+          <div class="status-live-indicator" id="status-live-indicator">
+            <span class="status-dot-offline" id="status-dot"></span>
+            <span id="status-working-text">Not Working</span>
+          </div>
+          <div style="font-size:12px; color:var(--mist); margin-top:4px;" id="status-detail-subtext">
+            Current Status: Checked Out (Offline)
+          </div>
+        </div>
+
+        <div class="status-card-header-right">
+          <span class="status-checkin-label">Today's Check-in</span>
+          <span class="status-checkin-time" id="status-checkin-time">--:--</span>
+          <div style="font-size:11.5px; color:var(--mist-dim); margin-top:2px;" id="status-checkout-time">
+            Check-out: --:--
+          </div>
+        </div>
+      </div>
+
+      <div class="status-card-body">
+        <div class="status-hours-block">
+          <span class="hours-label">Location</span>
+          <div style="margin-top:6px;">
+            <input type="text" id="status-location-input" placeholder="Office"
+              style="max-width:220px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(255,255,255,0.03); color:var(--white); font-size:13px;">
+          </div>
+          <div style="font-size:12px; color:var(--mist-dim); margin-top:6px;" id="status-location-tag">
+            📍 Logged from Office
+          </div>
+        </div>
+
+        <div class="status-actions-group">
+          <button class="btn-checkin-pill" id="btn-action-checkin" type="button">
+            Check in
+          </button>
+          <button class="btn-checkout-pill" id="btn-action-checkout" type="button">
+            Check out
+          </button>
+        </div>
+      </div>
+
+      <div id="status-toast-alert" style="display:none; margin-top:12px; padding:10px 14px; border-radius:8px; font-size:13px;"></div>
+    </div>
+
     <!-- 6 Stat KPI Ribbon -->
     <div class="card-workday-detailed" style="margin-bottom:24px;">
       <div class="detailed-card-title">
-        <span>📊 Current Month Summary (August 2026)</span>
+        <span>📊 Current Month Summary</span>
         <span class="badge badge-teal" id="att-badge-rate">96% Attendance</span>
       </div>
 
@@ -70,7 +118,7 @@
     <!-- Monthly Calendar -->
     <div class="card-workday-detailed" style="margin-bottom:24px;">
       <div class="calendar-header-legend" style="margin-bottom:16px;">
-        <span style="font-weight:600; color:var(--white); font-size:15px;">Monthly Calendar Overview — August 2026</span>
+        <span style="font-weight:600; color:var(--white); font-size:15px;"  id="attendance-calendar-title" >Monthly Calendar Overview</span>
         <div class="calendar-legend-items">
           <span><span class="legend-dot pres"></span> Present</span>
           <span><span class="legend-dot abs"></span> Absent</span>
@@ -85,6 +133,91 @@
 
       <div id="calendar-day-detail-box" style="margin-top:16px; padding:12px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--mist); display:none;">
         <strong style="color:var(--white);" id="cal-detail-title">Aug 15, 2026:</strong> <span id="cal-detail-body">Checked in at 09:12 AM. In-progress workday.</span>
+      </div>
+    </div>
+
+    <!-- Leave Balance -->
+    <div class="card-workday-detailed" style="margin-bottom:24px;">
+      <div class="detailed-card-title">
+        <span>🏖️ Leave Balance</span>
+        <span class="badge badge-teal" id="leave-badge-year">2026</span>
+      </div>
+
+      <div class="attendance-stats-subgrid">
+        <div class="att-stat-box">
+          <span class="att-stat-num" id="leave-stat-quota">15</span>
+          <span class="att-stat-label">Annual Quota</span>
+        </div>
+        <div class="att-stat-box">
+          <span class="att-stat-num" style="color:var(--err);" id="leave-stat-used">0</span>
+          <span class="att-stat-label">Days Taken (Approved)</span>
+        </div>
+        <div class="att-stat-box">
+          <span class="att-stat-num" style="color:var(--warn);" id="leave-stat-pending">0</span>
+          <span class="att-stat-label">Days Pending Decision</span>
+        </div>
+        <div class="att-stat-box">
+          <span class="att-stat-num" style="color:var(--success);" id="leave-stat-remaining">15</span>
+          <span class="att-stat-label">Leaves Left</span>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; padding:12px 16px; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--mist);">
+        <span id="leave-summary-text">You have 15 of 15 leaves remaining this year.</span>
+      </div>
+    </div>
+
+    <!-- Pending Leave Approvals (visible to Managers, Executives, Admin) -->
+    <div class="card-workday-detailed" id="card-leave-approvals" style="margin-bottom:24px; display:none;">
+      <div class="detailed-card-title">
+        <span>✅ Pending Leave Approvals</span>
+        <span style="font-size:12px; color:var(--mist-dim);" id="leave-approvals-count">0 awaiting your decision</span>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Role</th>
+              <th>Type</th>
+              <th>Dates</th>
+              <th>Days</th>
+              <th>Reason</th>
+              <th>Decision</th>
+            </tr>
+          </thead>
+          <tbody id="leave-approvals-tbody">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- My Leave Requests -->
+    <div class="card-workday-detailed" style="margin-bottom:24px;">
+      <div class="detailed-card-title">
+        <span>📋 My Leave Requests</span>
+        <span style="font-size:12px; color:var(--mist-dim);">Most recent first</span>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Submitted</th>
+              <th>Type</th>
+              <th>Dates</th>
+              <th>Days</th>
+              <th>Status</th>
+              <th>Decided By</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="my-leave-requests-tbody">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -119,20 +252,33 @@
   <div id="modal-leave" class="modal-backdrop hidden">
     <div class="modal-box">
       <h3 style="font-size:20px; margin-bottom:4px;">➕ Submit Leave Request</h3>
-      <p style="color:var(--mist); font-size:13.5px; margin-bottom:20px;">Submit casual or medical leave for manager approval.</p>
+      <p style="color:var(--mist); font-size:13.5px; margin-bottom:12px;">Submit casual or medical leave for approval.</p>
+
+      <div id="leave-modal-balance-note" style="font-size:12.5px; color:var(--mist); margin-bottom:16px; padding:10px 12px; background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:8px;">
+        You have <strong id="leave-modal-remaining">15</strong> of <strong id="leave-modal-quota">15</strong> leaves remaining this year.
+      </div>
 
       <form id="form-submit-leave">
         <div class="form-group">
           <label for="leave-input-type">Leave Type</label>
           <select id="leave-input-type">
-            <option value="Paid Casual Leave">Paid Casual Leave (12 days remaining)</option>
-            <option value="Medical Sick Leave">Medical / Sick Leave (8 days remaining)</option>
-            <option value="Compensatory Off">Compensatory Off (2 days remaining)</option>
+            <option value="Paid Casual Leave">Paid Casual Leave</option>
+            <option value="Medical Sick Leave">Medical / Sick Leave</option>
+            <option value="Compensatory Off">Compensatory Off</option>
           </select>
         </div>
-        <div class="form-group">
-          <label for="leave-input-date">Leave Date</label>
-          <input type="date" id="leave-input-date" value="2026-08-21" required>
+        <div class="row" style="gap:12px;">
+          <div class="form-group" style="flex:1;">
+            <label for="leave-input-start-date">From</label>
+            <input type="date" id="leave-input-start-date" required>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="leave-input-end-date">To</label>
+            <input type="date" id="leave-input-end-date" required>
+          </div>
+        </div>
+        <div style="font-size:12px; color:var(--mist-dim); margin:-8px 0 14px;" id="leave-modal-days-preview">
+          1 day requested · 14 will remain after approval
         </div>
         <div class="form-group">
           <label for="leave-input-reason">Reason for Absence</label>
@@ -152,6 +298,3 @@
   <script src="./attendance.js"></script>
 </body>
 </html>
-
-
-
