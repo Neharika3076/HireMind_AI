@@ -65,9 +65,111 @@ document.addEventListener("DOMContentLoaded", () => {
       const tasks = (data().tasks || []).filter((task) => task.projectId === projectItem.id);
       const progress = tasks.length ? Math.round(tasks.reduce((sum, task) => sum + Number(task.progress || 0), 0) / tasks.length) : 0;
       const card = document.createElement("div"); card.className = "card-workday-detailed"; card.style.padding = "16px 18px";
-      card.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px"><div><span class="badge badge-teal" style="font-size:10px">${projectItem.code}</span><h3 style="font-size:15px;margin-top:6px">${projectItem.name}</h3></div><span class="badge badge-emp" style="font-size:10px">${projectItem.status}</span></div><p style="color:var(--mist);font-size:12px;line-height:1.45;margin:10px 0">${projectItem.desc || "No project description."}</p><div style="font-size:11.5px;color:var(--mist-dim)">Departments: <strong style="color:var(--white)">${departmentsFor(projectItem).map((department) => department.name).join(", ")}</strong><br>Managers: <strong style="color:var(--white)">${nameList(projectItem.managerIds)}</strong><br>Team Leaders: <strong style="color:var(--white)">${nameList(projectItem.teamLeadIds)}</strong></div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mist)"><span>Delivery progress</span><span>${progress}%</span></div><div style="height:5px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:4px"><div style="width:${progress}%;height:100%;background:var(--teal-400);border-radius:4px"></div></div></div>`;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <div>
+            <span class="badge badge-teal" style="font-size:10px">
+              ${projectItem.code}
+            </span>
+
+            <h3 style="font-size:15px;margin-top:6px">
+              ${projectItem.name}
+            </h3>
+          </div>
+
+          <span class="badge badge-emp" style="font-size:10px">
+            ${projectItem.status}
+          </span>
+        </div>
+
+        <p style="color:var(--mist);font-size:12px;line-height:1.45;margin:10px 0">
+          ${projectItem.desc || "No project description."}
+        </p>
+
+        <div style="font-size:11.5px;color:var(--mist-dim)">
+          Departments:
+          <strong style="color:var(--white)">
+            ${departmentsFor(projectItem).map((department) => department.name).join(", ")}
+          </strong>
+
+          <br>
+
+          Managers:
+          <strong style="color:var(--white)">
+            ${nameList(projectItem.managerIds)}
+          </strong>
+
+          <br>
+
+          Team Leaders:
+          <strong style="color:var(--white)">
+            ${nameList(projectItem.teamLeadIds)}
+          </strong>
+        </div>
+
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mist)">
+            <span>Delivery progress</span>
+            <span>${progress}%</span>
+          </div>
+
+          <div style="height:5px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:4px">
+            <div style="width:${progress}%;height:100%;background:var(--teal-400);border-radius:4px"></div>
+          </div>
+        </div>
+
+        ${isOwner
+          ? `
+              <button
+                class="btn btn-sm"
+                data-delete-project="${projectItem.id}"
+                style="
+                  margin-top:14px;
+                  background:maroon ;
+                  color:#fff;
+                  border:none;
+                  border-radius:8px;
+                  padding:8px 16px;
+                  font-weight:600;
+                  cursor:pointer;
+                "
+              >
+                Delete Project
+              </button>
+            `
+          : ""
+        }
+      `;
       container.appendChild(card);
+
+      if (isOwner) {
+        const deleteButton = card.querySelector("[data-delete-project]");
+
+        if (deleteButton) {
+          deleteButton.onclick = () => {
+            if (
+              !window.confirm(
+                "Delete this project? All tasks associated with this project will also be deleted. This action cannot be undone."
+              )
+            ) {
+              return;
+            }
+
+            try {
+              window.TerraHireStore.deleteProject(projectItem.id);
+
+              refresh();
+
+              message("Project and all related tasks deleted successfully.");
+            } catch (exception) {
+              message(exception.message, true);
+            }
+          };
+        }
+      }
     });
+
+
   }
 
   function populateFilters() {

@@ -1094,6 +1094,52 @@ const DEFAULT_STATE = {
       if (!task || !canManageProject(data, actor, project)) throw new Error("You are not authorized to delete this task.");
       data.tasks = data.tasks.filter((item) => item.id !== taskId); writeData(data); return true;
     },
+    deleteProject(projectId) {
+      const data = readData();
+      const actor = requireActor(data);
+
+      const project = getProject(data, projectId);
+
+      if (!project) {
+        throw new Error("Project not found.");
+      }
+
+      // Only Admin or Executive can delete a project
+      if (!isOwner(actor)) {
+        throw new Error(
+          "Only an Executive or Administrator can delete a project."
+        );
+      }
+
+      // Delete all tasks belonging to this project
+      data.tasks = data.tasks.filter(
+        (task) => task.projectId !== project.id
+      );
+
+      // Delete project assignments
+      data.projectAssignments = data.projectAssignments.filter(
+        (assignment) => assignment.projectId !== project.id
+      );
+
+      // Remove project from members' projectIds
+      data.members.forEach((member) => {
+        if (Array.isArray(member.projectIds)) {
+          member.projectIds = member.projectIds.filter(
+            (id) => id !== project.id
+          );
+        }
+      });
+
+      // Delete the project itself
+      data.projects = data.projects.filter(
+        (item) => item.id !== project.id
+      );
+
+      writeData(data);
+
+      return true;
+    },
+
     toggleTask(taskId) { const task = this.getStore().tasks.find((item) => item.id === taskId); return this.updateTask(taskId, { status: task && task.completed ? "In Progress" : "Completed" }); },
 
     // ---------------------------------------------------------
