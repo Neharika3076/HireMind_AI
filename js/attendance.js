@@ -195,6 +195,104 @@ function renderAttendance() {
       record => record.userId === cur.id
     );
 
+    // =========================================================
+// DAILY CHECK-IN & TIME LOG TABLE
+// =========================================================
+
+const logsTbody = document.getElementById("att-logs-tbody");
+
+if (logsTbody) {
+  logsTbody.innerHTML = "";
+
+  const logs = [...userRecords]
+    .sort((a, b) => {
+      return new Date(b.checkInTimestamp || b.date) -
+             new Date(a.checkInTimestamp || a.date);
+    })
+    .slice(0, 10);
+
+  if (logs.length === 0) {
+    logsTbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; padding:24px; color:var(--mist-dim);">
+          No attendance records found.
+        </td>
+      </tr>
+    `;
+  } else {
+    logs.forEach(record => {
+      const row = document.createElement("tr");
+
+      const checkIn = record.checkInTimestamp
+        ? new Date(record.checkInTimestamp).toLocaleTimeString(
+            "en-IN",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true
+            }
+          )
+        : "--:--";
+
+      const checkOut = record.checkOutTimestamp
+        ? new Date(record.checkOutTimestamp).toLocaleTimeString(
+            "en-IN",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true
+            }
+          )
+        : "--:--";
+
+      const durationMinutes = Number(record.durationMinutes || 0);
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+
+      const duration =
+        durationMinutes > 0
+          ? `${hours}h ${String(minutes).padStart(2, "0")}m`
+          : record.checkInTimestamp
+            ? "In progress"
+            : "--";
+
+      const status = record.checkOutTimestamp
+        ? "Present"
+        : record.checkInTimestamp
+          ? "Working"
+          : "Absent";
+
+      const statusClass =
+        status === "Working"
+          ? "status-working"
+          : status === "Present"
+            ? "status-present"
+            : "status-absent";
+
+      const date = new Date(`${record.date}T00:00:00`)
+        .toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
+
+      row.innerHTML = `
+        <td>${date}</td>
+        <td>
+          <span class="${statusClass}">
+            ${status}
+          </span>
+        </td>
+        <td>${checkIn}</td>
+        <td>${checkOut}</td>
+        <td>${duration}</td>
+        <td>${record.location || "Office"}</td>
+      `;
+
+      logsTbody.appendChild(row);
+    });
+  }
+}
 
   // =========================================================
   // CURRENT DATE
