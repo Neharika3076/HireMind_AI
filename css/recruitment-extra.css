@@ -1,0 +1,10 @@
+.job-toolbar { display: flex; gap: 8px; align-items: center; }
+.job-toolbar input { min-width: 125px; }
+.job-toolbar select { min-width: 110px; }
+.tiny-btn.danger { color: #ffb2b2; border-color: rgba(255, 120, 120, .45); }
+.tiny-btn.danger:hover { background: rgba(255, 90, 90, .14); }
+
+@media (max-width: 620px) {
+  .job-toolbar { width: 100%; flex-wrap: wrap; }
+  .job-toolbar input, .job-toolbar select { flex: 1 1 150px; }
+}

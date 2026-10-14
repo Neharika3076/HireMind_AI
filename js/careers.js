@@ -1,156 +1,103 @@
 (function () {
-    "use strict";
+  "use strict";
 
-    var params = new URLSearchParams(location.search);
-    var role =
-        params.get("role") ||
-        sessionStorage.getItem("appliedRole") ||
-        "this position";
+  var apiBase = window.HIREMIND_RECRUITMENT_API ||
+    ((["localhost", "127.0.0.1", "::1"].includes(location.hostname) || location.protocol === "file:")
+      ? "http://127.0.0.1:3001/api/recruitment"
+      : "/api/recruitment");
+  var params = new URLSearchParams(location.search);
+  var roleEl = document.getElementById("role-name");
+  var form = document.getElementById("application-form");
+  var jobId = params.get("jobId");
 
-    var roleEl = document.getElementById("role-name");
+  function escapeHtml(value) {
+    return String(value || "").replace(/[&<>\"]/g, function (character) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[character];
+    });
+  }
 
-    if (roleEl) {
-        roleEl.textContent = role;
+  async function request(path, options) {
+    var response = await fetch(apiBase + path, options || {});
+    var payload = await response.json().catch(function () { return {}; });
+    if (!response.ok) throw new Error(payload.error || "The recruitment service could not complete this request.");
+    return payload;
+  }
+
+  var list = document.getElementById("posted-jobs");
+  if (list) {
+    var message = document.getElementById("jobs-message");
+    request("/public/jobs").then(function (data) {
+      var jobs = data.items || [];
+      if (!jobs.length) {
+        message.textContent = "There are no open roles right now. Please check back soon.";
+        return;
+      }
+      message.textContent = "";
+      list.innerHTML = jobs.map(function (job) {
+        var description = job.description.length > 420 ? job.description.slice(0, 417) + "…" : job.description;
+        var tags = [job.workArrangement, job.employmentType, job.location, job.openings + " opening" + (job.openings === 1 ? "" : "s"), job.applicationDeadline ? "Apply by " + new Date(job.applicationDeadline).toLocaleDateString() : ""]
+          .filter(Boolean).map(function (tag) { return '<span class="tag">' + escapeHtml(tag) + "</span>"; }).join("");
+        return '<article class="job-card"><div><div class="job-company">' + escapeHtml(job.companyName) + '</div><h2>' + escapeHtml(job.title) + '</h2><p>' + escapeHtml(description) + '</p><div class="tags">' + tags + '</div></div><a class="apply-button" href="application.html?jobId=' + encodeURIComponent(job.id) + '">Apply now</a></article>';
+      }).join("");
+    }).catch(function (error) {
+      message.textContent = error.message + " Start the recruitment service and refresh this page.";
+    });
+  }
+
+  if (form) {
+    var jobTitle = params.get("role") || sessionStorage.getItem("appliedRole") || "this position";
+    var companyEl = document.getElementById("company-name");
+    var errorEl = document.getElementById("form-error");
+    var submitButton = form.querySelector('[type="submit"]');
+
+    if (!jobId) {
+      errorEl.textContent = "Choose an opening from the Job Openings page to apply.";
+      submitButton.disabled = true;
+    } else {
+      request("/public/jobs/" + encodeURIComponent(jobId)).then(function (data) {
+        jobTitle = data.job.title;
+        roleEl.textContent = data.job.title;
+        if (companyEl) companyEl.textContent = data.job.companyName;
+      }).catch(function (error) {
+        errorEl.textContent = error.message;
+        submitButton.disabled = true;
+      });
     }
 
-    var form = document.getElementById("application-form");
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      errorEl.textContent = "";
+      if (!form.checkValidity()) return form.reportValidity();
+      if (!jobId) return;
+      var file = document.getElementById("resume").files[0];
+      if (!file || file.size > 5 * 1024 * 1024) {
+        errorEl.textContent = file ? "Your resume must be 5 MB or smaller." : "Choose your resume before continuing.";
+        return;
+      }
+      var body = new FormData(form);
+      body.append("resume", file);
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting application…";
+      try {
+        var result = await request("/public/jobs/" + encodeURIComponent(jobId) + "/applications", { method: "POST", body: body });
+        sessionStorage.setItem("appliedRole", result.jobTitle || jobTitle);
+        sessionStorage.setItem("candidateName", result.candidateName || document.getElementById("full-name").value.trim());
+        sessionStorage.setItem("applicationId", result.applicationId || "");
+        location.href = "interview.html?applicationId=" + encodeURIComponent(result.applicationId || "");
+      } catch (error) {
+        errorEl.textContent = error.message;
+        submitButton.disabled = false;
+        submitButton.textContent = "Start AI interview →";
+      }
+    });
+  }
 
-    if (form) {
-        form.addEventListener("submit", function (e) {
-            e.preventDefault();
+  var candidateName = document.getElementById("candidate-name");
+  if (candidateName) candidateName.textContent = sessionStorage.getItem("candidateName") || "You";
 
-            if (!form.checkValidity()) {
-                return form.reportValidity();
-            }
-
-            sessionStorage.setItem("appliedRole", role);
-            sessionStorage.setItem(
-                "candidateName",
-                document.getElementById("full-name").value
-            );
-
-            location.href = "interview.html";
-        });
-    }
-
-    var end = document.getElementById("end-interview");
-
-    if (end) {
-        end.addEventListener("click", function () {
-            document.getElementById("done").classList.add("show");
-        });
-    }
-
-    var verifiedCode = "";
-    var verify = document.getElementById("verification-form");
-
-    if (verify) {
-        var user = TerraHireTenant.currentUser();
-        var org = TerraHireTenant.currentOrganization();
-
-        var codeInput = document.getElementById("org-code");
-        var emailInput = document.getElementById("admin-email");
-
-        if (!user || user.roleType !== "admin" || !org) {
-            document.getElementById("verify-error").textContent =
-                "Please sign in with an organization administrator account before posting a job.";
-
-            verify.querySelector("button").disabled = true;
-        } else {
-            codeInput.value = org.code;
-            emailInput.value = user.email;
-            document.getElementById("company-name").value = org.name;
-
-            codeInput.readOnly = true;
-            emailInput.readOnly = true;
-        }
-
-        verify.addEventListener("submit", function (e) {
-            e.preventDefault();
-
-            if (!user || !org) {
-                return;
-            }
-
-            verifiedCode = org.code;
-
-            document.getElementById("verify-step").hidden = true;
-            document.getElementById("posting-step").hidden = false;
-        });
-    }
-
-    var post = document.getElementById("post-job-form");
-
-    if (post) {
-        post.addEventListener("submit", function (e) {
-            e.preventDefault();
-
-            if (!post.checkValidity()) {
-                return post.reportValidity();
-            }
-
-            var result = TerraHireTenant.createJobOpening({
-                code: verifiedCode,
-                title: document.getElementById("job-title").value,
-                company: document.getElementById("company-name").value,
-                description: document.getElementById("job-description").value,
-                duration: document.getElementById("duration").value,
-                seats: document.getElementById("seats").value,
-                workplace: document.getElementById("workplace").value,
-            });
-
-            if (result.error) {
-                document.getElementById("post-error").textContent = result.error;
-                return;
-            }
-
-            document.getElementById("published-message").textContent =
-                result.job.title +
-                " is now visible on the public job openings page.";
-
-            document.getElementById("posted").classList.add("show");
-        });
-    }
-
-    var list = document.getElementById("posted-jobs");
-
-    if (list && window.TerraHireTenant) {
-        TerraHireTenant.publicJobOpenings().forEach(function (job) {
-            var card = document.createElement("article");
-
-            card.className = "job-card";
-
-            card.innerHTML =
-                '<div>' +
-                '<div class="job-company"></div>' +
-                "<h2></h2>" +
-                "<p></p>" +
-                '<div class="tags"></div>' +
-                "</div>" +
-                '<a class="apply-button">Apply now</a>';
-
-            card.querySelector(".job-company").textContent =
-                job.organizationName;
-
-            card.querySelector("h2").textContent = job.title;
-
-            card.querySelector("p").textContent = job.description;
-
-            card.querySelector(".tags").innerHTML =
-                '<span class="tag">' +
-                job.workplace +
-                "</span>" +
-                '<span class="tag">' +
-                job.seats +
-                " seat(s)</span>" +
-                '<span class="tag">Open ' +
-                job.duration +
-                "</span>";
-
-            card.querySelector("a").href =
-                "application.html?role=" + encodeURIComponent(job.title);
-
-            list.appendChild(card);
-        });
-    }
+  var end = document.getElementById("end-interview");
+  if (end) end.addEventListener("click", function () {
+    var done = document.getElementById("done");
+    if (done) done.classList.add("show");
+  });
 })();

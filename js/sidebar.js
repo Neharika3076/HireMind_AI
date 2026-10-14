@@ -185,6 +185,17 @@ document.addEventListener("DOMContentLoaded", () => {
           </a>
         </li>
 
+        <li id="nav-recruitment">
+          <a
+            href="./recruitment.html"
+            class="workday-nav-item"
+            data-page="recruitment.html"
+          >
+            <span class="nav-icon">🎯</span>
+            <span>Recruitment</span>
+          </a>
+        </li>
+
 
         <li
           id="nav-add-member"
@@ -296,6 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("nav-directory");
   const performance = 
   document.getElementById("nav-performance");
+  const recruitment = document.getElementById("nav-recruitment");
 
 
   if (currentUser.roleType !== "admin") {
@@ -320,6 +332,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (performance) {
   performance.style.display = "none";
 }
+
+  if (!["admin", "executive", "manager"].includes(String(currentUser.roleType || "").toLowerCase())) {
+    if (recruitment) recruitment.style.display = "none";
+  }
 
   }
 

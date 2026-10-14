@@ -1,0 +1,218 @@
+
+/* Job description */
+#jobDescription {
+    width: 100%;
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font: inherit;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.upload-card + .upload-card {
+    margin-top: 24px;
+}
+
+.upload-card label {
+    display: block;
+    text-align: left;
+    font-weight: 600;
+}
+
+/* File list */
+.file-list {
+    margin-top: 16px;
+    text-align: left;
+}
+
+.file-list .selected-file {
+    margin-top: 8px;
+    gap: 12px;
+    overflow-wrap: anywhere;
+}
+
+.file-list .selected-file small {
+    color: #6b7280;
+}
+
+.file-list .selected-file button {
+    flex-shrink: 0;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.actions button {
+    flex: 1;
+}
+
+.secondary-button {
+    padding: 10px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    color: #1f2937;
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    background: #f3f4f6;
+}
+
+.secondary-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.status {
+    margin-top: 12px;
+    color: #2563eb;
+    font-size: 14px;
+}
+
+.loading p {
+    margin-top: 10px;
+    color: #6b7280;
+}
+
+/* Summary cards */
+.results-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.overview-card {
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+}
+
+.overview-card strong {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+.overview-card span {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+/* Candidate table */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+#candidateTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+#candidateTable th,
+#candidateTable td {
+    padding: 13px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+}
+
+#candidateTable th {
+    background: #f8fafc;
+    color: #374151;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+#candidateTable td {
+    font-size: 14px;
+}
+
+#candidateTable td .secondary-button {
+    white-space: nowrap;
+}
+
+.status-success {
+    color: #047857;
+    font-weight: 600;
+}
+
+.status-error {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.table-note {
+    margin-top: 16px;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Detailed candidate view */
+.candidate-detail {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.detail-section {
+    padding: 18px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-section h4 {
+    margin-bottom: 10px;
+}
+
+.detail-section ul {
+    padding-left: 22px;
+}
+
+.detail-section li {
+    margin-bottom: 7px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#extractionSection {
+    margin-top: 24px;
+}
+
+/* Responsive layout */
+@media (max-width: 640px) {
+    .container {
+        margin: 24px auto;
+    }
+
+    .upload-card,
+    .result-card {
+        padding: 18px;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .results-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .result-header {
+        align-items: flex-start;
+        gap: 16px;
+        flex-direction: column;
+    }
+
+    .stats {
+        gap: 18px;
+    }
+}

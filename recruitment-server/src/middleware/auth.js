@@ -1,0 +1,22 @@
+export function requireRecruiter(req, res, next) {
+  // The current EMS has only browser-local authentication. These headers are
+  // intentionally a development bridge, not a production auth system.
+  const id = req.header("x-ems-user-id");
+  const name = req.header("x-ems-user-name") || "Recruiter";
+  const role = req.header("x-ems-user-role");
+  const organizationId = req.header("x-ems-organization-id");
+  if (!id || !role || !organizationId) return res.status(401).json({ error: "Sign in through the EMS to access recruitment data." });
+  if (!["admin", "executive", "manager"].includes(role)) return res.status(403).json({ error: "Recruitment access is limited to authorized hiring staff." });
+  req.actor = { id, name, role, organizationId };
+  next();
+}
+
+export const requireAdminOrExecutive = (req, res, next) => {
+  if (!["admin", "executive"].includes(req.actor.role)) return res.status(403).json({ error: "This action requires an administrator or executive." });
+  next();
+};
+
+export const requireAdmin = (req, res, next) => {
+  if (req.actor.role !== "admin") return res.status(403).json({ error: "Only an organization administrator can remove a job opening." });
+  next();
+};

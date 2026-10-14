@@ -20,8 +20,7 @@
         <div class="form-shell">
             <div class="progress"><b>1</b> Application details <span>—</span> <span>AI interview</span></div>
             <h1 class="form-title">Start your application</h1>
-            <p class="form-subtitle">Applying for <strong id="role-name">this position</strong>. Tell us how to reach
-                you and upload your resume.</p>
+            <p class="form-subtitle">Applying to <strong id="role-name">this position</strong> at <strong id="company-name">the organization</strong>. Add your contact information before uploading your resume.</p>
             <form id="application-form" novalidate>
                 <div class="form-grid">
                     <div class="field"><label for="full-name">Full name</label><input id="full-name" name="fullName"
@@ -36,8 +35,8 @@
                             name="address" autocomplete="street-address" required></div>
                     <div class="field full"><label for="resume">Resume</label>
                         <div class="upload">Drop your resume here or choose a file<input id="resume" type="file"
-                                accept=".pdf,.doc,.docx" required>
-                            <div class="file-note">PDF, DOC or DOCX · up to 5 MB</div>
+                                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                        <div class="file-note">PDF or DOCX · up to 5 MB. Upload your own readable resume.</div>
                         </div>
                     </div>
                     <div class="field full"><label for="note">A short note (optional)</label><textarea id="note"
