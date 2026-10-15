@@ -57,10 +57,12 @@
     </section>
 
     <section id="view-screening" class="recruitment-view" hidden>
-      <section class="panel"><div class="panel-heading"><h2>AI resume screening</h2><span>PDF and DOCX, 5 MB each, maximum 10 files</span></div>
-        <div class="screening-controls"><label>Job<select id="screening-job"></select></label><input type="file" id="resume-files" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple><button id="screen-resumes" class="btn btn-primary" type="button">Screen resumes</button></div>
-        <p class="hint">Resume files are stored privately by the recruitment service. The original resume text is sent only to the configured AI service for extraction and matching.</p>
-        <div id="screening-results" class="screening-results"></div>
+      <section class="panel"><div class="panel-heading"><h2>Applicants for a job</h2><span>Applicants and screening results load from applications.</span></div>
+        <div class="screening-controls"><label>Job<select id="screening-job"></select></label><label>Application status<select id="screening-status"><option value="">All application statuses</option><option value="applied">Applied</option><option value="resume_processing">Resume processing</option><option value="awaiting_review">Awaiting review</option><option value="approved">Approved</option><option value="shortlisted">Shortlisted</option><option value="interview_scheduled">Interview scheduled</option><option value="interview_completed">Interview completed</option><option value="offer_extended">Offer extended</option><option value="hired">Hired</option><option value="rejected">Rejected</option><option value="not_selected">Not selected (legacy)</option></select></label></div>
+        <p id="screening-job-heading" class="hint"></p><p class="hint">Scores are decision support, not a hiring decision. Ties are ordered by earliest application date. Resume documents stay private and are downloaded only through an organization-scoped endpoint.</p>
+        <h3 class="screening-section-title">Top Candidates</h3><div id="top-candidates" class="screening-results"></div>
+        <h3 class="screening-section-title">Other Applicants</h3><div id="other-applicants" class="screening-results"></div>
+        <h3 class="screening-section-title">Decisions</h3><div id="decided-applicants" class="screening-results"></div>
       </section>
     </section>
 

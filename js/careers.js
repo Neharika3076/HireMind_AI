@@ -35,12 +35,47 @@
       message.textContent = "";
       list.innerHTML = jobs.map(function (job) {
         var description = job.description.length > 420 ? job.description.slice(0, 417) + "…" : job.description;
-        var tags = [job.workArrangement, job.employmentType, job.location, job.openings + " opening" + (job.openings === 1 ? "" : "s"), job.applicationDeadline ? "Apply by " + new Date(job.applicationDeadline).toLocaleDateString() : ""]
+        var tags = [job.department, job.workArrangement, job.employmentType, job.location, job.minimumExperience ? job.minimumExperience + "+ years" : "", job.openings + " opening" + (job.openings === 1 ? "" : "s"), job.applicationDeadline ? "Apply by " + new Date(job.applicationDeadline).toLocaleDateString() : ""]
           .filter(Boolean).map(function (tag) { return '<span class="tag">' + escapeHtml(tag) + "</span>"; }).join("");
-        return '<article class="job-card"><div><div class="job-company">' + escapeHtml(job.companyName) + '</div><h2>' + escapeHtml(job.title) + '</h2><p>' + escapeHtml(description) + '</p><div class="tags">' + tags + '</div></div><a class="apply-button" href="application.html?jobId=' + encodeURIComponent(job.id) + '">Apply now</a></article>';
+        var responsibilities = (job.responsibilities || []).map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("");
+        var requirements = (job.requiredSkills || []).map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("");
+        var education = (job.educationRequirements || []).map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("");
+        var certifications = (job.certifications || []).map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("");
+        var details = '<details class="job-details"><summary>View full role details</summary><p>' + escapeHtml(job.description) + '</p>' + (responsibilities ? '<h3>Responsibilities</h3><ul>' + responsibilities + '</ul>' : "") + (requirements ? '<h3>Required skills</h3><ul>' + requirements + '</ul>' : "") + (education ? '<h3>Education</h3><ul>' + education + '</ul>' : "") + (certifications ? '<h3>Certifications</h3><ul>' + certifications + '</ul>' : "") + '</details>';
+        return '<article class="job-card"><div><div class="job-company">' + escapeHtml(job.companyName) + '</div><h2>' + escapeHtml(job.title) + '</h2><p>' + escapeHtml(description) + '</p><div class="tags">' + tags + '</div>' + details + '</div><a class="apply-button" href="application.html?jobId=' + encodeURIComponent(job.id) + '">Apply now</a></article>';
       }).join("");
     }).catch(function (error) {
       message.textContent = error.message + " Start the recruitment service and refresh this page.";
+    });
+  }
+
+  var historyToggle = document.getElementById("history-toggle");
+  var historyForm = document.getElementById("candidate-history-form");
+  if (historyToggle && historyForm) {
+    var historyMessage = document.getElementById("candidate-history-message");
+    var historyList = document.getElementById("candidate-history-list");
+    historyToggle.addEventListener("click", function () {
+      var expanded = historyToggle.getAttribute("aria-expanded") === "true";
+      historyToggle.setAttribute("aria-expanded", String(!expanded));
+      historyForm.hidden = expanded;
+      historyToggle.textContent = expanded ? "View my applications" : "Hide application sign-in";
+    });
+    historyForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      if (!historyForm.checkValidity()) return historyForm.reportValidity();
+      var formData = new FormData(historyForm);
+      historyMessage.textContent = "Loading your applications…";
+      historyList.innerHTML = "";
+      try {
+        var data = await request("/public/candidate/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }) });
+        historyMessage.textContent = data.items.length ? "Your application history" : "No applications were found for this account.";
+        historyList.innerHTML = (data.items || []).map(function (item) {
+          var job = item.job || {};
+          return '<article class="history-row"><div><strong>' + escapeHtml(job.title || "Job no longer available") + '</strong><p>' + escapeHtml(job.companyName || "") + (job.department ? " · " + escapeHtml(job.department) : "") + '</p></div><span class="history-status">' + escapeHtml(String(item.status || "pending").replaceAll("_", " ")) + '</span><time>' + escapeHtml(item.appliedAt ? new Date(item.appliedAt).toLocaleDateString() : "") + '</time></article>';
+        }).join("");
+      } catch (error) {
+        historyMessage.textContent = error.message;
+      }
     });
   }
 
@@ -48,6 +83,7 @@
     var jobTitle = params.get("role") || sessionStorage.getItem("appliedRole") || "this position";
     var companyEl = document.getElementById("company-name");
     var errorEl = document.getElementById("form-error");
+    var successEl = document.getElementById("form-success");
     var submitButton = form.querySelector('[type="submit"]');
 
     if (!jobId) {
@@ -67,6 +103,7 @@
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
       errorEl.textContent = "";
+      if (successEl) { successEl.hidden = true; successEl.textContent = ""; }
       if (!form.checkValidity()) return form.reportValidity();
       if (!jobId) return;
       var file = document.getElementById("resume").files[0];
@@ -83,11 +120,18 @@
         sessionStorage.setItem("appliedRole", result.jobTitle || jobTitle);
         sessionStorage.setItem("candidateName", result.candidateName || document.getElementById("full-name").value.trim());
         sessionStorage.setItem("applicationId", result.applicationId || "");
-        location.href = "interview.html?applicationId=" + encodeURIComponent(result.applicationId || "");
+        if (successEl) {
+          var screeningMessage = result.screeningStatus === "completed" ? "complete" : result.screeningStatus === "failed" ? "pending recruiter review" : "in progress";
+          successEl.textContent = "Your application for " + (result.jobTitle || jobTitle) + " was received. Resume screening is " + screeningMessage + ". Use the same email and password on Job Openings to check your status.";
+          successEl.hidden = false;
+        }
+        form.reset();
+        submitButton.disabled = true;
+        submitButton.textContent = "Application submitted";
       } catch (error) {
         errorEl.textContent = error.message;
         submitButton.disabled = false;
-        submitButton.textContent = "Start AI interview →";
+        submitButton.textContent = "Submit application";
       }
     });
   }

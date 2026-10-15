@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const candidateSchema = new mongoose.Schema({
   organizationId: { type: String, required: true, index: true },
+  accountId: { type: mongoose.Schema.Types.ObjectId, ref: "RecruitmentCandidateAccount", default: null, index: true },
   fullName: { type: String, default: "Not provided" },
   email: { type: String, default: "", lowercase: true, trim: true },
   phone: { type: String, default: "" },

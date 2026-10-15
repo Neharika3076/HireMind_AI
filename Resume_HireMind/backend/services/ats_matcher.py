@@ -724,12 +724,12 @@ def match_education(
 
         return {
             "required": False,
-            "matched": True,
-            "score": 100,
+            "matched": None,
+            "score": 0,
             "matched_requirements": [],
             "missing_requirements": [],
             "evidence": [],
-            "reason": "No required education requirement was specified."
+            "reason": "Education requirement not specified for this opening."
         }
 
     matched_requirements = []
@@ -1028,6 +1028,41 @@ def identify_critical_gaps(
             })
 
     return critical_gaps
+
+
+def assess_role_alignment(resume: ResumeProfile, job: JobProfile) -> Dict[str, Any]:
+    """Flag clear design-vs-software role-family conflicts without fuzzy skill credit."""
+    job_text = " ".join([
+        job.title or "", job.summary or "", *job.responsibilities,
+        *(skill.name for skill in job.skills),
+    ]).lower()
+    resume_text_parts = [resume.professional_summary or ""]
+    resume_text_parts.extend(item.role or "" for item in resume.experience)
+    resume_text_parts.extend(item.description or "" for item in resume.experience)
+    resume_text_parts.extend(item.name or "" for item in resume.projects)
+    resume_text_parts.extend(item.description or "" for item in resume.projects)
+    resume_text_parts.extend(skill.name for skill in resume.skills)
+    resume_text_parts.extend(technology for item in resume.experience for technology in item.technologies)
+    resume_text = " ".join(resume_text_parts).lower()
+
+    design_terms = ("designer", "design", "ux", "ui/ux", "user experience", "figma", "prototyping", "visual design")
+    resume_design_terms = ("designer", "product design", "ux", "ui/ux", "user experience", "figma", "sketch app", "prototyping", "visual design", "user research", "interaction design", "graphic design")
+    software_terms = ("software developer", "software engineer", "web developer", "frontend developer", "front-end developer", "backend developer", "back-end developer", "full stack", "full-stack", "programmer")
+    target_is_design = any(term in job_text for term in design_terms)
+    resume_is_software = any(term in resume_text for term in software_terms)
+    resume_has_design_evidence = any(term in resume_text for term in resume_design_terms)
+
+    if target_is_design and resume_is_software and not resume_has_design_evidence:
+        return {
+            "aligned": False,
+            "target_family": "design",
+            "candidate_family": "software development",
+            "reason": "The job is design-focused, while the resume evidence identifies software-development experience and no design skills or design work.",
+            "score_cap": 25,
+        }
+    return {"aligned": True, "target_family": None, "candidate_family": None, "reason": "No clear role-family conflict was detected.", "score_cap": None}
+
+
 # ============================================================
 # FINAL MATCH
 # ============================================================
@@ -1058,6 +1093,9 @@ def match_candidate(
         education_result,
         job
     )
+    role_alignment = assess_role_alignment(resume, job)
+    if not role_alignment["aligned"]:
+        overall_score = min(overall_score, role_alignment["score_cap"])
 
     score_breakdown = build_score_breakdown(
     skill_result,
@@ -1073,6 +1111,8 @@ def match_candidate(
     )
     strengths = []
     gaps = []
+    if not role_alignment["aligned"]:
+        gaps.append(role_alignment["reason"])
 
     # --------------------------------------------------------
     # Strengths
@@ -1136,7 +1176,9 @@ def match_candidate(
     return {
         "overall_score": overall_score,
 
-        "score_note": ("No explicit skills, experience, or education criteria were set for this opening; the score is 0 until job requirements are provided." if not any(item["active"] for item in score_breakdown.values()) else "Score is based only on criteria explicitly specified for this job. Missing candidate evidence does not receive credit."),
+        "score_algorithm_version": 2,
+        "role_alignment": role_alignment,
+        "score_note": (role_alignment["reason"] + " The compatibility score is capped because of this clear role mismatch." if not role_alignment["aligned"] else ("No explicit skills, experience, or education criteria were set for this opening; the score is 0 until job requirements are provided." if not any(item["active"] for item in score_breakdown.values()) else "Score is based only on criteria explicitly specified for this job. Missing candidate evidence does not receive credit.")),
 
         "score_breakdown": score_breakdown,
 

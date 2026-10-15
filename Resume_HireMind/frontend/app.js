@@ -602,6 +602,13 @@ function showCandidateDetails(candidate) {
         `${getScore(result)}%`
     ]);
 
+    if (result.score_note) {
+        addDetailSection("How to interpret this score", [result.score_note]);
+    }
+    if (result.role_alignment && !result.role_alignment.aligned) {
+        addDetailSection("Role alignment warning", [result.role_alignment.reason]);
+    }
+
     const breakdown = result.score_breakdown;
 
     if (breakdown && typeof breakdown === "object") {

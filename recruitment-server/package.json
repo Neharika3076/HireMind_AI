@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test",
+    "audit:data": "node scripts/audit-recruitment-data.js",
+    "migrate:resumes": "node scripts/backfill-application-resumes.js"
   },
   "dependencies": {
     "axios": "^1.8.4",

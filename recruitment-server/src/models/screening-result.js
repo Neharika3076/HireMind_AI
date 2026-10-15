@@ -13,4 +13,5 @@ const screeningResultSchema = new mongoose.Schema({
   analyzedAt: { type: Date, default: null }
 }, { timestamps: true });
 
+screeningResultSchema.index({ organizationId: 1, applicationId: 1, createdAt: -1 });
 export const ScreeningResult = mongoose.model("RecruitmentScreeningResult", screeningResultSchema);

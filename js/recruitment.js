@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const apiBase = window.HIREMIND_RECRUITMENT_API || (localHost || window.location.protocol === "file:"
     ? "http://127.0.0.1:3001/api/recruitment"
     : "/api/recruitment");
-  const state = { jobs: [], applications: [], emailTemplates: [], editingJobId: null };
+  const state = { jobs: [], applications: [], emailTemplates: [], editingJobId: null, screeningJobId: "" };
   const canManageJobs = ["admin", "executive"].includes(String(user.roleType || "").toLowerCase());
   const canDeleteJobs = String(user.roleType || "").toLowerCase() === "admin";
   const $ = (selector) => document.querySelector(selector);
@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadJobs() {
     try {
       const params = new URLSearchParams();
+      params.set("limit", "100");
       const status = $("#jobs-status-filter").value;
       const search = $("#jobs-search").value.trim();
       if (status) params.set("status", status);
@@ -42,37 +43,125 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await request(`/jobs${params.size ? `?${params}` : ""}`);
       state.jobs = data.items;
       $("#job-editor-panel").hidden = !canManageJobs;
-      $("#jobs-list").innerHTML = data.items.length ? data.items.map((job) => `<article class="job-card"><div style="display:flex;justify-content:space-between;gap:8px"><h3>${text(job.title)}</h3>${statusBadge(job.status)}</div><p>${text(job.companyName)} · ${text(job.department)} · ${text(job.employmentType)} · ${job.openings} opening${job.openings === 1 ? "" : "s"}${job.applicationDeadline ? ` · closes ${new Date(job.applicationDeadline).toLocaleDateString()}` : ""}</p><p>${job.metrics.applicants} applicants · ${job.metrics.screened} screened${job.aiJobProfile ? " · AI profile available" : ""}</p><div class="item-actions"><button class="tiny-btn primary" data-screen-job="${job._id}">Screen resumes</button>${canManageJobs && job.status === "draft" ? `<button class="tiny-btn" data-publish-job="${job._id}">Publish</button>` : ""}${canManageJobs && job.status === "published" ? `<button class="tiny-btn" data-close-job="${job._id}">Close</button>` : ""}${canManageJobs && job.status === "closed" ? `<button class="tiny-btn" data-archive-job="${job._id}">Archive</button>` : ""}${canManageJobs ? `<button class="tiny-btn" data-edit-job="${job._id}">Edit</button><button class="tiny-btn" data-analyze-job="${job._id}">Analyze job</button>` : ""}${canDeleteJobs && job.status !== "archived" ? `<button class="tiny-btn danger" data-delete-job="${job._id}">Delete opening</button>` : ""}</div></article>`).join("") : empty("Create your first job opening to begin recruiting.");
+      $("#jobs-list").innerHTML = data.items.length ? data.items.map((job) => `<article class="job-card"><div style="display:flex;justify-content:space-between;gap:8px"><h3>${text(job.title)}</h3>${statusBadge(job.status)}</div><p class="hint">Job ID: ${text(job._id)}</p><p>${text(job.companyName)} · ${text(job.department)} · ${text(job.employmentType)} · ${job.openings} opening${job.openings === 1 ? "" : "s"}${job.applicationDeadline ? ` · closes ${new Date(job.applicationDeadline).toLocaleDateString()}` : ""}</p><p>${job.metrics.applicants} applicants · ${job.metrics.screened} screened${job.aiJobProfile ? " · AI profile available" : ""}</p><div class="item-actions"><button class="tiny-btn primary" data-screen-job="${job._id}">View applicants</button>${canManageJobs && job.status === "draft" ? `<button class="tiny-btn" data-publish-job="${job._id}">Publish</button>` : ""}${canManageJobs && job.status === "published" ? `<button class="tiny-btn" data-close-job="${job._id}">Close</button>` : ""}${canManageJobs && job.status === "closed" ? `<button class="tiny-btn" data-archive-job="${job._id}">Archive</button>` : ""}${canManageJobs ? `<button class="tiny-btn" data-edit-job="${job._id}">Edit</button><button class="tiny-btn" data-analyze-job="${job._id}">Analyze job</button>` : ""}${canDeleteJobs ? `<button class="tiny-btn danger" data-delete-job="${job._id}">Delete permanently</button>` : ""}</div></article>`).join("") : empty("Create your first job opening to begin recruiting.");
+      data.items.forEach((job) => {
+        const cardButton = $("#jobs-list").querySelector('[data-screen-job="' + CSS.escape(String(job._id)) + '"]');
+        const card = cardButton?.closest(".job-card");
+        if (!card) return;
+        cardButton.textContent = "View applicants";
+      });
     } catch (error) { notify(error.message, true); }
   }
   $("#jobs-list").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-delete-job]");
     if (!button || !canDeleteJobs) return;
     event.stopPropagation();
-    if (!window.confirm("Remove this opening from the public Job Openings page? Existing applications will be kept for your records.")) return;
+    if (!window.confirm("Permanently delete this job and its applications, screening results, interviews, and job-specific resumes? Candidate profiles and unrelated applications will remain. This cannot be undone.")) return;
     button.disabled = true;
     try {
       await request(`/jobs/${button.dataset.deleteJob}`, { method: "DELETE" });
-      notify("Job opening removed. Existing candidate applications were retained.");
+      notify("Job-specific recruitment records were permanently deleted. Candidate profiles and unrelated applications were retained.");
       await loadJobs();
       loadOverview();
     } catch (error) { notify(error.message, true); button.disabled = false; }
   });
   $("#jobs-status-filter").addEventListener("change", loadJobs);
+  $("#jobs-list").addEventListener("click", (event) => { const button = event.target.closest("[data-screen-job]"); if (button) state.screeningJobId = button.dataset.screenJob; }, true);
   let jobSearchTimer; $("#jobs-search").addEventListener("input", () => { clearTimeout(jobSearchTimer); jobSearchTimer = window.setTimeout(loadJobs, 250); });
   $("#jobs-list").addEventListener("click", async (event) => { const button = event.target.closest("button"); if (!button) return; try { if (button.dataset.screenJob) { changeView("screening"); window.setTimeout(() => { $("#screening-job").value = button.dataset.screenJob; loadScreeningResults(); }, 0); return; } if (button.dataset.editJob) { const job = state.jobs.find((item) => item._id === button.dataset.editJob); if (!job) return; state.editingJobId = job._id; const form = $("#job-form"); ["title", "department", "employmentType", "workArrangement", "location", "hiringManagerName", "openings", "applicationDeadline", "minimumExperience", "preferredExperience", "description"].forEach((key) => { if (form.elements[key]) form.elements[key].value = key === "applicationDeadline" && job[key] ? new Date(job[key]).toISOString().slice(0, 10) : (job[key] ?? ""); }); form.elements.requiredSkills.value = (job.requiredSkills || []).join(", "); form.elements.preferredSkills.value = (job.preferredSkills || []).join(", "); form.elements.educationRequirements.value = (job.educationRequirements || []).join(", "); form.elements.certifications.value = (job.certifications || []).join(", "); form.elements.responsibilities.value = (job.responsibilities || []).join("\n"); $("#job-form-title").textContent = `Edit: ${job.title}`; window.scrollTo({ top: 0, behavior: "smooth" }); return; } const action = button.dataset.publishJob ? "publish" : button.dataset.closeJob ? "close" : button.dataset.archiveJob ? "archive" : button.dataset.analyzeJob ? "analyze" : ""; const id = button.dataset.publishJob || button.dataset.closeJob || button.dataset.archiveJob || button.dataset.analyzeJob; if (!action) return; button.disabled = true; const outcome = await request(`/jobs/${id}/${action}`, { method: "POST" }); if (action === "analyze") { const profile = outcome.profile || {}; notify(`Job analyzed. AI found ${profile.skills?.length || 0} skill requirement(s); edit the job fields if you need to correct them.`); } else notify(`Job ${action}ed.`); await loadJobs(); } catch (error) { notify(error.message, true); } });
   $("#job-form").addEventListener("submit", async (event) => { event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); const body = Object.fromEntries(form.entries()); body.openings = Number(body.openings); body.minimumExperience = Number(body.minimumExperience); body.preferredExperience = Number(body.preferredExperience); ["requiredSkills", "preferredSkills", "responsibilities", "educationRequirements", "certifications"].forEach((key) => { body[key] = listToArray(body[key]); }); try { const editing = state.editingJobId; await request(editing ? `/jobs/${editing}` : "/jobs", { method: editing ? "PATCH" : "POST", body: JSON.stringify(body) }); formElement.reset(); state.editingJobId = null; $("#job-form-title").textContent = "Create a job"; notify(editing ? "Job updated. Publish or re-analyze it when ready." : "Job saved as a draft. Publish it when the description is ready."); await loadJobs(); loadOverview(); } catch (error) { notify(error.message, true); } });
   $("#job-form-reset").addEventListener("click", () => { $("#job-form").reset(); state.editingJobId = null; $("#job-form-title").textContent = "Create a job"; });
 
-  function renderJobChoices() { const options = state.jobs.map((job) => `<option value="${job._id}">${text(job.title)} — ${text(job.department)} (${job.status})</option>`).join(""); $("#screening-job").innerHTML = `<option value="">Choose a job</option>${options}`; }
+  function renderJobChoices() { const previous = $("#screening-job").value || state.screeningJobId; const options = state.jobs.map((job) => `<option value="${job._id}">${text(job.title)} — ${text(job.department)} (${job.status})</option>`).join(""); $("#screening-job").innerHTML = `<option value="">Choose a job</option>${options}`; if (state.jobs.some((job) => String(job._id) === String(previous))) $("#screening-job").value = previous; }
   async function loadScreening() { if (!state.jobs.length) await loadJobs(); renderJobChoices(); await loadScreeningResults(); }
   function analysisList(items, fallback) { return Array.isArray(items) && items.length ? items.map((item) => `<li>${text(typeof item === "string" ? item : item.skill || item.name || JSON.stringify(item))}</li>`).join("") : `<li>${text(fallback)}</li>`; }
-  function screeningMarkup(item) { const result = item.result || {}; const skills = result.skill_analysis || {}; const experience = result.experience_analysis || {}; const education = result.education_analysis || {}; return `<article class="result-row"><div style="display:flex;justify-content:space-between;gap:12px"><strong>${text(item.candidateId?.fullName || item.resumeFile?.originalName || "Resume")}</strong>${statusBadge(item.status)}</div>${item.status === "completed" ? `<p><span class="score">${text(result.overall_score ?? "—")}</span> ATS score <span class="ai-disclaimer">Decision support only — recruiter review required.</span></p>${result.score_note ? `<p class="hint">${text(result.score_note)}</p>` : ""}<div class="analysis-grid"><div><b>Matched skills</b><ul>${analysisList([...(skills.matched_required || []), ...(skills.matched_preferred || [])], "No matching skills identified")}</ul></div><div><b>Gaps to review</b><ul>${analysisList(result.gaps || result.critical_gaps, "No gaps identified")}</ul></div><div><b>Experience</b><p>${text(experience.reason || "Not analyzed")}</p></div><div><b>Education</b><p>${text(education.reason || "Not analyzed")}</p></div></div>` : `<p>${text(item.failureMessage || "This file could not be processed. Retry the upload.")}</p>`}</article>`; }
-  async function loadScreeningResults() { const jobId = $("#screening-job").value; if (!jobId) { $("#screening-results").innerHTML = empty("Select a job to view screening results."); return; } try { const data = await request(`/screening/jobs/${jobId}`); const ranked = [...data.items].sort((a, b) => (b.result?.overall_score ?? -1) - (a.result?.overall_score ?? -1)); $("#screening-results").innerHTML = ranked.length ? ranked.map(screeningMarkup).join("") : empty("No resumes screened for this job yet."); } catch (error) { notify(error.message, true); } }
-  $("#screening-job").addEventListener("change", loadScreeningResults);
-  $("#screen-resumes").addEventListener("click", async () => { const jobId = $("#screening-job").value; const files = $("#resume-files").files; if (!jobId || !files.length) return notify("Choose a job and at least one resume file.", true); const form = new FormData(); Array.from(files).forEach((file) => form.append("resumes", file)); const button = $("#screen-resumes"); button.disabled = true; button.textContent = "Screening…"; try { const response = await request(`/screening/jobs/${jobId}`, { method: "POST", body: form }); const failed = response.results.filter((item) => item.status === "failed").length; notify(failed ? `${response.results.length - failed} processed; ${failed} need attention.` : `${response.results.length} resume(s) processed.`); $("#resume-files").value = ""; await loadScreeningResults(); loadOverview(); } catch (error) { notify(error.message, true); } finally { button.disabled = false; button.textContent = "Screen resumes"; } });
+  function screeningMarkup(item) {
+    const result = item.screeningResult || {};
+    const skills = result.skill_analysis || {};
+    const experience = result.experience_analysis || {};
+    const education = result.education_analysis || {};
+    const completed = item.screeningStatus === "completed";
+    const status = item.status || "awaiting_review";
+    const canDecide = !["approved", "shortlisted", "rejected", "not_selected"].includes(status);
+    const actions = '<div class="item-actions">' + (item.resumeAvailable ? '<button class="tiny-btn" data-resume="' + text(item._id) + '">Download resume</button>' : "") +
+      (["failed", "pending"].includes(item.screeningStatus) && item.resumeAvailable ? '<button class="tiny-btn" data-retry="' + text(item._id) + '">Retry screening</button>' : "") +
+      (canDecide ? '<button class="tiny-btn primary" data-review="' + text(item._id) + '" data-status="approved">Approve</button><button class="tiny-btn" data-review="' + text(item._id) + '" data-status="shortlisted">Shortlist</button><button class="tiny-btn danger" data-review="' + text(item._id) + '" data-status="rejected">Reject</button>' : "") + '</div>';
+    const evaluation = completed
+      ? '<p><span class="score">' + text(result.overall_score ?? "—") + '</span> ATS score <span class="ai-disclaimer">Decision support only — recruiter review required.</span></p>' +
+        (result.score_note ? '<p class="hint">' + text(result.score_note) + '</p>' : "") +
+        '<div class="analysis-grid"><div><b>Matched skills</b><ul>' + analysisList([...(skills.matched_required || []), ...(skills.matched_preferred || [])], "No matching skills identified") + '</ul></div><div><b>Gaps to review</b><ul>' + analysisList(result.gaps || result.critical_gaps, "No gaps identified") + '</ul></div><div><b>Experience</b><p>' + text(experience.reason || "Not analyzed") + '</p></div><div><b>Education</b><p>' + text(education.reason || "Not analyzed") + '</p></div></div>'
+      : '<p>' + text(item.screeningFailure || (item.screeningStatus === "pending" ? "Screening is waiting to run." : "No screening result is available.")) + '</p>';
+    const location = item.candidateId?.location ? " · " + text(item.candidateId.location) : "";
+    const email = item.candidateId?.email ? '<p>' + text(item.candidateId.email) + text(location) + '</p>' : "";
+    return '<article class="result-row"><div style="display:flex;justify-content:space-between;gap:12px"><strong>' + text(item.candidateId?.fullName || "Candidate") + '</strong>' + statusBadge(status) + '</div>' +
+      '<p>Application ID: ' + text(item._id) + ' · Applied ' + text(item.appliedAt ? new Date(item.appliedAt).toLocaleDateString() : "date unavailable") + ' · Screening: ' + text(item.screeningStatus) + '</p>' + email + evaluation + actions + '</article>';
+  }
+  async function downloadResume(applicationId) {
+    const response = await fetch(apiBase + "/applications/" + encodeURIComponent(applicationId) + "/resume", { headers: headers(false) });
+    if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || "Could not download this application's resume."); }
+    const blobUrl = URL.createObjectURL(await response.blob());
+    const anchor = document.createElement("a");
+    const disposition = response.headers.get("content-disposition") || "";
+    const filename = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    anchor.href = blobUrl; anchor.download = filename ? decodeURIComponent(filename[1]) : "resume"; anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  }
+  async function loadScreeningResults() {
+    const jobId = $("#screening-job").value;
+    const top = $("#top-candidates"), other = $("#other-applicants"), decided = $("#decided-applicants");
+    if (!jobId) { top.innerHTML = empty("Select a job to view applicants."); other.innerHTML = ""; decided.innerHTML = ""; $("#screening-job-heading").textContent = ""; return; }
+    try {
+      const data = await request("/screening/jobs/" + encodeURIComponent(jobId));
+      $("#screening-job-heading").textContent = data.job.title + " · Job ID " + data.job.id + " · " + data.job.companyName + " · " + data.job.department + " · " + data.items.length + " applicant(s)";
+      const selectedStatus = $("#screening-status").value;
+      const filtered = data.items.filter((item) => !selectedStatus || item.status === selectedStatus);
+      const decisions = filtered.filter((item) => ["approved", "shortlisted", "rejected", "not_selected"].includes(item.status));
+      const active = filtered.filter((item) => !["approved", "shortlisted", "rejected", "not_selected"].includes(item.status));
+      active.sort((a, b) => {
+        const valueA = a.screeningResult?.overall_score, valueB = b.screeningResult?.overall_score;
+        const scoreA = a.screeningStatus === "completed" && valueA !== null && valueA !== undefined && Number.isFinite(Number(valueA)) ? Number(valueA) : -1;
+        const scoreB = b.screeningStatus === "completed" && valueB !== null && valueB !== undefined && Number.isFinite(Number(valueB)) ? Number(valueB) : -1;
+        return scoreB - scoreA || new Date(a.appliedAt || 0) - new Date(b.appliedAt || 0);
+      });
+      const ranked = active.filter((item) => item.screeningStatus === "completed" && item.screeningResult?.overall_score !== null && item.screeningResult?.overall_score !== undefined && Number.isFinite(Number(item.screeningResult.overall_score))).slice(0, 5);
+      const topIds = new Set(ranked.map((item) => String(item._id)));
+      const remaining = active.filter((item) => !topIds.has(String(item._id)));
+      top.innerHTML = ranked.length ? ranked.map(screeningMarkup).join("") : empty("No completed applicant screenings yet.");
+      other.innerHTML = remaining.length ? remaining.map(screeningMarkup).join("") : empty("No other active applicants.");
+      decided.innerHTML = decisions.length ? decisions.map(screeningMarkup).join("") : empty("No recruiter decisions recorded yet.");
+    } catch (error) { notify(error.message, true); }
+  }
+  $("#screening-job").addEventListener("change", () => { state.screeningJobId = $("#screening-job").value; loadScreeningResults(); });
+  $("#screening-status").addEventListener("change", loadScreeningResults);
+  document.querySelector("#view-screening").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-review], [data-retry], [data-resume]");
+    if (!button) return;
+    button.disabled = true;
+    try {
+      if (button.dataset.resume) await downloadResume(button.dataset.resume);
+      if (button.dataset.retry) { await request("/screening/applications/" + encodeURIComponent(button.dataset.retry) + "/retry", { method: "POST" }); notify("Screening completed."); await loadScreeningResults(); }
+      if (button.dataset.review) { if (button.dataset.status === "rejected" && !window.confirm("Reject this application? The candidate will leave the active Candidates list unless they have another active application.")) { button.disabled = false; return; } await request("/applications/" + encodeURIComponent(button.dataset.review) + "/status", { method: "PATCH", body: JSON.stringify({ status: button.dataset.status }) }); notify("Application status updated."); await loadScreeningResults(); loadOverview(); if (!document.querySelector("#view-candidates")?.hidden) await loadCandidates(); }
+    } catch (error) { notify(error.message, true); if (button.dataset.retry) await loadScreeningResults(); button.disabled = false; }
+  });
 
-  async function loadCandidates() { try { const query = $("#candidate-search").value.trim(); const data = await request(`/candidates${query ? `?search=${encodeURIComponent(query)}` : ""}`); $("#candidates-list").innerHTML = data.items.length ? data.items.map((candidate) => `<article class="candidate-row"><strong>${text(candidate.fullName)}</strong><p>${text(candidate.email || "No email")} · ${text(candidate.location || "Location not supplied")}</p><p>${text(candidate.applicationCount || 0)} application(s)</p></article>`).join("") : empty("No candidates match this search."); } catch (error) { notify(error.message, true); } }
+  async function loadCandidates() { try { const query = $("#candidate-search").value.trim(); const data = await request(`/candidates${query ? `?search=${encodeURIComponent(query)}` : ""}`); $("#candidates-list").innerHTML = data.items.length ? data.items.map((candidate) => `<article class="candidate-row"><strong>${text(candidate.fullName)}</strong><p>${text(candidate.email || "No email")} · ${text(candidate.location || "Location not supplied")}</p><p>${text(candidate.applicationCount || 0)} application(s) in this organization</p><button class="tiny-btn" data-candidate-history="${text(candidate._id)}">View application history</button><div id="candidate-history-${text(candidate._id)}"></div></article>`).join("") : empty("No candidates match this search."); } catch (error) { notify(error.message, true); } }
+  $("#candidates-list").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-candidate-history]");
+    if (!button) return;
+    const target = $("#candidate-history-" + CSS.escape(button.dataset.candidateHistory));
+    button.disabled = true;
+    try {
+      const data = await request("/candidates/" + encodeURIComponent(button.dataset.candidateHistory));
+      const screeningByApplication = new Map((data.screening || []).filter((row) => row.applicationId).map((row) => [String(row.applicationId), row]));
+      target.innerHTML = data.applications.length ? '<div class="application-history">' + data.applications.map((application) => {
+        const screening = screeningByApplication.get(String(application._id));
+        const score = screening?.status === "completed" ? " · ATS " + text(screening.result?.overall_score ?? "—") : "";
+        return '<p><strong>' + text(application.jobId?.title || "Removed job") + '</strong> · ' + text(application.jobId?.companyName || "Company unavailable") + ' · ' + text(application.jobId?.department || "Department unavailable") + ' · ' + statusBadge(application.status) + ' · ' + text(new Date(application.appliedAt).toLocaleDateString()) + score + '</p>';
+      }).join("") + '</div>' : empty("No applications in this organization.");
+      button.textContent = "Refresh application history";
+    } catch (error) { notify(error.message, true); }
+    finally { button.disabled = false; }
+  });
   let candidateTimer; $("#candidate-search").addEventListener("input", () => { clearTimeout(candidateTimer); candidateTimer = setTimeout(loadCandidates, 250); });
 
   async function loadInterviews() { try { const [interviewData, appData] = await Promise.all([request("/interviews"), request("/applications?limit=100")]); state.applications = appData.items; $("#interview-application").innerHTML = `<option value="">Choose an applicant</option>${appData.items.map((item) => `<option value="${item._id}">${text(item.candidateId?.fullName || "Candidate")} — ${text(item.jobId?.title || "Job")}</option>`).join("")}`; $("#interviews-list").innerHTML = interviewData.items.length ? interviewData.items.map((item) => `<article class="interview-card"><strong>${text(item.applicationId?.candidateId?.fullName || "Candidate")} · ${text(item.round)}</strong>${statusBadge(item.status)}<p>${text(item.applicationId?.jobId?.title || "Job")} · ${new Date(item.startsAt).toLocaleString()}</p><p>${text(item.mode)} · ${text(item.timeZone)}</p></article>`).join("") : empty("No interviews have been scheduled."); } catch (error) { notify(error.message, true); } }

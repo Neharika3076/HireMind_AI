@@ -39,6 +39,10 @@ app.use("/api/recruitment/screening", screeningRouter);
 app.use("/api/recruitment/interviews", interviewsRouter);
 app.use("/api/recruitment/emails", emailsRouter);
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
+// Express serves the local HTML app from the repository root, which also
+// contains the recruitment service. Never let static middleware expose the
+// private resume directory; downloads go through the scoped API route only.
+app.use("/recruitment-server/private-uploads", (_req, res) => res.sendStatus(404));
 app.use(express.static(projectRoot));
 app.use((error, _req, res, _next) => {
   const status = error.statusCode || (error.name === "MulterError" ? 400 : 500);

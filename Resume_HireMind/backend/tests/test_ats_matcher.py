@@ -419,3 +419,41 @@ def test_aws_matches_amazon_web_services():
     result = match_candidate(resume, job)
 
     assert len(result["skill_analysis"]["matched_required"]) == 1
+
+
+def test_software_developer_resume_is_capped_for_designer_role():
+    resume = ResumeProfile(
+        professional_summary="Software developer experienced in building web APIs.",
+        skills=[Skill(name="Python"), Skill(name="FastAPI")],
+        experience=[Experience(
+            company="Example Co",
+            role="Software Developer",
+            start_date="2020-01",
+            end_date="2024-01",
+            technologies=["Python", "FastAPI"],
+        )],
+    )
+    job = JobProfile(
+        title="Graphic Designer",
+        skills=[JobSkill(name="Figma", required=True)],
+        experience=JobExperience(minimum_years=2),
+    )
+
+    result = match_candidate(resume, job)
+
+    assert result["overall_score"] <= 25
+    assert result["role_alignment"]["aligned"] is False
+    assert result["score_algorithm_version"] == 2
+
+
+def test_unspecified_education_is_not_reported_as_a_match():
+    resume = ResumeProfile()
+    job = JobProfile(title="Designer")
+
+    result = match_candidate(resume, job)
+
+    assert result["education_analysis"]["required"] is False
+    assert result["education_analysis"]["matched"] is None
+    assert result["education_analysis"]["score"] == 0
+    assert "not specified" in result["education_analysis"]["reason"].lower()
+    assert result["overall_score"] == 0

@@ -31,14 +31,14 @@ async function buildMessage(actor, body) {
   if (!template) { const error = new Error("Choose a valid email template."); error.statusCode = 400; throw error; }
   const application = await Application.findOne({ _id: body.applicationId, organizationId: actor.organizationId });
   if (!application) { const error = new Error("Application not found."); error.statusCode = 404; throw error; }
-  const [candidate, job] = await Promise.all([Candidate.findById(application.candidateId), Job.findById(application.jobId)]);
+  const [candidate, job] = await Promise.all([Candidate.findOne({ _id: application.candidateId, organizationId: actor.organizationId }), Job.findOne({ _id: application.jobId, organizationId: actor.organizationId })]);
   if (!candidate?.email || !job) { const error = new Error("The selected application needs a candidate email and job."); error.statusCode = 400; throw error; }
   const values = { candidateName: candidate.fullName, jobTitle: job.title, companyName: body.companyName || "HireMind", interviewTime: body.interviewTime || "the scheduled time", meetingDetails: body.meetingDetails || "" };
   return { template, application, candidate, subject: fill(body.subject || template.subject, values), text: fill(body.body || template.body, values) };
 }
 
 emailsRouter.get("/templates", (_req, res) => res.json({ templates: Object.entries(templates).map(([key, value]) => ({ key, ...value })) }));
-emailsRouter.get("/logs", async (req, res, next) => { try { const items = await EmailLog.find({ organizationId: req.actor.organizationId }).populate("candidateId", "fullName email").populate({ path: "applicationId", populate: { path: "jobId", select: "title" } }).sort({ createdAt: -1 }).limit(100).lean(); res.json({ items, configured: emailConfigured }); } catch (error) { next(error); } });
+emailsRouter.get("/logs", async (req, res, next) => { try { const items = await EmailLog.find({ organizationId: req.actor.organizationId }).populate({ path: "candidateId", match: { organizationId: req.actor.organizationId }, select: "fullName email" }).populate({ path: "applicationId", match: { organizationId: req.actor.organizationId }, populate: { path: "jobId", match: { organizationId: req.actor.organizationId }, select: "title" } }).sort({ createdAt: -1 }).limit(100).lean(); res.json({ items, configured: emailConfigured }); } catch (error) { next(error); } });
 emailsRouter.post("/preview", async (req, res, next) => { try { const message = await buildMessage(req.actor, req.body); res.json({ recipient: message.candidate.email, subject: message.subject, text: message.text, configured: emailConfigured }); } catch (error) { next(error); } });
 emailsRouter.post("/send", async (req, res, next) => { try {
   if (req.body.confirm !== true || !req.body.idempotencyKey) return res.status(400).json({ error: "Confirm the email and include an idempotency key before sending." });

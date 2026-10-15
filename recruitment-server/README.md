@@ -1,6 +1,8 @@
 # HireMind recruitment service
 
-This is a separate Express service for recruitment data. It uses its own MongoDB collections (`recruitmentjobs`, `recruitmentcandidates`, `recruitmentapplications`, `recruitmentscreeningresults`, `recruitmentinterviews`, `recruitmentactivities`, and `recruitmentemaillogs`) and never exposes the private resume-upload directory as a static URL.
+This is a separate Express service for recruitment data. It uses its own MongoDB collections (`recruitmentjobs`, `recruitmentcandidates`, `recruitmentcandidateaccounts`, `recruitmentapplications`, `recruitmentscreeningresults`, `recruitmentinterviews`, `recruitmentactivities`, and `recruitmentemaillogs`). Resume files are private and are served only by an organization-scoped application download endpoint.
+
+Public candidates create an application-history password (8–128 characters) on their first application and reuse it with that email to view their applications across companies. Candidate profiles stay organization-scoped; only the candidate-facing history endpoint uses the account-to-application relationship. Recruiter application decisions and each submitted resume are stored on the application, not shared with other applications.
 
 ## Run locally
 
@@ -10,6 +12,13 @@ This is a separate Express service for recruitment data. It uses its own MongoDB
 4. Start the existing AI service separately from `Resume_HireMind/backend` (normally `uvicorn main:app --reload --port 8000`).
 5. If you normally open HireMind as `file:///...`, keep doing that and open `recruitment.html` from the same folder after signing in. The dashboard will call the local service at port 3001. If you prefer the HTTP version, sign in through `http://127.0.0.1:3001/login.html` first, then open `http://127.0.0.1:3001/recruitment.html`; browser sessions are separated by origin.
 
-The current HireMind EMS uses browser-local authentication only. Therefore the recruitment UI passes the signed-in user's organization and role through request headers as a **development bridge**. This is appropriate only for the class local-storage prototype. Before a public deployment, replace it with server-verified authentication and a proper user/organization database.
+The current HireMind EMS uses browser-local authentication only. Therefore local development still passes organization and role through request headers. Those values are forgeable: this is not production-grade tenant authorization. The recruiter API intentionally fails closed when `NODE_ENV=production` until server-verified recruiter sessions and organization membership checks are connected. Candidate accounts use server-side scrypt password hashes, but email ownership verification is not implemented; configure a verification flow before public deployment.
+
+## Existing data checks
+
+- `npm run audit:data` reports archived jobs and legacy applications without changing data. Archived jobs are not automatically republished or converted because the correct previous state cannot be inferred reliably.
+- `npm run migrate:resumes` performs a dry run to link an application to a resume only when a screening record matches the exact application, organization, job, and candidate. Review the counts first; pass `-- --apply` to write those unambiguous links. Ambiguous and missing-file records are left for manual review.
+- The audit also counts legacy applications without a candidate account. They are not automatically attached to a new candidate login because legacy applications have no verified account relationship; verify the candidate identity before any manual account linkage.
+- Permanent job deletion removes job-owned applications, screening results, interviews, email logs, and unreferenced per-application resume files while preserving candidate profiles and other applications. MongoDB replica sets use transactions; local standalone MongoDB uses ordered cleanup with job deletion last because it does not support multi-document transactions.
 
 SMTP sending stays disabled until all SMTP values are provided in `.env`; the email endpoints then record delivery attempts and require an idempotency key to prevent accidental double sends.

@@ -1,6 +1,9 @@
 export function requireRecruiter(req, res, next) {
   // The current EMS has only browser-local authentication. These headers are
   // intentionally a development bridge, not a production auth system.
+  // Fail closed in production until a server-verified login/session is wired
+  // in; client-supplied organization headers alone are forgeable.
+  if (process.env.NODE_ENV === "production") return res.status(503).json({ error: "Server-side recruiter authentication is not configured." });
   const id = req.header("x-ems-user-id");
   const name = req.header("x-ems-user-name") || "Recruiter";
   const role = req.header("x-ems-user-role");

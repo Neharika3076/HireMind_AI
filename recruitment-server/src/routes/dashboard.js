@@ -11,9 +11,10 @@ dashboardRouter.get("/", async (req, res, next) => {
   try {
     const organizationId = req.actor.organizationId;
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const activeCandidateIds = await Application.distinct("candidateId", { organizationId, status: { $nin: ["rejected", "not_selected"] } });
     const [activeJobs, totalCandidates, newApplications, awaitingReview, scheduledInterviews, completedInterviews, offers, recentActivity] = await Promise.all([
       Job.countDocuments({ organizationId, status: "published" }),
-      Candidate.countDocuments({ organizationId }),
+      Candidate.countDocuments({ organizationId, _id: { $in: activeCandidateIds.filter(Boolean) } }),
       Application.countDocuments({ organizationId, createdAt: { $gte: sevenDaysAgo } }),
       Application.countDocuments({ organizationId, status: { $in: ["awaiting_review", "shortlisted"] } }),
       Interview.countDocuments({ organizationId, status: "scheduled" }),
