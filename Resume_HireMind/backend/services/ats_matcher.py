@@ -4,6 +4,7 @@ from datetime import datetime
 
 from backend.models.resume import ResumeProfile
 from backend.models.job import JobProfile
+from backend.services.llm_skill_matcher import infer_related_skills
 
 
 # ============================================================
@@ -88,7 +89,6 @@ SKILL_ALIASES = {
     "pandas library": "pandas",
 }
 
-
 def normalize_skill(skill: str) -> str:
 
     if not skill:
@@ -167,7 +167,8 @@ def get_resume_skills(resume: ResumeProfile) -> Dict[str, Any]:
 
 def match_skills(
     resume: ResumeProfile,
-    job: JobProfile
+    job: JobProfile,
+    use_semantic_matching: bool = False,
 ) -> Dict[str, Any]:
 
     resume_skills = get_resume_skills(resume)
@@ -177,6 +178,9 @@ def match_skills(
 
     matched_preferred = []
     missing_preferred = []
+    related_required = []
+    related_preferred = []
+    unmatched_job_skills = []
 
     for job_skill in job.skills:
 
@@ -201,17 +205,66 @@ def match_skills(
                 matched_preferred.append(match)
 
         else:
+            unmatched_job_skills.append(job_skill)
 
+    resume_skill_entries = list(resume_skills.values())
+    if use_semantic_matching:
+        semantic_matches, semantic_matching = infer_related_skills(
+            resume_skill_entries,
+            [
+                {
+                    "name": skill.name,
+                    "category": skill.category,
+                    "required": skill.required,
+                    "evidence": skill.evidence,
+                }
+                for skill in unmatched_job_skills
+            ],
+            {
+                "title": job.title,
+                "summary": job.summary,
+                "responsibilities": job.responsibilities,
+            },
+        )
+    else:
+        semantic_matches = {}
+        semantic_matching = {"status": "disabled"}
+
+    for local_job_index, job_skill in enumerate(unmatched_job_skills):
+        inference = semantic_matches.get(local_job_index)
+        if inference:
+            resume_skill = resume_skill_entries[inference["resume_skill_index"]]
+            related_match = {
+                "skill": job_skill.name,
+                "resume_skill": resume_skill["name"],
+                "match_type": "related",
+                "support": inference["support"],
+                "score_credit": inference["score_credit"],
+                "evidence": inference["explanation"],
+                "resume_evidence": resume_skill["evidence"],
+                "source": resume_skill["source"],
+                "confidence": min(
+                    inference["score_credit"],
+                    float(resume_skill.get("confidence", 0.5)) * inference["score_credit"],
+                ),
+            }
             if job_skill.required:
-                missing_required.append(job_skill.name)
+                related_required.append(related_match)
             else:
-                missing_preferred.append(job_skill.name)
+                related_preferred.append(related_match)
+        elif job_skill.required:
+            missing_required.append(job_skill.name)
+        else:
+            missing_preferred.append(job_skill.name)
 
     return {
         "matched_required": matched_required,
         "missing_required": missing_required,
         "matched_preferred": matched_preferred,
         "missing_preferred": missing_preferred,
+        "related_required": related_required,
+        "related_preferred": related_preferred,
+        "semantic_matching": semantic_matching,
     }
 
 
@@ -859,12 +912,14 @@ def calculate_overall_score(
     ]
 
     required_count = len(required_skills)
-    matched_required = len(
-        skill_result["matched_required"]
+    matched_required = sum(
+        float(match.get("score_credit", 1))
+        for match in skill_result["matched_required"] + skill_result.get("related_required", [])
     )
     preferred_count = len(preferred_skills)
-    matched_preferred = len(
-        skill_result["matched_preferred"]
+    matched_preferred = sum(
+        float(match.get("score_credit", 1))
+        for match in skill_result["matched_preferred"] + skill_result.get("related_preferred", [])
     )
     minimum_years = float((job.experience.minimum_years if job.experience else 0) or 0)
     preferred_years = float((job.experience.preferred_years if job.experience else 0) or 0)
@@ -913,14 +968,20 @@ def build_score_breakdown(
 
     required_count = len(required_skills)
 
-    matched_required = len(
-        skill_result["matched_required"]
+    direct_matched_required = len(skill_result["matched_required"])
+    related_required = skill_result.get("related_required", [])
+    matched_required = sum(
+        float(match.get("score_credit", 1))
+        for match in skill_result["matched_required"] + related_required
     )
 
     preferred_count = len(preferred_skills)
 
-    matched_preferred = len(
-        skill_result["matched_preferred"]
+    direct_matched_preferred = len(skill_result["matched_preferred"])
+    related_preferred = skill_result.get("related_preferred", [])
+    matched_preferred = sum(
+        float(match.get("score_credit", 1))
+        for match in skill_result["matched_preferred"] + related_preferred
     )
 
     required_skill_score = round(matched_required / required_count * 100) if required_count else 0
@@ -947,7 +1008,9 @@ def build_score_breakdown(
             "score": required_skill_score,
             "weight": weights["required_skills"],
             "active": active["required_skills"],
-            "matched": matched_required,
+            "matched": direct_matched_required,
+            "related": len(related_required),
+            "earned_credit": round(matched_required, 2),
             "total": required_count,
         },
 
@@ -973,7 +1036,9 @@ def build_score_breakdown(
             "score": preferred_skill_score,
             "weight": weights["preferred_skills"],
             "active": active["preferred_skills"],
-            "matched": matched_preferred,
+            "matched": direct_matched_preferred,
+            "related": len(related_preferred),
+            "earned_credit": round(matched_preferred, 2),
             "total": preferred_count,
         },
     }
@@ -1069,12 +1134,14 @@ def assess_role_alignment(resume: ResumeProfile, job: JobProfile) -> Dict[str, A
 
 def match_candidate(
     resume: ResumeProfile,
-    job: JobProfile
+    job: JobProfile,
+    use_semantic_matching: bool = False,
 ) -> Dict[str, Any]:
 
     skill_result = match_skills(
         resume,
-        job
+        job,
+        use_semantic_matching=use_semantic_matching,
     )
 
     experience_result = match_experience(
@@ -1176,7 +1243,7 @@ def match_candidate(
     return {
         "overall_score": overall_score,
 
-        "score_algorithm_version": 2,
+        "score_algorithm_version": 4,
         "role_alignment": role_alignment,
         "score_note": (role_alignment["reason"] + " The compatibility score is capped because of this clear role mismatch." if not role_alignment["aligned"] else ("No explicit skills, experience, or education criteria were set for this opening; the score is 0 until job requirements are provided." if not any(item["active"] for item in score_breakdown.values()) else "Score is based only on criteria explicitly specified for this job. Missing candidate evidence does not receive credit.")),
 
@@ -1184,9 +1251,12 @@ def match_candidate(
 
         "skill_analysis": {
             "matched_required": skill_result["matched_required"],
+            "related_required": skill_result.get("related_required", []),
             "missing_required": skill_result["missing_required"],
             "matched_preferred": skill_result["matched_preferred"],
+            "related_preferred": skill_result.get("related_preferred", []),
             "missing_preferred": skill_result["missing_preferred"],
+            "semantic_matching": skill_result.get("semantic_matching", {"status": "not_needed"}),
         },
 
         "experience_analysis": experience_result,

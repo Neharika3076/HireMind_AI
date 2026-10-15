@@ -47,7 +47,8 @@ app.use(express.static(projectRoot));
 app.use((error, _req, res, _next) => {
   const status = error.statusCode || (error.name === "MulterError" ? 400 : 500);
   if (status >= 500) console.error("Recruitment service error:", error.name);
-  res.status(status).json({ error: status < 500 ? error.message : "The recruitment service could not complete this request." });
+  const expose = status < 500 || error.expose || process.env.NODE_ENV !== "production";
+  res.status(status).json({ error: expose ? error.message : "The recruitment service could not complete this request." });
 });
 
 mongoose.connect(config.mongoUri).then(() => {

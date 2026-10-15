@@ -21,7 +21,14 @@ function serviceError(error, action) {
   }
   if (status >= 500) {
     console.error(`HireMind AI returned HTTP ${status} while trying to ${action}. Check the FastAPI terminal for the internal cause.`);
-    return new Error(`HireMind AI encountered an internal error while trying to ${action}. Check the FastAPI terminal for details, then retry.`);
+    const detail = error.response?.data?.detail;
+    const message = typeof detail === "string" && detail.trim()
+      ? detail.trim()
+      : `HireMind AI encountered an internal error while trying to ${action}. Check the FastAPI terminal for details, then retry.`;
+    const upstreamError = new Error(message);
+    upstreamError.statusCode = 502;
+    upstreamError.expose = true;
+    return upstreamError;
   }
 
   console.error(`HireMind AI request failed while trying to ${action} (${error.code || "unknown error"}).`);

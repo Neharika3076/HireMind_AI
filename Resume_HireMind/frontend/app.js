@@ -555,13 +555,16 @@ function getScore(result) {
 function getRequiredSkillSummary(result) {
     const analysis = result.skill_analysis || {};
     const matched = analysis.matched_required || [];
+    const related = analysis.related_required || [];
     const missing = analysis.missing_required || [];
 
-    if (!matched.length && !missing.length) {
+    if (!matched.length && !related.length && !missing.length) {
         return "See details";
     }
 
-    return `${matched.length} matched · ${missing.length} missing`;
+    const supported = matched.length + related.length;
+    const relatedLabel = related.length ? ` · ${related.length} related` : "";
+    return `${supported} supported${relatedLabel} · ${missing.length} missing`;
 }
 
 function getExperienceSummary(result) {
@@ -619,11 +622,29 @@ function showCandidateDetails(candidate) {
     }
 
     const skills = result.skill_analysis || {};
+    const semanticStatus = skills.semantic_matching || {};
+    if (semanticStatus.status === "unavailable") {
+        addDetailSection(
+            "Semantic skill analysis",
+            [semanticStatus.message || "LLM-based skill analysis was unavailable; only direct skill matches were scored."]
+        );
+    } else if (semanticStatus.status === "complete") {
+        addDetailSection(
+            "Semantic skill analysis",
+            [`Related skills were reviewed by ${semanticStatus.model || "the configured AI model"}. Related evidence receives partial credit and is not treated as proof of proficiency.`]
+        );
+    }
 
     addDetailSection(
         "Matched required skills",
         toDisplayList(skills.matched_required),
         "No matched required skills were reported."
+    );
+
+    addDetailSection(
+        "Related required skills (partial evidence)",
+        toDisplayList(skills.related_required),
+        "No related required skills were inferred from the resume."
     );
 
     addDetailSection(
@@ -636,6 +657,12 @@ function showCandidateDetails(candidate) {
         "Matched preferred skills",
         toDisplayList(skills.matched_preferred),
         "No matched preferred skills were reported."
+    );
+
+    addDetailSection(
+        "Related preferred skills (partial evidence)",
+        toDisplayList(skills.related_preferred),
+        "No related preferred skills were inferred from the resume."
     );
 
     addDetailSection(
@@ -719,6 +746,17 @@ function toDisplayList(items) {
         if (item && typeof item === "object") {
             const name = item.name || item.skill || item.title || "";
             const evidence = item.evidence || item.reason || "";
+
+            if (item.match_type === "related") {
+                const credit = Math.round(Number(item.score_credit || 0) * 100);
+                const sourceEvidence = item.resume_evidence
+                    ? `Resume evidence: ${item.resume_evidence}`
+                    : "";
+                const support = item.support ? `${item.support} relationship` : "related evidence";
+                return [`Related (partial, ${support}, ${credit}% credit): ${name}`, `Based on ${item.resume_skill}`, evidence, sourceEvidence]
+                    .filter(Boolean)
+                    .join(" — ");
+            }
 
             return [name, evidence].filter(Boolean).join(" — ") ||
                 JSON.stringify(item);

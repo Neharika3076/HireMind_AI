@@ -110,7 +110,14 @@ async def extract_resume_api(
         raise
 
     except Exception as error:
-        logger.error("Resume processing failed (%s).", type(error).__name__)
+        # Include safe diagnostic text for local troubleshooting while avoiding
+        # logging Pydantic's rejected input values, which can contain resume PII.
+        detail = str(error)
+        if "validation error" in detail.lower():
+            detail = "Resume profile validation failed (input details omitted)."
+        else:
+            detail = detail[:400]
+        logger.exception("Resume processing failed (%s): %s", type(error).__name__, detail)
 
         raise HTTPException(
             status_code=500,

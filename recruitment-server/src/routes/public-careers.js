@@ -9,7 +9,7 @@ import { Candidate } from "../models/candidate.js";
 import { Application } from "../models/application.js";
 import { ScreeningResult } from "../models/screening-result.js";
 import { CandidateAccount } from "../models/candidate-account.js";
-import { extractResume, matchCandidate } from "../services/hiremind-client.js";
+import { analyzeJob, extractResume, matchCandidate } from "../services/hiremind-client.js";
 import { logActivity } from "../services/activity.js";
 import { buildAtsJobProfile } from "../services/job-profile.js";
 import { hashCandidatePassword, verifyCandidatePassword } from "../services/candidate-password.js";
@@ -184,8 +184,16 @@ publicCareersRouter.post("/jobs/:jobId/applications", upload.single("resume"), a
     file = null; // The accepted resume is now referenced by this application.
 
     const screening = await ScreeningResult.create({ organizationId: job.organizationId, applicationId: application._id, jobId: job._id, candidateId: candidate._id, resumeFile: { originalName: resumeFile.originalName, storageKey: resumeFile.storageKey }, status: "processing" });
-    const jobProfile = buildAtsJobProfile(job);
     try {
+      // Older published jobs may not have been analyzed yet. Analyze lazily
+      // before ATS matching so blank form fields are inferred from the job
+      // description instead of being treated as missing requirements.
+      if (!job.aiJobProfile || !job.aiProfileReviewedAt) {
+        job.aiJobProfile = await analyzeJob(job.description);
+        job.aiProfileReviewedAt = new Date();
+        await job.save();
+      }
+      const jobProfile = buildAtsJobProfile(job);
       screening.result = await matchCandidate(profile, jobProfile);
       screening.status = "completed";
       screening.analyzedAt = new Date();

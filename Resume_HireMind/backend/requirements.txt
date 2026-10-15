@@ -4,5 +4,6 @@ python-multipart
 pymupdf
 python-docx
 openai
+groq
 pydantic
 python-dotenv

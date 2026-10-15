@@ -1,7 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+import logging
 
 from backend.services.llm_job_analyzer import analyze_job_description
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(
@@ -28,7 +31,8 @@ async def analyze_job(request: JobDescriptionRequest):
         }
 
     except Exception as error:
+        logger.exception("Job description analysis failed.")
         raise HTTPException(
-            status_code=500,
+            status_code=502,
             detail=f"Job description analysis failed: {str(error)}"
         )

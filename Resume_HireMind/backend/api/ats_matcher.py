@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from backend.models.resume import ResumeProfile
 from backend.models.job import JobProfile
@@ -22,9 +23,11 @@ async def match_resume_to_job(request: ATSMatchRequest):
 
     try:
 
-        result = match_candidate(
+        result = await run_in_threadpool(
+            match_candidate,
             request.resume,
-            request.job
+            request.job,
+            use_semantic_matching=True,
         )
 
         return {

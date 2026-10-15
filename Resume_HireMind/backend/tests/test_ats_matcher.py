@@ -443,7 +443,7 @@ def test_software_developer_resume_is_capped_for_designer_role():
 
     assert result["overall_score"] <= 25
     assert result["role_alignment"]["aligned"] is False
-    assert result["score_algorithm_version"] == 2
+    assert result["score_algorithm_version"] == 4
 
 
 def test_unspecified_education_is_not_reported_as_a_match():
