@@ -67,11 +67,20 @@
       historyMessage.textContent = "Loading your applications…";
       historyList.innerHTML = "";
       try {
-        var data = await request("/public/candidate/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }) });
+        var credentials = { email: formData.get("email"), password: formData.get("password") };
+        var responses = await Promise.all([
+          request("/public/candidate/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) }),
+          request("/public/ai-interviews/candidate/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(credentials) })
+        ]);
+        var data = responses[0];
+        var interviewByApplication = new Map((responses[1].items || []).map(function (item) { return [String(item.applicationId), item]; }));
+        var interviewLabels = { not_invited: "No interview invitation yet", invited: "Interview invitation sent by email", email_failed: "Interview email could not be delivered — contact the hiring team", started: "Interview in progress", completed: "Interview completed", revoked: "Invitation revoked", expired: "Invitation expired", alternative_requested: "Alternative assessment requested", not_available: "Interview no longer available" };
         historyMessage.textContent = data.items.length ? "Your application history" : "No applications were found for this account.";
         historyList.innerHTML = (data.items || []).map(function (item) {
           var job = item.job || {};
-          return '<article class="history-row"><div><strong>' + escapeHtml(job.title || "Job no longer available") + '</strong><p>' + escapeHtml(job.companyName || "") + (job.department ? " · " + escapeHtml(job.department) : "") + '</p></div><span class="history-status">' + escapeHtml(String(item.status || "pending").replaceAll("_", " ")) + '</span><time>' + escapeHtml(item.appliedAt ? new Date(item.appliedAt).toLocaleDateString() : "") + '</time></article>';
+          var interview = interviewByApplication.get(String(item.applicationId));
+          var interviewStatus = interview ? interview.emailStatus === "preview" && ["invited", "started"].includes(interview.status) ? "Interview invitation is not available by email yet" : interviewLabels[interview.status] || String(interview.status).replaceAll("_", " ") : "No interview invitation yet";
+          return '<article class="history-row"><div><strong>' + escapeHtml(job.title || "Job no longer available") + '</strong><p>' + escapeHtml(job.companyName || "") + (job.department ? " · " + escapeHtml(job.department) : "") + '</p><p class="history-interview-status">AI interview: ' + escapeHtml(interviewStatus) + '</p></div><span class="history-status">' + escapeHtml(String(item.status || "pending").replaceAll("_", " ")) + '</span><time>' + escapeHtml(item.appliedAt ? new Date(item.appliedAt).toLocaleDateString() : "") + '</time></article>';
         }).join("");
       } catch (error) {
         historyMessage.textContent = error.message;

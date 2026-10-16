@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const apiBase = window.HIREMIND_RECRUITMENT_API || (localHost || window.location.protocol === "file:"
     ? "http://127.0.0.1:3001/api/recruitment"
     : "/api/recruitment");
-  const state = { jobs: [], applications: [], emailTemplates: [], editingJobId: null, screeningJobId: "" };
+  const state = { jobs: [], applications: [], emailTemplates: [], aiInterviewTemplates: [], aiInvitations: new Map(), aiInterviewApplications: new Map(), editingJobId: null, screeningJobId: "" };
   const canManageJobs = ["admin", "executive"].includes(String(user.roleType || "").toLowerCase());
   const canDeleteJobs = String(user.roleType || "").toLowerCase() === "admin";
   const $ = (selector) => document.querySelector(selector);
@@ -81,8 +81,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const experience = result.experience_analysis || {};
     const education = result.education_analysis || {};
     const completed = item.screeningStatus === "completed";
-    const status = item.status || "awaiting_review";
-    const canDecide = !["approved", "shortlisted", "rejected", "not_selected"].includes(status);
+      const status = item.status || "awaiting_review";
+      const canDecide = !["approved", "shortlisted", "rejected", "not_selected", "interview_scheduled", "interview_completed", "offer_extended", "hired"].includes(status);
     const actions = '<div class="item-actions">' + (item.resumeAvailable ? '<button class="tiny-btn" data-resume="' + text(item._id) + '">Download resume</button>' : "") +
       (["failed", "pending"].includes(item.screeningStatus) && item.resumeAvailable ? '<button class="tiny-btn" data-retry="' + text(item._id) + '">Retry screening</button>' : "") +
       (canDecide ? '<button class="tiny-btn primary" data-review="' + text(item._id) + '" data-status="approved">Approve</button><button class="tiny-btn" data-review="' + text(item._id) + '" data-status="shortlisted">Shortlist</button><button class="tiny-btn danger" data-review="' + text(item._id) + '" data-status="rejected">Reject</button>' : "") + '</div>';
@@ -92,7 +92,8 @@ document.addEventListener("DOMContentLoaded", () => {
         (result.score_note ? '<p class="hint">' + text(result.score_note) + '</p>' : "") +
         '<div class="analysis-grid"><div><b>Matched skills</b><ul>' + analysisList([...(skills.matched_required || []), ...(skills.matched_preferred || [])], "No direct skill matches") + '</ul></div><div><b>Related skills · partial evidence</b><ul>' + analysisList([...(skills.related_required || []), ...(skills.related_preferred || [])], "No related skills inferred") + '</ul></div><div><b>Gaps to review</b><ul>' + analysisList(result.gaps || result.critical_gaps, "No gaps identified") + '</ul></div><div><b>Experience</b><p>' + text(experience.reason || "Not analyzed") + '</p></div><div><b>Education</b><p>' + text(education.reason || "Not analyzed") + '</p></div><div><b>Application details</b><p>ID: ' + text(item._id) + (item.candidateId?.email ? '<br>Email: ' + text(item.candidateId.email) : '') + (item.candidateId?.location ? '<br>Location: ' + text(item.candidateId.location) : '') + '</p></div></div></details>'
       : '<div class="candidate-card-summary"><span class="candidate-applied">Applied ' + text(item.appliedAt ? new Date(item.appliedAt).toLocaleDateString() : "date unavailable") + '</span><span class="candidate-score-label">' + text(item.screeningStatus === "pending" ? "Screening pending" : "Screening unavailable") + '</span></div><details class="candidate-analysis-details"><summary>View application details</summary><p>' + text(item.screeningFailure || (item.screeningStatus === "pending" ? "Screening is waiting to run." : "No screening result is available.")) + '</p><p>Application ID: ' + text(item._id) + (item.candidateId?.email ? '<br>Email: ' + text(item.candidateId.email) : '') + '</p></details>';
-    return '<article class="result-row candidate-result-card"><div class="candidate-result-heading"><strong>' + text(item.candidateId?.fullName || "Candidate") + '</strong><div class="candidate-result-badges">' + (completed ? '<span class="candidate-screening-state">Screening complete</span>' : '<span class="candidate-screening-state">' + text(item.screeningStatus || "pending") + '</span>') + statusBadge(status) + '</div></div>' +
+    const displayStatus = ["interview_scheduled", "interview_completed"].includes(status) ? "In process" : statusBadge(status);
+    return '<article class="result-row candidate-result-card"><div class="candidate-result-heading"><strong>' + text(item.candidateId?.fullName || "Candidate") + '</strong><div class="candidate-result-badges">' + (completed ? '<span class="candidate-screening-state">Screening complete</span>' : '<span class="candidate-screening-state">' + text(item.screeningStatus || "pending") + '</span>') + displayStatus + '</div></div>' +
       evaluation + actions + '</article>';
   }
   async function downloadResume(applicationId) {
@@ -114,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
       $("#screening-job-heading").textContent = data.job.title + " · Job ID " + data.job.id + " · " + data.job.companyName + " · " + data.job.department + " · " + data.items.length + " applicant(s)";
       const selectedStatus = $("#screening-status").value;
       const filtered = data.items.filter((item) => !selectedStatus || item.status === selectedStatus);
-      const decisions = filtered.filter((item) => ["approved", "shortlisted", "rejected", "not_selected"].includes(item.status));
+      const decidedItems = filtered.filter((item) => ["approved", "shortlisted", "rejected", "not_selected"].includes(item.status));
       const active = filtered.filter((item) => !["approved", "shortlisted", "rejected", "not_selected"].includes(item.status));
       active.sort((a, b) => {
         const valueA = a.screeningResult?.overall_score, valueB = b.screeningResult?.overall_score;
@@ -127,19 +128,52 @@ document.addEventListener("DOMContentLoaded", () => {
       const remaining = active.filter((item) => !topIds.has(String(item._id)));
       top.innerHTML = ranked.length ? ranked.map(screeningMarkup).join("") : empty("No completed applicant screenings yet.");
       other.innerHTML = remaining.length ? remaining.map(screeningMarkup).join("") : empty("No other active applicants.");
-      decided.innerHTML = decisions.length ? decisions.map(screeningMarkup).join("") : empty("No recruiter decisions recorded yet.");
+      decided.innerHTML = decidedItems.length ? decidedItems.map(screeningMarkup).join("") : empty("No application decisions yet.");
     } catch (error) { notify(error.message, true); }
   }
   $("#screening-job").addEventListener("change", () => { state.screeningJobId = $("#screening-job").value; loadScreeningResults(); });
   $("#screening-status").addEventListener("change", loadScreeningResults);
-  document.querySelector("#view-screening").addEventListener("click", async (event) => {
+  async function openAIInterviewReport(invitationId, button) {
+    const data = await request("/ai-interviews/invitations/" + encodeURIComponent(invitationId) + "/report");
+    const card = button.closest("[data-ai-interview-card]");
+    card.querySelector(".ai-report-mount").innerHTML = aiReportMarkup(data);
+    button.textContent = "Refresh AI interview review";
+  }
+  function aiReportMarkup(data) {
+    const report = data.report || {};
+    const questions = data.session?.questions || [];
+    const answers = data.session?.answers || [];
+    const questionById = new Map(questions.map((question) => [question.id, question]));
+    const responseRows = answers.map((answer) => {
+      const question = questionById.get(answer.questionId);
+      const evaluation = answer.evaluation || {};
+      const criteria = (evaluation.criteria || []).map((criterion) => `<li><strong>${text(criterion.label)}:</strong> ${text(criterion.score)}/4 · ${text(criterion.rationale || "")}${criterion.evidence ? `<blockquote>${text(criterion.evidence)}</blockquote>` : ""}</li>`).join("");
+      const gaps = [...(evaluation.missingConcepts || []), ...(evaluation.factualErrors || [])].map((entry) => `<li>${text(entry)}</li>`).join("");
+      return `<article class="ai-answer-review"><p class="candidate-screening-state">${answer.kind === "follow_up" ? "Bounded follow-up" : "Question"}</p><h4>${text(answer.questionPrompt || question?.prompt || "Interview question")}</h4><p><strong>Candidate response</strong></p><p class="ai-answer-text">${text(answer.text)}</p><p><strong>Evaluation:</strong> ${text(evaluation.explanation || "No validated evaluation available.")}${evaluation.reviewRequired ? " · Human review recommended" : ""}</p><ul>${criteria}</ul>${gaps ? `<p><strong>Gaps / possible factual issues to review</strong></p><ul>${gaps}</ul>` : ""}</article>`;
+    }).join("");
+    const events = (data.integrityEvents || []).map((event) => `<div class="ai-integrity-event"><span>${text(event.type.replaceAll("_", " "))} · ${text(new Date(event.occurredAt).toLocaleString())} · ${text(event.reviewStatus)}</span>${event.reviewStatus === "unreviewed" ? `<button class="tiny-btn" data-integrity-review="${text(event._id)}" data-invitation-id="${text(data.invitation?.id || "")}">Mark reviewed</button>` : ""}</div>`).join("") || '<p class="hint">No technical integrity signals recorded.</p>';
+    const reviews = (report.reviewHistory || []).map((entry) => `<p class="hint">${text(entry.decision.replaceAll("_", " "))} · ${text(entry.actor?.name || "Recruiter")} · ${text(new Date(entry.at).toLocaleString())}${entry.note ? ` — ${text(entry.note)}` : ""}</p>`).join("");
+    return `<section class="ai-interview-report"><div class="ai-report-heading"><div><strong>AI interview review</strong><p>${text(data.job?.title || "Role")} · ${text(Math.round(Number(report.confidence || 0) * 100))}% evaluation confidence</p></div><span class="score">${text(report.score)}<small>/100</small></span></div><p class="ai-report-warning">Decision support only. Review the answer evidence; the score is not a hiring decision. Integrity signals are separate and do not affect score.</p>${(report.warnings || []).map((warning) => `<p class="ai-report-warning">${text(warning)}</p>`).join("")}<details><summary>Review candidate responses and evidence (${answers.length})</summary>${responseRows || empty("No evaluated answers are available.")}</details><details><summary>Technical integrity signals</summary>${events}<p class="hint">Tab focus and connection alerts are imperfect browser signals, not proof of misconduct.</p></details><form class="ai-review-form" data-ai-review-form="${text(data.invitation?.id || "")}"><label>Recruiter review<select name="decision"><option value="needs_human_review">Needs human review</option><option value="progress_to_next_stage">Progress to next stage</option><option value="do_not_progress">Do not progress</option></select></label><label>Internal note<textarea name="note" maxlength="1000" rows="2" placeholder="Optional reviewer note"></textarea></label><button class="tiny-btn primary" type="submit">Save review</button></form>${reviews}</section>`;
+  }
+  $("#view-screening").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-review], [data-retry], [data-resume]");
     if (!button) return;
     button.disabled = true;
     try {
       if (button.dataset.resume) await downloadResume(button.dataset.resume);
-      if (button.dataset.retry) { await request("/screening/applications/" + encodeURIComponent(button.dataset.retry) + "/retry", { method: "POST" }); notify("Screening completed."); await loadScreeningResults(); }
-      if (button.dataset.review) { if (button.dataset.status === "rejected" && !window.confirm("Reject this application? The candidate will leave the active Candidates list unless they have another active application.")) { button.disabled = false; return; } await request("/applications/" + encodeURIComponent(button.dataset.review) + "/status", { method: "PATCH", body: JSON.stringify({ status: button.dataset.status }) }); notify("Application status updated."); await loadScreeningResults(); loadOverview(); if (!document.querySelector("#view-candidates")?.hidden) await loadCandidates(); }
+      if (button.dataset.retry) {
+        await request("/screening/applications/" + encodeURIComponent(button.dataset.retry) + "/retry", { method: "POST" });
+        notify("Screening completed.");
+        await loadScreeningResults();
+      }
+      if (button.dataset.review) {
+        if (button.dataset.status === "rejected" && !window.confirm("Reject this application? The candidate will leave the active Candidates list unless they have another active application.")) { button.disabled = false; return; }
+        await request("/applications/" + encodeURIComponent(button.dataset.review) + "/status", { method: "PATCH", body: JSON.stringify({ status: button.dataset.status }) });
+        notify("Application status updated.");
+        await loadScreeningResults();
+        loadOverview();
+        if (!document.querySelector("#view-candidates")?.hidden) await loadCandidates();
+      }
     } catch (error) { notify(error.message, true); if (button.dataset.retry) await loadScreeningResults(); button.disabled = false; }
   });
 
@@ -163,7 +197,131 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   let candidateTimer; $("#candidate-search").addEventListener("input", () => { clearTimeout(candidateTimer); candidateTimer = setTimeout(loadCandidates, 250); });
 
-  async function loadInterviews() { try { const [interviewData, appData] = await Promise.all([request("/interviews"), request("/applications?limit=100")]); state.applications = appData.items; $("#interview-application").innerHTML = `<option value="">Choose an applicant</option>${appData.items.map((item) => `<option value="${item._id}">${text(item.candidateId?.fullName || "Candidate")} — ${text(item.jobId?.title || "Job")}</option>`).join("")}`; $("#interviews-list").innerHTML = interviewData.items.length ? interviewData.items.map((item) => `<article class="interview-card"><strong>${text(item.applicationId?.candidateId?.fullName || "Candidate")} · ${text(item.round)}</strong>${statusBadge(item.status)}<p>${text(item.applicationId?.jobId?.title || "Job")} · ${new Date(item.startsAt).toLocaleString()}</p><p>${text(item.mode)} · ${text(item.timeZone)}</p></article>`).join("") : empty("No interviews have been scheduled."); } catch (error) { notify(error.message, true); } }
+  async function loadAIInterviewTemplates() {
+    try {
+      const data = await request("/ai-interviews/templates");
+      state.aiInterviewTemplates = data.items || [];
+      const select = $("#ai-interview-template");
+      const selected = select.value;
+      select.innerHTML = state.aiInterviewTemplates.map((item) => `<option value="${text(item.key)}">${text(item.name)} · ${Number(item.questionCount)} questions</option>`).join("") || '<option value="">No active interview template</option>';
+      if (state.aiInterviewTemplates.some((item) => item.key === selected)) select.value = selected;
+    } catch (error) { notify("AI interview templates could not be loaded: " + error.message, true); }
+  }
+  function aiInvitationMarkup(invitation) {
+    const application = state.aiInterviewApplications.get(String(invitation.applicationId));
+    const status = invitation.status || "invited";
+    const previewOnly = invitation.emailStatus === "preview";
+    const closed = ["rejected", "not_selected", "hired"].includes(application?.status);
+    const name = application?.candidateId?.fullName || "Candidate";
+    const job = application?.job?.title || "Job unavailable";
+    let label = status.replaceAll("_", " ");
+    if (previewOnly) label = "legacy test invitation — not emailed";
+    else if (invitation.emailStatus === "failed") label = "email failed";
+    else if (status === "invited") label = "invitation emailed";
+    let actions = "";
+    if (["invited", "email_failed", "started"].includes(status)) {
+      actions = `${closed ? "" : `<button class="tiny-btn primary" data-ai-resend="${text(invitation.id)}">${status === "email_failed" || previewOnly ? "Send invitation by email" : "Resend link by email"}</button>`}<button class="tiny-btn danger" data-ai-revoke="${text(invitation.id)}">Revoke</button>`;
+    } else if (status === "expired") {
+      actions = closed ? "" : `<button class="tiny-btn primary" data-ai-resend="${text(invitation.id)}">Renew invitation by email</button>`;
+    } else if (status === "completed") {
+      actions = `<button class="tiny-btn primary" data-ai-report="${text(invitation.id)}">View interview review</button>`;
+    } else if (status === "alternative_requested") label = "alternative assessment requested";
+    else if (status === "revoked") label = "invitation revoked";
+    return `<article class="interview-card ai-interview-card" data-ai-interview-card="${text(invitation.id)}"><div class="candidate-result-heading"><strong>${text(name)} · ${text(job)}</strong>${statusBadge(label)}</div><p>${text(application?.candidateId?.email || "Candidate email unavailable")}${invitation.expiresAt ? ` · expires ${text(new Date(invitation.expiresAt).toLocaleDateString())}` : ""}</p><div class="item-actions">${actions}</div><div class="ai-report-mount"></div></article>`;
+  }
+  async function loadAIInterviewWorkspace() {
+    await loadAIInterviewTemplates();
+    const jobData = await request("/jobs?limit=100");
+    const jobBundles = await Promise.all((jobData.items || []).map(async (job) => {
+      const [screening, invitations] = await Promise.all([
+        request("/screening/jobs/" + encodeURIComponent(job._id)),
+        request("/ai-interviews/jobs/" + encodeURIComponent(job._id) + "/invitations")
+      ]);
+      return { screening, invitations: invitations.items || [] };
+    }));
+    const screenedApplications = new Map();
+    const invitationItems = [];
+    for (const bundle of jobBundles) {
+      for (const item of bundle.screening.items || []) screenedApplications.set(String(item._id), { ...item, job: bundle.screening.job });
+      invitationItems.push(...bundle.invitations);
+    }
+    state.aiInterviewApplications = screenedApplications;
+    state.aiInvitations = new Map(invitationItems.map((item) => [String(item.applicationId), item]));
+    const closedStatuses = ["rejected", "not_selected", "hired"];
+    const eligible = [...screenedApplications.values()].filter((item) => item.screeningStatus === "completed" && !closedStatuses.includes(item.status) && !state.aiInvitations.has(String(item._id)));
+    $("#ai-interview-application").innerHTML = `<option value="">${eligible.length ? "Choose a screened application" : "No eligible screened applications"}</option>` + eligible.map((item) => `<option value="${text(item._id)}">${text(item.candidateId?.fullName || "Candidate")} — ${text(item.job?.title || "Job")}</option>`).join("");
+    $("#ai-interview-application").disabled = eligible.length === 0;
+    $("#ai-interview-form").querySelector('[type="submit"]').disabled = eligible.length === 0;
+    const orderedInvitations = invitationItems.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    $("#ai-interviews-list").innerHTML = orderedInvitations.length ? orderedInvitations.map(aiInvitationMarkup).join("") : empty("No AI interview invitations yet.");
+  }
+  async function loadInterviews() {
+    try {
+      const [interviewData, appData] = await Promise.all([request("/interviews"), request("/applications?limit=100")]);
+      state.applications = appData.items;
+      $("#interview-application").innerHTML = `<option value="">Choose an applicant</option>${appData.items.map((item) => `<option value="${item._id}">${text(item.candidateId?.fullName || "Candidate")} — ${text(item.jobId?.title || "Job")}</option>`).join("")}`;
+      $("#interviews-list").innerHTML = interviewData.items.length ? interviewData.items.map((item) => `<article class="interview-card"><strong>${text(item.applicationId?.candidateId?.fullName || "Candidate")} · ${text(item.round)}</strong>${statusBadge(item.status)}<p>${text(item.applicationId?.jobId?.title || "Job")} · ${new Date(item.startsAt).toLocaleString()}</p><p>${text(item.mode)} · ${text(item.timeZone)}</p></article>`).join("") : empty("No interviews have been scheduled.");
+      await loadAIInterviewWorkspace();
+    } catch (error) { notify(error.message, true); }
+  }
+  $("#ai-interview-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      const values = new FormData(form);
+      const result = await request("/ai-interviews/applications/" + encodeURIComponent(values.get("applicationId")) + "/invitations", { method: "POST", body: JSON.stringify({ templateKey: values.get("templateKey") }) });
+      notify(result.delivered ? "AI interview invitation emailed." : (result.error || "The invitation email was not sent."), !result.delivered);
+      await loadInterviews();
+    } catch (error) { notify(error.message, true); await loadInterviews(); }
+    finally { submit.disabled = false; }
+  });
+  $("#view-interviews").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-ai-resend], [data-ai-revoke], [data-ai-report], [data-integrity-review]");
+    if (!button) return;
+    if (button.dataset.aiReport) {
+      button.disabled = true;
+      try { await openAIInterviewReport(button.dataset.aiReport, button); }
+      catch (error) { notify(error.message, true); }
+      button.disabled = false;
+      return;
+    }
+    if (button.dataset.aiRevoke && !window.confirm("Revoke this interview invitation and any in-progress candidate session?")) return;
+    button.disabled = true;
+    try {
+      if (button.dataset.aiResend) {
+        const result = await request("/ai-interviews/invitations/" + encodeURIComponent(button.dataset.aiResend) + "/resend", { method: "POST" });
+        notify(result.delivered ? "A renewed secure interview link was emailed." : (result.error || "The invitation email was not sent."), !result.delivered);
+      } else if (button.dataset.aiRevoke) {
+        const result = await request("/ai-interviews/invitations/" + encodeURIComponent(button.dataset.aiRevoke), { method: "DELETE" });
+        notify(result.cancellationEmailSkipped ? "Invitation revoked; no cancellation email was needed because it was never sent." : result.cancellationEmailDelivered ? "AI interview invitation revoked and the candidate was emailed." : "AI interview invitation revoked; cancellation email could not be delivered.", !result.cancellationEmailDelivered && !result.cancellationEmailSkipped);
+      } else if (button.dataset.integrityReview) {
+        await request("/ai-interviews/integrity/" + encodeURIComponent(button.dataset.integrityReview), { method: "PATCH", body: JSON.stringify({ reviewStatus: "reviewed" }) });
+        notify("Integrity signal review recorded.");
+        const reportButton = $("#view-interviews [data-ai-report='" + CSS.escape(button.dataset.invitationId) + "']");
+        if (reportButton) await openAIInterviewReport(button.dataset.invitationId, reportButton);
+        return;
+      }
+      await loadInterviews();
+    } catch (error) { notify(error.message, true); await loadInterviews(); }
+    finally { button.disabled = false; }
+  });
+  $("#view-interviews").addEventListener("submit", async (event) => {
+    const form = event.target.closest("[data-ai-review-form]");
+    if (!form) return;
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      const values = new FormData(form);
+      await request("/ai-interviews/invitations/" + encodeURIComponent(form.dataset.aiReviewForm) + "/review", { method: "POST", body: JSON.stringify({ decision: values.get("decision"), note: values.get("note") }) });
+      notify("Recruiter review saved; no application status was changed automatically.");
+      const reportButton = form.closest("[data-ai-interview-card]")?.querySelector("[data-ai-report]");
+      if (reportButton) await openAIInterviewReport(reportButton.dataset.aiReport, reportButton);
+    } catch (error) { notify(error.message, true); submit.disabled = false; }
+  });
   $("#interview-form").addEventListener("submit", async (event) => { event.preventDefault(); const formElement = event.currentTarget; const body = Object.fromEntries(new FormData(formElement).entries()); body.interviewers = [{ id: body.interviewerName.toLowerCase().replace(/\W+/g, "-"), name: body.interviewerName }]; delete body.interviewerName; if (body.mode !== "in_person") { body.meetingLink = body.meetingLink; } else { body.location = body.meetingLink; delete body.meetingLink; } try { await request("/interviews", { method: "POST", body: JSON.stringify(body) }); formElement.reset(); notify("Interview scheduled."); await loadInterviews(); loadOverview(); } catch (error) { notify(error.message, true); } });
 
   function updateEmailTemplate() { const selected = state.emailTemplates.find((item) => item.key === $("#email-template").value); if (!selected) return; $("#email-subject").value = selected.subject; $("#email-body").value = selected.body; $("#email-preview").hidden = true; }

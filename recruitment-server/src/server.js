@@ -13,6 +13,8 @@ import { interviewsRouter } from "./routes/interviews.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { emailsRouter } from "./routes/emails.js";
 import { publicCareersRouter } from "./routes/public-careers.js";
+import { aiInterviewPublicRouter } from "./ai-interviews/routes/public-routes.js";
+import { aiInterviewRecruiterRouter } from "./ai-interviews/routes/recruiter-routes.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -30,6 +32,7 @@ app.use(cors({ origin: (origin, callback) => {
 app.use(express.json({ limit: "1mb" }));
 app.use("/api/recruitment/health", healthRouter);
 app.use("/api/recruitment/public", publicCareersRouter);
+app.use("/api/recruitment/public/ai-interviews", aiInterviewPublicRouter);
 app.use("/api/recruitment", requireRecruiter);
 app.use("/api/recruitment/dashboard", dashboardRouter);
 app.use("/api/recruitment/jobs", jobsRouter);
@@ -38,6 +41,7 @@ app.use("/api/recruitment/applications", applicationsRouter);
 app.use("/api/recruitment/screening", screeningRouter);
 app.use("/api/recruitment/interviews", interviewsRouter);
 app.use("/api/recruitment/emails", emailsRouter);
+app.use("/api/recruitment/ai-interviews", aiInterviewRecruiterRouter);
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
 // Express serves the local HTML app from the repository root, which also
 // contains the recruitment service. Never let static middleware expose the

@@ -13,6 +13,10 @@ import { RecruitmentActivity } from "../models/activity.js";
 import { requireAdminOrExecutive, requireAdmin } from "../middleware/auth.js";
 import { analyzeJob } from "../services/hiremind-client.js";
 import { logActivity } from "../services/activity.js";
+import { AIInterviewInvitation } from "../ai-interviews/models/invitation.js";
+import { AIInterviewSession } from "../ai-interviews/models/session.js";
+import { AIInterviewReport } from "../ai-interviews/models/report.js";
+import { AIInterviewIntegrityEvent } from "../ai-interviews/models/integrity-event.js";
 
 export const jobsRouter = Router();
 const safeArray = (value) => Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
@@ -60,6 +64,12 @@ jobsRouter.delete("/:jobId", requireAdmin, async (req, res, next) => { try {
     : [];
   const screeningRows = await ScreeningResult.find({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] }).select("_id resumeFile.storageKey").lean();
   const interviewRows = await Interview.find({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] }).select("_id").lean();
+  const aiInvitationRows = await AIInterviewInvitation.find({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] }).select("_id").lean();
+  const aiInvitationIds = aiInvitationRows.map((item) => item._id);
+  const aiSessionRows = aiInvitationIds.length ? await AIInterviewSession.find({ organizationId: req.actor.organizationId, invitationId: { $in: aiInvitationIds } }).select("_id").lean() : [];
+  const aiSessionIds = aiSessionRows.map((item) => item._id);
+  const aiIntegrityRows = aiInvitationIds.length ? await AIInterviewIntegrityEvent.find({ organizationId: req.actor.organizationId, invitationId: { $in: aiInvitationIds } }).select("_id").lean() : [];
+  const aiIntegrityIds = aiIntegrityRows.map((item) => String(item._id));
   const screeningIds = screeningRows.map((item) => String(item._id));
   const interviewIds = interviewRows.map((item) => String(item._id));
   const resumeKeys = [...new Set([
@@ -93,9 +103,13 @@ jobsRouter.delete("/:jobId", requireAdmin, async (req, res, next) => { try {
     try {
       await session.withTransaction(async () => {
         await EmailLog.deleteMany({ organizationId: req.actor.organizationId, applicationId: { $in: applicationIds } }, { session });
+        await AIInterviewIntegrityEvent.deleteMany({ organizationId: req.actor.organizationId, $or: [{ invitationId: { $in: aiInvitationIds } }, { sessionId: { $in: aiSessionIds } }] }, { session });
+        await AIInterviewReport.deleteMany({ organizationId: req.actor.organizationId, $or: [{ invitationId: { $in: aiInvitationIds } }, { applicationId: { $in: applicationIds } }] }, { session });
+        await AIInterviewSession.deleteMany({ organizationId: req.actor.organizationId, $or: [{ invitationId: { $in: aiInvitationIds } }, { applicationId: { $in: applicationIds } }] }, { session });
+        await AIInterviewInvitation.deleteMany({ organizationId: req.actor.organizationId, $or: [{ _id: { $in: aiInvitationIds } }, { applicationId: { $in: applicationIds } }] }, { session });
         await Interview.deleteMany({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] }, { session });
         await ScreeningResult.deleteMany({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] }, { session });
-        await RecruitmentActivity.deleteMany({ organizationId: req.actor.organizationId, $or: [{ entityType: "job", entityId: String(job._id) }, { entityType: "application", entityId: { $in: applicationIds.map(String) } }, { entityType: "screening", entityId: { $in: screeningIds } }, { entityType: "interview", entityId: { $in: interviewIds } }] }, { session });
+        await RecruitmentActivity.deleteMany({ organizationId: req.actor.organizationId, $or: [{ entityType: "job", entityId: String(job._id) }, { entityType: "application", entityId: { $in: applicationIds.map(String) } }, { entityType: "screening", entityId: { $in: screeningIds } }, { entityType: "interview", entityId: { $in: interviewIds } }, { entityType: "ai_interview", entityId: { $in: aiInvitationIds.map(String) } }, { entityType: "ai_interview_integrity", entityId: { $in: aiIntegrityIds } }] }, { session });
         await Application.deleteMany({ organizationId: req.actor.organizationId, jobId: job._id }, { session });
         await removeOrphanedCandidates(session);
         const deleted = await Job.deleteOne(filter, { session });
@@ -107,9 +121,13 @@ jobsRouter.delete("/:jobId", requireAdmin, async (req, res, next) => { try {
     // in dependency order and delete the job last so failures never leave a
     // visible job whose application data was only partly removed.
     await EmailLog.deleteMany({ organizationId: req.actor.organizationId, applicationId: { $in: applicationIds } });
+    await AIInterviewIntegrityEvent.deleteMany({ organizationId: req.actor.organizationId, $or: [{ invitationId: { $in: aiInvitationIds } }, { sessionId: { $in: aiSessionIds } }] });
+    await AIInterviewReport.deleteMany({ organizationId: req.actor.organizationId, $or: [{ invitationId: { $in: aiInvitationIds } }, { applicationId: { $in: applicationIds } }] });
+    await AIInterviewSession.deleteMany({ organizationId: req.actor.organizationId, $or: [{ invitationId: { $in: aiInvitationIds } }, { applicationId: { $in: applicationIds } }] });
+    await AIInterviewInvitation.deleteMany({ organizationId: req.actor.organizationId, $or: [{ _id: { $in: aiInvitationIds } }, { applicationId: { $in: applicationIds } }] });
     await Interview.deleteMany({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] });
     await ScreeningResult.deleteMany({ organizationId: req.actor.organizationId, $or: [{ jobId: job._id }, { applicationId: { $in: applicationIds } }] });
-    await RecruitmentActivity.deleteMany({ organizationId: req.actor.organizationId, $or: [{ entityType: "job", entityId: String(job._id) }, { entityType: "application", entityId: { $in: applicationIds.map(String) } }, { entityType: "screening", entityId: { $in: screeningIds } }, { entityType: "interview", entityId: { $in: interviewIds } }] });
+    await RecruitmentActivity.deleteMany({ organizationId: req.actor.organizationId, $or: [{ entityType: "job", entityId: String(job._id) }, { entityType: "application", entityId: { $in: applicationIds.map(String) } }, { entityType: "screening", entityId: { $in: screeningIds } }, { entityType: "interview", entityId: { $in: interviewIds } }, { entityType: "ai_interview", entityId: { $in: aiInvitationIds.map(String) } }, { entityType: "ai_interview_integrity", entityId: { $in: aiIntegrityIds } }] });
     await Application.deleteMany({ organizationId: req.actor.organizationId, jobId: job._id });
     await removeOrphanedCandidates();
     const deletion = await Job.deleteOne(filter);
