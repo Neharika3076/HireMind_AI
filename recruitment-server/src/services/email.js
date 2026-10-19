@@ -1,11 +1,69 @@
+
 import nodemailer from "nodemailer";
 import { config } from "../config.js";
 
-export const emailConfigured = Boolean(config.smtp.host && config.smtp.user && config.smtp.pass);
+export const emailConfigured = Boolean(
+  config.smtp.host &&
+  config.smtp.user &&
+  config.smtp.pass &&
+  config.smtp.from
+);
+
+const transporter = emailConfigured
+  ? nodemailer.createTransport({
+      host: config.smtp.host,
+      port: config.smtp.port,
+      secure: config.smtp.port === 465,
+      auth: {
+        user: config.smtp.user,
+        pass: config.smtp.pass,
+      },
+    })
+  : null;
+
+export async function verifyEmailConnection() {
+  if (!transporter) {
+    throw new Error(
+      "SMTP configuration missing. Check SMTP_HOST, SMTP_USER, SMTP_PASS and SMTP_FROM in recruitment-server/.env"
+    );
+  }
+
+  await transporter.verify();
+  return true;
+}
 
 export async function sendEmail({ to, subject, text }) {
-  if (!emailConfigured) throw new Error("Email delivery is not configured. Add SMTP settings to the recruitment server environment.");
-  const transporter = nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port, secure: config.smtp.port === 465, auth: { user: config.smtp.user, pass: config.smtp.pass } });
-  const result = await transporter.sendMail({ from: config.smtp.from, to, subject, text });
-  return { messageId: result.messageId };
+  if (!transporter) {
+    throw new Error(
+      "SMTP is not configured. Check recruitment-server/.env"
+    );
+  }
+
+  try {
+    const result = await transporter.sendMail({
+      from: config.smtp.from,
+      to,
+      subject,
+      text,
+    });
+
+    return { messageId: result.messageId };
+  } catch (error) {
+    console.error("Nodemailer delivery failure:", {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+    });
+
+    throw error;
+  }
 }
+transporter.verify()
+  .then(() => console.log("Gmail SMTP authentication successful"))
+  .catch((err) => console.error("SMTP verification failed:", {
+    code: err.code,
+    responseCode: err.responseCode,
+    message: err.message,
+  }));

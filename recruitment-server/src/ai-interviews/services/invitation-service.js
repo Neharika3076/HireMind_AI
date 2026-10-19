@@ -54,7 +54,15 @@ async function deliverInvitation({ invitation, candidate, job }) {
     invitation.status = "email_failed";
     invitation.audit.push({ action: "invitation_email_failed", actor: invitation.invitedBy });
     await invitation.save();
-    console.error("AI interview invitation email delivery failed:", error.name);
+    console.error("AI interview invitation email delivery failed:", {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      command: error?.command,
+      response: error?.response,
+      responseCode: error?.responseCode,
+      stack: error?.stack,
+    });
     return { delivered: false, invitation: safeStatus(invitation), error: "The interview invitation could not be emailed. Check SMTP settings and resend; the link was not marked as sent." };
   }
   invitation.emailStatus = "sent";
@@ -86,12 +94,14 @@ export async function createInvitation(actor, applicationId, { templateKey = "st
   const days = Math.min(interviewConfig.maxInviteDays, Math.max(1, Number(expiresInDays) || interviewConfig.defaultInviteDays));
   const now = new Date();
   let invitation;
-  try { invitation = await AIInterviewInvitation.create({
-    organizationId: actor.organizationId, applicationId: application._id, jobId: job._id, candidateId: candidate._id,
-    templateId: template._id, templateSnapshot: { key: template.key, name: template.name, questionCount: template.questionCount, maxFollowUps: template.maxFollowUps, rubricVersion: template.rubricVersion, criteria: template.criteria },
-    tokenHash: sha256(randomSecret()), expiresAt: new Date(now.getTime() + days * 86400000), retainUntil: new Date(now.getTime() + (days + interviewConfig.retentionDays) * 86400000),
-    status: "email_failed", emailStatus: "pending", invitedBy: { id: actor.id, name: actor.name }, audit: [{ action: "created", actor: { id: actor.id, name: actor.name } }]
-  }); } catch (error) {
+  try {
+    invitation = await AIInterviewInvitation.create({
+      organizationId: actor.organizationId, applicationId: application._id, jobId: job._id, candidateId: candidate._id,
+      templateId: template._id, templateSnapshot: { key: template.key, name: template.name, questionCount: template.questionCount, maxFollowUps: template.maxFollowUps, rubricVersion: template.rubricVersion, criteria: template.criteria },
+      tokenHash: sha256(randomSecret()), expiresAt: new Date(now.getTime() + days * 86400000), retainUntil: new Date(now.getTime() + (days + interviewConfig.retentionDays) * 86400000),
+      status: "email_failed", emailStatus: "pending", invitedBy: { id: actor.id, name: actor.name }, audit: [{ action: "created", actor: { id: actor.id, name: actor.name } }]
+    });
+  } catch (error) {
     if (error.code === 11000) throw badRequest("An AI interview invitation was created for this application. Refresh the Screening view.", 409);
     throw error;
   }
@@ -134,6 +144,7 @@ export async function resendInvitation(actor, invitationId) {
   await invitation.save();
   return deliverInvitation({ invitation, candidate, job });
 }
+
 
 export async function revokeInvitation(actor, invitationId) {
   const { invitation, candidate, job } = await getInvitationRelations(actor, invitationId);

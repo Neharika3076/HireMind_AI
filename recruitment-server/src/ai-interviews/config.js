@@ -14,3 +14,11 @@ export const interviewConfig = {
 
 export const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
 export const randomSecret = () => crypto.randomBytes(32).toString("base64url");
+
+export const smtpConfig = {
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  user: process.env.SMTP_USER,
+  pass: process.env.SMTP_PASS,
+  from: process.env.SMTP_FROM || "talent@example.com"
+};
