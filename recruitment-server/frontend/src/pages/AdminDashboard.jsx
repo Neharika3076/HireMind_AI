@@ -1,272 +1,234 @@
 
-import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "../styles/Dashboard.css";
+import "../styles/OrganizationPages.css";
 
-const initialMembers = [
-  { id: "1", fullName: "Aarav Sharma", email: "aarav@example.com", role: "employee", department: "Engineering", status: "Active" },
-  { id: "2", fullName: "Meera Kapoor", email: "meera@example.com", role: "recruiter", department: "Talent", status: "Active" },
-  { id: "3", fullName: "Rohan Mehta", email: "rohan@example.com", role: "employee", department: "Design", status: "Active" },
-  { id: "4", fullName: "Isha Verma", email: "isha@example.com", role: "employee", department: "Marketing", status: "Pending" },
-];
-
-function StatCard({ label, value, note, icon, color }) {
-  return (
-    <article className="stat-card">
-      <div className="stat-card-top">
-        <span className="stat-card-label">{label}</span>
-        <span className={`stat-icon ${color}`}>{icon}</span>
-      </div>
-      <div className="stat-card-value">{value}</div>
-      <div className="stat-card-delta">{note}</div>
-    </article>
-  );
-}
+const API = "http://localhost:5000/api";
 
 export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
-  const [members, setMembers] = useState(initialMembers);
-  const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [user, setUser] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const hrCount = members.filter((member) => member.role === "hr").length;
+  const executiveCount = members.filter((member) => member.role === "recruiter").length;
+  const managerCount = members.filter((member) => member.role === "manager").length;
+  const employeeCount = members.filter((member) => member.role === "employee").length;
 
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    role: "employee",
-    department: "",
-  });
+  useEffect(() => {
+    let active = true;
 
-  // Demo user until the authenticated profile is loaded from the API.
-  const user = {
-    fullName: "Workspace Admin",
-    email: "admin@example.com",
-  };
+    async function getJson(path) {
+      const response = await fetch(`${API}${path}`, {
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
 
-  const filteredMembers = useMemo(() => {
-    const query = search.toLowerCase();
-    return members.filter((member) =>
-      [member.fullName, member.email, member.role, member.department]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [members, search]);
+      if (!response.ok) {
+        throw new Error(data.message || `Unable to load ${path}`);
+      }
 
-  function updateForm(event) {
-    setForm((current) => ({
-      ...current,
-      [event.target.name]: event.target.value,
-    }));
-  }
-
-  function addDemoMember(event) {
-    event.preventDefault();
-    setNotice("");
-
-    if (!form.fullName.trim() || !form.email.trim()) {
-      setNotice("Enter the member's name and email.");
-      return;
+      return data;
     }
 
-    if (members.some((m) => m.email.toLowerCase() === form.email.trim().toLowerCase())) {
-      setNotice("This email is already in the demo directory.");
-      return;
+    async function loadDashboard() {
+      try {
+        const profile = await getJson("/auth/me");
+        if (!active) return;
+        setUser(profile.user);
+
+        const results = await Promise.allSettled([
+          getJson("/users"),
+          getJson("/departments"),
+          getJson("/tasks/my"),
+        ]);
+
+        if (!active) return;
+
+        if (results[0].status === "fulfilled") {
+          setMembers(results[0].value.users || []);
+        }
+
+        if (results[1].status === "fulfilled") {
+          setDepartments(results[1].value.departments || []);
+        }
+
+        if (results[2].status === "fulfilled") {
+          setTasks(results[2].value.tasks || []);
+        }
+      } catch (err) {
+        if (active) setError(err.message);
+      } finally {
+        if (active) setLoading(false);
+      }
     }
 
-    setMembers((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
-        role: form.role,
-        department: form.department.trim() || "Unassigned",
-        status: "Active",
-      },
-    ]);
+    loadDashboard();
 
-    setForm({ fullName: "", email: "", role: "employee", department: "" });
-    setShowForm(false);
-    setActiveTab("directory");
-    setNotice("Demo member added. This has not been saved to MongoDB.");
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (loading) {
+    return <main className="workday-main"><p>Loading admin workspace...</p></main>;
   }
-
-  const departments = new Set(members.map((m) => m.department)).size;
 
   return (
     <div className="dashboard-shell">
-      <Sidebar user={user} role="admin" />
+      <Sidebar user={user} role={user?.role || "admin"} />
 
-      <main className="workday-main">
-        <header className="dashboard-header">
+      <main className="workday-main org-page dashboard-page admin-dashboard-page">
+        <header className="org-page-header">
           <div>
-            <div className="eyebrow">KREW / ADMINISTRATION</div>
-            <h1>Admin Command Center<span>.</span></h1>
-            <p>Manage your people, organization, and hiring workspace.</p>
+            <span className="org-eyebrow">ADMIN WORKSPACE</span>
+            <h1>
+              Welcome, <span>{user?.fullName || "Admin"}.</span>
+            </h1>
+            <p>Manage your organization and access your own employee workspace.</p>
           </div>
-          <span className="role-badge">✦ ADMIN CONSOLE</span>
+          <div className="admin-dashboard-date">
+            <span>ORGANIZATION OVERVIEW</span>
+            <strong>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</strong>
+          </div>
         </header>
 
-        <div className="dashboard-toolbar">
-          <div className="dashboard-tabs">
-            <button
-              className={activeTab === "overview" ? "dash-tab active" : "dash-tab"}
-              onClick={() => setActiveTab("overview")}
-            >
-              Overview
-            </button>
-            <button
-              className={activeTab === "directory" ? "dash-tab active" : "dash-tab"}
-              onClick={() => setActiveTab("directory")}
-            >
-              Directory
-            </button>
-          </div>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            + Add member
-          </button>
-        </div>
-
-        {notice && <div className="notice-banner">{notice}</div>}
-
-        {activeTab === "overview" && (
-          <>
-            <section className="welcome-panel">
-              <div>
-                <span className="welcome-kicker">YOUR WORKSPACE AT A GLANCE</span>
-                <h2>Good to have you here, {user.fullName.split(" ")[0]}.</h2>
-                <p>Your team's people and hiring activity, in one place.</p>
-              </div>
-              <div className="welcome-orb">K</div>
-            </section>
-
-            <section className="stat-cards-grid">
-              <StatCard label="ORGANIZATIONS" value="1" note="Current workspace" icon="▦" color="violet" />
-              <StatCard label="ACTIVE PROJECTS" value="8" note="Demo statistic" icon="◈" color="blue" />
-              <StatCard label="TEAM MEMBERS" value={members.length} note="Listed in this demo" icon="♙" color="green" />
-              <StatCard label="DEPARTMENTS" value={departments} note="Across demo members" icon="⌘" color="orange" />
-            </section>
-
-            <section className="content-grid">
-              <article className="dash-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span className="eyebrow">GET THINGS DONE</span>
-                    <h3>Quick actions</h3>
-                  </div>
-                  <span className="panel-symbol">↗</span>
-                </div>
-                <button className="action-row" onClick={() => setShowForm(true)}>
-                  <span className="action-icon">＋</span>
-                  <span><strong>Add a team member</strong><small>Create an employee or recruiter entry</small></span>
-                  <span className="action-arrow">→</span>
-                </button>
-                <button className="action-row" onClick={() => setActiveTab("directory")}>
-                  <span className="action-icon">♙</span>
-                  <span><strong>View team directory</strong><small>Search your people list</small></span>
-                  <span className="action-arrow">→</span>
-                </button>
-              </article>
-
-              <article className="dash-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span className="eyebrow">WORKSPACE STATUS</span>
-                    <h3>Everything in one place</h3>
-                  </div>
-                  <span className="status-pill">● Active</span>
-                </div>
-                <div className="workspace-summary">
-                  <div className="summary-mark">K</div>
-                  <div><strong>Krew Workspace</strong><small>Organization overview</small></div>
-                </div>
-                <div className="summary-line"><span>Team directory</span><strong>{members.length} members</strong></div>
-                <div className="summary-line"><span>Departments</span><strong>{departments}</strong></div>
-                <div className="summary-line"><span>Workspace status</span><strong className="text-green">Operational</strong></div>
-              </article>
-            </section>
-
-            <section className="dash-panel">
-              <div className="panel-heading">
-                <div><span className="eyebrow">YOUR PEOPLE</span><h3>Recently added members</h3></div>
-                <button className="btn btn-ghost" onClick={() => setActiveTab("directory")}>View directory →</button>
-              </div>
-              <MemberTable members={members.slice(0, 4)} />
-            </section>
-          </>
-        )}
-
-        {activeTab === "directory" && (
-          <section className="dash-panel">
-            <div className="panel-heading directory-heading">
-              <div><span className="eyebrow">PEOPLE MANAGEMENT</span><h3>Member directory</h3><p>Search and review your workspace members.</p></div>
-              <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add member</button>
-            </div>
-            <div className="directory-tools">
-              <input
-                className="dashboard-input search-input"
-                placeholder="Search name, email, role, department..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <span className="muted-text">{filteredMembers.length} results</span>
-            </div>
-            <MemberTable members={filteredMembers} />
-          </section>
-        )}
-
-        {showForm && (
-          <div className="modal-backdrop" onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowForm(false);
-          }}>
-            <section className="member-modal">
-              <div className="panel-heading">
-                <div><span className="eyebrow">TEAM MANAGEMENT</span><h3>Add a member</h3></div>
-                <button className="icon-button" onClick={() => setShowForm(false)}>×</button>
-              </div>
-              <p className="muted-text">UI preview only. We'll connect this form to your employee API later.</p>
-              <form onSubmit={addDemoMember} className="member-form">
-                <label>Full name<input className="dashboard-input" name="fullName" value={form.fullName} onChange={updateForm} placeholder="e.g. Aarav Sharma" required /></label>
-                <label>Work email<input className="dashboard-input" name="email" type="email" value={form.email} onChange={updateForm} placeholder="name@company.com" required /></label>
-                <label>Role<select className="dashboard-input" name="role" value={form.role} onChange={updateForm}><option value="employee">Employee</option><option value="recruiter">Recruiter</option></select></label>
-                <label>Department<input className="dashboard-input" name="department" value={form.department} onChange={updateForm} placeholder="e.g. Engineering" /></label>
-                <div className="modal-actions">
-                  <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Add demo member</button>
-                </div>
-              </form>
-            </section>
+        {error && (
+          <div className="org-feedback" role="alert">
+            {error}
           </div>
         )}
+
+        <section className="org-stats-grid">
+          <article className="org-stat-card">
+            <span>ALL TEAM MEMBERS</span>
+            <strong>{members.length}</strong>
+            <Link to="/admin/directory">View directory →</Link>
+          </article>
+
+          <article className="org-stat-card">
+            <span>HR</span>
+            <strong>{hrCount}</strong>
+            <Link to="/admin/directory">View HR team →</Link>
+          </article>
+
+          <article className="org-stat-card">
+            <span>EXECUTIVES</span>
+            <strong>{executiveCount}</strong>
+            <Link to="/admin/directory">View executives →</Link>
+          </article>
+
+          <article className="org-stat-card">
+            <span>MANAGERS</span>
+            <strong>{managerCount}</strong>
+            <Link to="/admin/directory">View managers →</Link>
+          </article>
+
+          <article className="org-stat-card">
+            <span>EMPLOYEES</span>
+            <strong>{employeeCount}</strong>
+            <Link to="/admin/directory">View employees →</Link>
+          </article>
+
+          <article className="org-stat-card">
+            <span>DEPARTMENTS</span>
+            <strong>{departments.length}</strong>
+            <Link to="/admin/add-member">Manage departments →</Link>
+          </article>
+
+          <article className="org-stat-card">
+            <span>YOUR TASKS</span>
+            <strong>{tasks.length}</strong>
+            <Link to="/admin/my-tasks">Open personal tasks →</Link>
+          </article>
+        </section>
+
+        <section className="org-card">
+          <div className="org-section-heading">
+            <div>
+              <span className="org-eyebrow">ORGANIZATION MANAGEMENT</span>
+              <h2>Your organization at a glance</h2>
+              <p className="admin-section-copy">Build your team, keep daily operations moving, and review hiring in one place.</p>
+            </div>
+          </div>
+
+          <div className="org-form-grid">
+            <Link className="org-card" to="/admin/add-member">
+              <span className="admin-action-icon">＋</span>
+              <span className="admin-action-label">PEOPLE</span>
+              <h3>Add a team member</h3>
+              <p>Add HR, executives, and employees to the right department.</p>
+            </Link>
+
+            <Link className="org-card" to="/admin/directory">
+              <span className="admin-action-icon">♙</span>
+              <span className="admin-action-label">ORGANIZATION</span>
+              <h3>Company directory</h3>
+              <p>Browse people by role and department.</p>
+            </Link>
+
+            <Link className="org-card" to="/admin/attendance">
+              <span className="admin-action-icon">▦</span>
+              <span className="admin-action-label">WORKFORCE</span>
+              <h3>Attendance</h3>
+              <p>Review attendance across your organization.</p>
+            </Link>
+
+            <Link className="org-card" to="/admin/tasks">
+              <span className="admin-action-icon">▤</span>
+              <span className="admin-action-label">OPERATIONS</span>
+              <h3>Team tasks</h3>
+              <p>Assign work and track team progress.</p>
+            </Link>
+
+            <Link className="org-card" to="/admin/recruitment">
+              <span className="admin-action-icon">◎</span>
+              <span className="admin-action-label">HIRING</span>
+              <h3>Recruitment</h3>
+              <p>Manage open roles, applicants, and interviews.</p>
+            </Link>
+          </div>
+        </section>
+
+        <section className="org-card">
+          <div className="org-section-heading">
+            <div>
+              <span className="org-eyebrow">YOUR EMPLOYEE WORKSPACE</span>
+              <h2>Your own profile and work</h2>
+            </div>
+            <Link to="/admin/my-dashboard">Open my workspace →</Link>
+          </div>
+
+          <div className="org-member-details">
+            <span><strong>Name:</strong> {user?.fullName || "—"}</span>
+            <span><strong>Email:</strong> {user?.email || "—"}</span>
+            <span><strong>Employee ID:</strong> {user?.employeeId || "Not assigned"}</span>
+            <span>
+              <strong>Department:</strong>{" "}
+              {user?.department?.name || "Not assigned"}
+            </span>
+          </div>
+
+          <div className="org-form-actions">
+            <Link className="org-primary-btn" to="/admin/my-dashboard">
+              My Dashboard
+            </Link>
+            <Link className="org-secondary-btn" to="/admin/my-tasks">
+              My Tasks
+            </Link>
+            <Link className="org-secondary-btn" to="/admin/my-attendance">
+              My Attendance
+            </Link>
+            <Link className="org-secondary-btn" to="/admin/my-payroll">
+              My Payroll
+            </Link>
+          </div>
+        </section>
       </main>
-    </div>
-  );
-}
-
-function MemberTable({ members }) {
-  if (!members.length) {
-    return <div className="empty-state">No members found. Try another search.</div>;
-  }
-
-  return (
-    <div className="data-table-wrap">
-      <table className="data-table">
-        <thead><tr><th>Member</th><th>Role</th><th>Department</th><th>Status</th><th>Profile</th></tr></thead>
-        <tbody>
-          {members.map((member) => (
-            <tr key={member.id}>
-              <td><div className="table-person"><span className="table-avatar">{member.fullName.charAt(0)}</span><span><strong>{member.fullName}</strong><small>{member.email}</small></span></div></td>
-              <td><span className={`role-chip ${member.role}`}>{member.role}</span></td>
-              <td>{member.department}</td>
-              <td><span className={`member-status ${member.status.toLowerCase()}`}>{member.status}</span></td>
-              <td><span className="muted-text">Workspace member</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

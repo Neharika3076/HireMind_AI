@@ -2,6 +2,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const Organization = require("../models/Organization");
+const Department = require("../models/Department");
 const User = require("../models/User");
 
 const router = express.Router();
@@ -9,6 +10,7 @@ const router = express.Router();
 // POST /api/organizations/register
 router.post("/register", async (req, res) => {
   let organization;
+  let admin;
 
   try {
     const {
@@ -71,12 +73,19 @@ router.post("/register", async (req, res) => {
       organizationCode: cleanCode
     });
 
-    await User.create({
+    admin = await User.create({
       fullName: cleanAdminName,
       email: cleanEmail,
       password: hashedPassword,
       role: "admin",
       organization: organization._id
+    });
+
+    await Department.create({
+      name: "HR & Hiring",
+      description: "Human resources and recruitment",
+      organization: organization._id,
+      createdBy: admin._id
     });
 
     return res.status(201).json({
@@ -86,9 +95,16 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
     // Basic cleanup if the admin account fails after organization creation.
+    if (admin?._id) {
+      await User.deleteOne({ _id: admin._id }).catch((cleanupError) => {
+        console.error("Organization registration admin cleanup error:", cleanupError);
+      });
+    }
     if (organization?._id) {
       await Organization.deleteOne({ _id: organization._id })
-        .catch(() => {});
+        .catch((cleanupError) => {
+          console.error("Organization registration cleanup error:", cleanupError);
+        });
     }
 
     if (error.code === 11000) {

@@ -2,19 +2,57 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-const navigation = [
-  { label: "Dashboard", path: "dashboard", icon: "⌂", roles: ["admin", "employee", "recruiter"] },
-  { label: "Directory", path: "directory", icon: "♙♙", roles: ["admin"] },
-  { label: "Attendance", path: "attendance", icon: "▦", roles: ["admin", "employee"] },
-  { label: "Tasks & Projects", path: "tasks", icon: "▤", roles: ["admin", "employee", "recruiter"] },
-  { label: "Recruitment", path: "recruitment", icon: "◎", roles: ["admin", "recruiter"] },
-  { label: "Add Member", path: "add-member", icon: "+", roles: ["admin"] },
-  { label: "Payroll", path: "payroll", icon: "＄", roles: ["admin", "employee"] },
-  { label: "Performance", path: "performance", icon: "↗", roles: ["admin"] },
-];
+const navigation = {
+  employee: [
+    { label: "Employee Dashboard", path: "/employee/dashboard", icon: "⌂" },
+    { label: "Tasks", path: "/employee/tasks", icon: "▤" },
+    { label: "Attendance", path: "/employee/attendance", icon: "▦" },
+    { label: "Payroll", path: "/employee/payroll", icon: "＄" },
+  ],
+  admin: [
+    { label: "Admin Dashboard", path: "/admin/dashboard", icon: "⌂" },
+    { label: "My Employee Dashboard", path: "/admin/my-dashboard", icon: "♙" },
+    { label: "Tasks", path: "/admin/tasks", icon: "▤" },
+    { label: "Attendance", path: "/admin/attendance", icon: "▦" },
+    { label: "Payroll", path: "/admin/payroll", icon: "＄" },
+    { label: "Directory", path: "/admin/directory", icon: "♙♙" },
+    { label: "Add Member", path: "/admin/add-member", icon: "+" },
+    { label: "Recruitment", path: "/admin/recruitment", icon: "◎" },
+    { label: "Performance", path: "/admin/performance", icon: "↗" },
+  ],
+  recruiter: [
+    { label: "Dashboard", path: "/recruiter/dashboard", icon: "⌂" },
+    { label: "Tasks", path: "/recruiter/tasks", icon: "▤" },
+    { label: "Attendance", path: "/recruiter/attendance", icon: "▦" },
+    { label: "Payroll", path: "/recruiter/payroll", icon: "＄" },
+    { label: "Recruitment", path: "/recruiter/recruitment", icon: "◎" },
+  ],
+  hr: [
+    { label: "HR Dashboard", path: "/hr/dashboard", icon: "⌂" },
+    { label: "Tasks", path: "/hr/tasks", icon: "▤" },
+    { label: "Attendance & Leave", path: "/hr/attendance", icon: "▦" },
+    { label: "Payroll", path: "/hr/payroll", icon: "＄" },
+    { label: "Recruitment", path: "/hr/recruitment", icon: "◎" },
+  ],
+  manager: [
+    { label: "Manager Dashboard", path: "/manager/dashboard", icon: "⌂" },
+    { label: "Tasks", path: "/manager/tasks", icon: "▤" },
+    { label: "Attendance", path: "/manager/attendance", icon: "▦" },
+    { label: "Payroll", path: "/manager/payroll", icon: "＄" },
+  ],
+};
 
-export default function DashboardSidebar({ user, role }) {
+const roleLabels = {
+  admin: "Admin",
+  recruiter: "Executive",
+  hr: "HR",
+  manager: "Manager",
+  employee: "Employee",
+};
+
+export default function Sidebar({ user, role }) {
   const navigate = useNavigate();
+  const links = navigation[role] || navigation.employee;
 
   async function handleLogout() {
     try {
@@ -23,7 +61,7 @@ export default function DashboardSidebar({ user, role }) {
         credentials: "include",
       });
     } catch (error) {
-      console.error("Logout request failed:", error);
+      console.error("Logout failed:", error);
     } finally {
       navigate("/login", { replace: true });
     }
@@ -43,7 +81,7 @@ export default function DashboardSidebar({ user, role }) {
         </div>
         <div className="workday-user-meta">
           <strong>{user?.fullName || "Workspace User"}</strong>
-          <span>{role}</span>
+          <span>{roleLabels[role] || role || "Employee"}</span>
           <small>{user?.email || ""}</small>
         </div>
       </div>
@@ -51,20 +89,18 @@ export default function DashboardSidebar({ user, role }) {
       <div className="sidebar-section-label">WORKSPACE</div>
 
       <nav className="workday-nav">
-        {navigation
-          .filter((item) => item.roles.includes(role))
-          .map((item) => (
-            <NavLink
-              key={item.path}
-              to={`/${role === "admin" ? "admin" : role === "recruiter" ? "recruiter" : "employee"}/${item.path}`}
-              className={({ isActive }) =>
-                `workday-nav-item ${isActive ? "active" : ""}`
-              }
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+        {links.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `workday-nav-item ${isActive ? "active" : ""}`
+            }
+          >
+            <span className="nav-icon">{item.icon}</span>
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
       </nav>
 
       <div className="sidebar-bottom">

@@ -9,13 +9,13 @@ export function requireRecruiter(req, res, next) {
   const role = req.header("x-ems-user-role");
   const organizationId = req.header("x-ems-organization-id");
   if (!id || !role || !organizationId) return res.status(401).json({ error: "Sign in through the EMS to access recruitment data." });
-  if (!["admin", "executive", "manager"].includes(role)) return res.status(403).json({ error: "Recruitment access is limited to authorized hiring staff." });
+  if (!["admin", "executive", "manager", "hr"].includes(role)) return res.status(403).json({ error: "Recruitment access is limited to authorized hiring staff." });
   req.actor = { id, name, role, organizationId };
   next();
 }
 
 export const requireAdminOrExecutive = (req, res, next) => {
-  if (!["admin", "executive"].includes(req.actor.role)) return res.status(403).json({ error: "This action requires an administrator or executive." });
+  if (!["admin", "executive", "hr"].includes(req.actor.role)) return res.status(403).json({ error: "This action requires an administrator, HR, or executive." });
   next();
 };
 

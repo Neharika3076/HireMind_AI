@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./AuthPages.css";
@@ -38,19 +39,37 @@ export default function Login() {
 
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to sign in. Please check your credentials.");
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.message ||
+            "Unable to sign in. Please check your credentials."
+        );
       }
 
-      // The backend returns the appropriate dashboard path for the user's role.
-      if (data.dashboardPath) {
-        navigate(data.dashboardPath);
-      } else {
-        navigate("/dashboard");
+      // Prefer the dashboard path returned by the backend.
+      const role = data.user?.role;
+
+      const dashboardPaths = {
+        admin: "/admin/dashboard",
+        employee: "/employee/dashboard",
+        recruiter: "/recruiter/dashboard",
+        hr: "/hr/dashboard",
+        manager: "/manager/dashboard",
+      };
+
+      const destination =
+        data.dashboardPath || dashboardPaths[role];
+
+      if (!destination) {
+        throw new Error("Your account has an unsupported role.");
       }
+
+      navigate(destination, { replace: true });
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Unable to connect to the server. Make sure your backend is running.");
+        setError(
+          "Unable to connect to the server. Make sure your backend is running."
+        );
       } else {
         setError(err.message || "Something went wrong. Please try again.");
       }

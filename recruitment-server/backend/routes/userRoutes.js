@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
+const Department = require("../models/Department");
 const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
@@ -25,7 +26,7 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = await User.find({
       organization: req.user.organization,
-    }).select("fullName email employeeId role createdAt");
+    }).select("fullName email employeeId role designation position department manager status organization createdAt").populate("department", "name description").populate("manager", "fullName");
 
     return res.json({ success: true, users });
   } catch (error) {
@@ -38,10 +39,10 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/users
-// Admin: create an employee or recruiter account.
+// Admin: create an organization account in the reporting hierarchy.
 router.post("/", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { fullName, email, role } = req.body;
+    const { fullName, email, role = "employee", password, department, designation = "", position = "", manager = "" } = req.body;
 
     if (
       typeof fullName !== "string" ||
@@ -55,10 +56,10 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
       });
     }
 
-    if (!["employee", "recruiter"].includes(role)) {
+    if (!["employee", "recruiter", "manager", "hr", "admin"].includes(role)) {
       return res.status(400).json({
         success: false,
-        message: "Role must be employee or recruiter.",
+        message: "Role must be employee, recruiter, manager, HR, or admin.",
       });
     }
 
@@ -75,8 +76,61 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
       });
     }
 
-    // Generate a temporary password and a unique employee ID.
-    const temporaryPassword = crypto.randomBytes(9).toString("base64url");
+    let departmentDoc = null;
+    if (department) {
+      departmentDoc = await Department.findOne({ _id: department, organization: req.user.organization });
+      if (!departmentDoc) return res.status(400).json({ success: false, message: "Select a valid department." });
+    }
+    if (role !== "admin" && !departmentDoc) {
+      return res.status(400).json({ success: false, message: "Select a department for this account." });
+    }
+    let managerDoc = null;
+    if (role !== "admin" && !manager) {
+      return res.status(400).json({
+        success: false,
+        message: "Select a manager in the organization hierarchy."
+      });
+    }
+    if (manager) {
+      const expectedManagerRole = {
+        employee: "manager",
+        manager: "recruiter",
+        recruiter: "admin",
+        hr: "admin"
+      }[role];
+      const managerQuery = {
+        _id: manager,
+        organization: req.user.organization,
+        role: expectedManagerRole
+      };
+
+      if (["employee", "manager"].includes(role)) {
+        managerQuery.department = departmentDoc?._id;
+      }
+
+      if (!managerQuery.role) {
+        return res.status(400).json({
+          success: false,
+          message: "Admins cannot have a manager.",
+        });
+      }
+
+      managerDoc = await User.findOne(managerQuery);
+      if (!managerDoc) {
+        return res.status(400).json({
+          success: false,
+          message:
+            role === "employee"
+            ? "Select a manager from the chosen department."
+            : role === "manager"
+              ? "Select an executive from the chosen department."
+              : "Select an admin from your organization.",
+        });
+      }
+    }
+    if (password && password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters." });
+    // Accept an admin-provided password; otherwise generate a temporary one.
+    const temporaryPassword = password || crypto.randomBytes(9).toString("base64url");
     const employeeId = `EMP-${crypto.randomBytes(5)
       .toString("hex")
       .toUpperCase()}`;
@@ -89,19 +143,27 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role,
+      department: departmentDoc?._id || null,
+      manager: managerDoc?._id || null,
+      designation: String(designation || "").trim(),
+      position: String(position || "").trim(),
       organization: req.user.organization,
     });
 
     return res.status(201).json({
       success: true,
       message: "Account created successfully.",
-      temporaryPassword,
       user: {
         id: user._id,
         employeeId: user.employeeId,
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+        designation: user.designation,
+        position: user.position,
+        department: user.department,
+        manager: user.manager,
+        status: user.status,
         organization: user.organization,
       },
     });
@@ -126,7 +188,7 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
-      .select("fullName email employeeId role organization createdAt");
+      .select("fullName email employeeId role organization department designation position status createdAt").populate("department", "name");
 
     if (!user) {
       return res.status(404).json({

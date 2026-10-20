@@ -5,6 +5,13 @@ import AdminDashboard from "./pages/AdminDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Login from "./pages/Login";
 import OrganizationRegister from "./pages/OrganizationRegister";
+import AddMember from "./pages/AddMember";
+import Attendance from "./pages/Attendance";
+import Directory from "./pages/Directory";
+import Tasks from "./pages/Tasks";
+import Payroll from "./pages/Payroll";
+import Recruitment from "./pages/Recruitment";
+import Interviews from "./pages/Interviews";
 
 import "./index.css";
 import "./premium.css";
@@ -427,22 +434,52 @@ export default function App() {
 return (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/ai-interview" element={<Interviews />} />
+    <Route path="/ai-interview.html" element={<Interviews />} />
+    <Route path="/recruitment" element={<Recruitment />} />
+    <Route path="/recruitment.html" element={<Recruitment />} />
 
-    <Route
-      path="/organization-register"
-      element={<OrganizationRegister />}
-    />
+<Route
+  path="/organization-register"
+  element={<OrganizationRegister />}
+/>
 
-    <Route
-      path="/admin/dashboard"
-      element={<AdminDashboard />}
-    />
+{/* Admin: organization management */}
+<Route path="/admin/dashboard" element={<AdminDashboard />} />
+<Route path="/admin/directory" element={<Directory />} />
+<Route path="/admin/add-member" element={<AddMember />} />
+<Route path="/admin/attendance" element={<Attendance />} />
+<Route path="/admin/tasks" element={<Tasks />} />
+<Route path="/admin/recruitment" element={<Recruitment />} />
 
-    <Route
-      path="/employee/dashboard"
-      element={<EmployeeDashboard />}
-    />
+{/* Admin: personal employee workspace */}
+<Route path="/admin/my-dashboard" element={<EmployeeDashboard />} />
+<Route path="/admin/my-tasks" element={<Tasks />} />
+<Route path="/admin/my-attendance" element={<Attendance />} />
+<Route path="/admin/payroll" element={<Payroll />} />
+<Route path="/admin/my-payroll" element={<Payroll />} />
 
+{/* Employee: only three workspace pages */}
+<Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+<Route path="/employee/tasks" element={<Tasks />} />
+<Route path="/employee/attendance" element={<Attendance />} />
+<Route path="/employee/payroll" element={<Payroll />} />
+
+{/* Recruiter workspace */}
+<Route path="/recruiter/dashboard" element={<EmployeeDashboard />} />
+<Route path="/recruiter/tasks" element={<Tasks />} />
+<Route path="/recruiter/attendance" element={<Attendance />} />
+<Route path="/recruiter/payroll" element={<Payroll />} />
+<Route path="/recruiter/recruitment" element={<Recruitment />} />
+<Route path="/hr/dashboard" element={<EmployeeDashboard />} />
+<Route path="/hr/tasks" element={<Tasks />} />
+<Route path="/hr/attendance" element={<Attendance />} />
+<Route path="/hr/payroll" element={<Payroll />} />
+<Route path="/hr/recruitment" element={<Recruitment />} />
+<Route path="/manager/dashboard" element={<EmployeeDashboard />} />
+<Route path="/manager/tasks" element={<Tasks />} />
+<Route path="/manager/attendance" element={<Attendance />} />
+<Route path="/manager/payroll" element={<Payroll />} />
     <Route
       path="*"
       element={
