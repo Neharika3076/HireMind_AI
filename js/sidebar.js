@@ -329,8 +329,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (switcher) {
       switcher.style.display = "none";
     }
-    if (performance) {
-  performance.style.display = "none";
+    if (!["admin", "manager"].includes(
+  String(currentUser.roleType || "").toLowerCase()
+)) {
+  if (performance) {
+    performance.style.display = "none";
+  }
 }
 
   if (!["admin", "executive", "manager"].includes(String(currentUser.roleType || "").toLowerCase())) {

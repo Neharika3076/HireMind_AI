@@ -16,6 +16,8 @@ const taskRoutes = require("./routes/taskRouters");
 
 const projectRoutes = require("./routes/projectRoutes");
 
+const payrollRoutes = require("./routes/payrollRoutes");
+
 
 // Initialize Express first
 const app = express();
@@ -50,6 +52,8 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/tasks", taskRoutes);
 
 app.use("/api/projects", projectRoutes);
+
+app.use("/api/payroll", payrollRoutes);
 
 // Start server after connecting to MongoDB
 async function startServer() {

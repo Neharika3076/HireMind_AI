@@ -60,10 +60,14 @@ export async function sendEmail({ to, subject, text }) {
     throw error;
   }
 }
-transporter.verify()
-  .then(() => console.log("Gmail SMTP authentication successful"))
-  .catch((err) => console.error("SMTP verification failed:", {
-    code: err.code,
-    responseCode: err.responseCode,
-    message: err.message,
-  }));
+if (transporter) {
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error("SMTP verification failed:", error.message);
+    } else {
+      console.log("SMTP server is ready");
+    }
+  });
+} else {
+  console.log("SMTP is not configured; email features are disabled.");
+}
