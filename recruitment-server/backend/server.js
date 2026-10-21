@@ -12,6 +12,10 @@ const userRoutes = require("./routes/userRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const leaveRoutes = require("./routes/leaveRoutes");
+const taskRoutes = require("./routes/taskRouters");
+
+const projectRoutes = require("./routes/projectRoutes");
+
 
 // Initialize Express first
 const app = express();
@@ -43,6 +47,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leaves", leaveRoutes);
+app.use("/api/tasks", taskRoutes);
+
+app.use("/api/projects", projectRoutes);
 
 // Start server after connecting to MongoDB
 async function startServer() {

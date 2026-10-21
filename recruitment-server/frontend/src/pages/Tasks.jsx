@@ -36,73 +36,6 @@ const initialProjects = [
   },
 ];
 
-const initialTasks = [
-  {
-    id: 101,
-    project: "Krew Platform",
-    title: "Build dashboard components",
-    team: "Engineering",
-    manager: "Aarav Sharma",
-    lead: "Aarav Sharma",
-    member: "Aarav Sharma",
-    priority: "High",
-    due: "2026-10-24",
-    progress: 75,
-    status: "In Progress",
-  },
-  {
-    id: 102,
-    project: "Recruitment Portal",
-    title: "Candidate interview workflow",
-    team: "Talent",
-    manager: "Meera Kapoor",
-    lead: "Meera Kapoor",
-    member: "Meera Kapoor",
-    priority: "Critical",
-    due: "2026-10-22",
-    progress: 40,
-    status: "In Progress",
-  },
-  {
-    id: 103,
-    project: "Krew Platform",
-    title: "Review API integration",
-    team: "Engineering",
-    manager: "Aarav Sharma",
-    lead: "Aarav Sharma",
-    member: "Rohan Mehta",
-    priority: "Medium",
-    due: "2026-10-27",
-    progress: 0,
-    status: "Assigned",
-  },
-  {
-    id: 104,
-    project: "Employee Experience",
-    title: "Finalize employee onboarding",
-    team: "Operations",
-    manager: "Isha Verma",
-    lead: "Isha Verma",
-    member: "Isha Verma",
-    priority: "Low",
-    due: "2026-10-18",
-    progress: 100,
-    status: "Completed",
-  },
-  {
-    id: 105,
-    project: "Recruitment Portal",
-    title: "Validate candidate records",
-    team: "Talent",
-    manager: "Meera Kapoor",
-    lead: "Meera Kapoor",
-    member: "Meera Kapoor",
-    priority: "High",
-    due: "2026-10-26",
-    progress: 60,
-    status: "Pending Review",
-  },
-];
 
 const emptyProject = {
   name: "",
@@ -114,7 +47,7 @@ const emptyProject = {
 };
 
 const emptyTask = {
-  project: "Krew Platform",
+  project: "",
   title: "",
   priority: "High",
   description: "",
@@ -126,13 +59,14 @@ const emptyTask = {
 
 export default function Tasks() {
   const location = useLocation();
-  const [user, setUser] = useState(null);
-  const [profileError, setProfileError] = useState("");
-  const [projects, setProjects] = useState(initialProjects);
-  const [tasks, setTasks] = useState(initialTasks);
 
+const [user, setUser] = useState(null);
+const [projects, setProjects] = useState([]);
+const [tasks, setTasks] = useState([]);
+const [profileError, setProfileError] = useState("");
+
+  const [projectFilter, setProjectFilter] = useState("");
   const [search, setSearch] = useState("");
-  const [projectFilter, setProjectFilter] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
   const [managerFilter, setManagerFilter] = useState("ALL");
   const [leadFilter, setLeadFilter] = useState("ALL");
@@ -153,26 +87,108 @@ export default function Tasks() {
   });
 
   useEffect(() => {
-    let active = true;
+  let active = true;
 
-    fetch("http://localhost:5000/api/auth/me", {
-      credentials: "include",
-    })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "Unable to load profile.");
-        }
-        if (active) setUser(data.user);
-      })
-      .catch((error) => {
-        if (active) setProfileError(error.message);
+  async function fetchTasks() {
+    try {
+      const response = await fetch("http://localhost:5000/api/tasks", {
+        credentials: "include",
       });
 
-    return () => {
-      active = false;
-    };
-  }, []);
+      const data = await response.json();
+      console.log("Tasks received from backend:", data.tasks);
+      console.log("Total tasks received:", data.tasks?.length);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load tasks.");
+      }
+
+      if (active) {
+        setTasks(
+          (data.tasks || []).map((task) => ({
+            ...task,
+            id: task._id,
+          }))
+        );
+      }
+    } catch (error) {
+      if (active) {
+        setFeedback(error.message);
+      }
+    }
+  }
+
+  fetchTasks();
+
+  return () => {
+    active = false;
+  };
+}, []);
+
+
+
+  
+useEffect(() => {
+  let active = true;
+
+  async function fetchProjects() {
+    try {
+      const response = await fetch("http://localhost:5000/api/projects", {
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load projects.");
+      }
+
+      if (active) {
+const savedProjects = (data.projects || []).map((project) => ({
+    ...project,
+    id: project._id,
+    members: project.members ?? 0,
+    progress: project.progress ?? 0,
+    status: project.status || "Assigned",
+    color: project.color || "teal",
+  }));
+
+  setProjects(savedProjects);
+
+  setTaskForm((current) => ({
+    ...current,
+    project: savedProjects.some(
+      (project) => project.name === current.project
+    )
+      ? current.project
+      : savedProjects[0]?.name || "",
+  }));
+
+  setTeamForm((current) => ({
+    ...current,
+    project: savedProjects.some(
+      (project) => project.name === current.project
+    )
+      ? current.project
+      : savedProjects[0]?.name || "",
+  }));
+      }
+    } catch (error) {
+      if (active) {
+        setFeedback(error.message);
+      }
+    }
+  }
+
+  fetchProjects();
+
+  return () => {
+    active = false;
+  };
+}, []);
+
+
+
 
   const departments = [
     "Engineering",
@@ -240,73 +256,176 @@ export default function Tasks() {
   ).length;
 
   function openModal(type) {
-    setFeedback("");
-    setModal(type);
+  setFeedback("");
+
+  if (type === "task") {
+    const selectedProject = projects.some(
+      (project) => project.name === projectFilter
+    )
+      ? projectFilter
+      : projects.some(
+          (project) => project.name === taskForm.project
+        )
+      ? taskForm.project
+      : projects[0]?.name || "";
+
+    setTaskForm((current) => ({
+      ...current,
+      project: selectedProject,
+    }));
   }
+
+  if (type === "team") {
+    setTeamForm((current) => ({
+      ...current,
+      project: projects.some(
+        (project) => project.name === current.project
+      )
+        ? current.project
+        : projects[0]?.name || "",
+    }));
+  }
+
+  setModal(type);
+}
 
   function closeModal() {
     setModal("");
     setSelectedTask(null);
   }
 
-  function handleCreateProject(event) {
-    event.preventDefault();
+  
+async function handleCreateProject(event) {
+  event.preventDefault();
+  setFeedback("");
+  
+    const name = projectForm.name.trim();
+    const code = projectForm.code.trim();
 
-    const newProject = {
-      id: Date.now(),
-      name: projectForm.name.trim(),
-      code: projectForm.code.trim(),
-      department: projectForm.department,
-      progress: 0,
-      status: "Assigned",
-      members: 0,
-      color: "teal",
-      description: projectForm.description,
-      start: projectForm.start,
-      due: projectForm.due,
-    };
 
-    if (
-      projects.some(
-        (project) =>
-          project.name.toLowerCase() === newProject.name.toLowerCase()
-      )
-    ) {
-      setFeedback("A project with this name already exists.");
-      return;
+  if (!name || !code) {
+    setFeedback("Project name and code are required.");
+    return;
+  }
+
+  if (
+    projects.some(
+      (project) =>
+        project.name.toLowerCase() === name.toLowerCase()
+    )
+  ) {
+    setFeedback("A project with this name already exists.");
+    return;
+  }
+
+  const newProject = {
+    name,
+    code,
+    department: projectForm.department,
+    description: projectForm.description,
+    start: projectForm.start,
+    due: projectForm.due,
+    progress: 0,
+    status: "Assigned",
+    members: 0,
+    color: "teal",
+  };
+
+  try {
+    const response = await fetch("http://localhost:5000/api/projects", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newProject),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to create project.");
     }
 
-    setProjects((current) => [...current, newProject]);
-    setProjectForm(emptyProject);
-    setFeedback("Project created in this demo.");
-    closeModal();
-  }
-
-  function handleCreateTask(event) {
-    event.preventDefault();
-
-    const newTask = {
-      id: Date.now(),
-      project: taskForm.project,
-      title: taskForm.title.trim(),
-      team:
-        projects.find((project) => project.name === taskForm.project)
-          ?.department || "Engineering",
-      manager: taskForm.lead || "Unassigned",
-      lead: taskForm.lead || "Unassigned",
-      member: taskForm.member || "Unassigned",
-      priority: taskForm.priority,
-      due: taskForm.due,
-      progress: 0,
-      status: "Assigned",
-      description: taskForm.description,
-      category: taskForm.category,
+    const savedProject = {
+      ...data.project,
+      id: data.project._id,
+      members: data.project.members ?? 0,
+      progress: data.project.progress ?? 0,
+      status: data.project.status || "Assigned",
+      color: data.project.color || "teal",
     };
 
-    setTasks((current) => [newTask, ...current]);
+    setProjects((current) => [...current, savedProject]);
+    setProjectForm(emptyProject);
+    closeModal();
+    setFeedback("Project saved successfully.");
+  } catch (error) {
+    setFeedback(error.message);
+  }
+}
+
+
+
+async function handleCreateTask(event) {
+  event.preventDefault();
+  setFeedback("");
+    if (!projects.some((project) => project.name === taskForm.project)) {
+    setFeedback("Please select an existing project before creating a task.");
+    return;
+  }
+
+  if (!taskForm.title.trim()) {
+    setFeedback("Task title is required.");
+    return;
+  }
+
+  const newTask = {
+    project: taskForm.project,
+    title: taskForm.title.trim(),
+    team:
+      projects.find((project) => project.name === taskForm.project)
+        ?.department || "Engineering",
+    manager: taskForm.lead || "Unassigned",
+    lead: taskForm.lead || "Unassigned",
+    member: taskForm.member || "Unassigned",
+    priority: taskForm.priority,
+    due: taskForm.due,
+    progress: 0,
+    status: "Assigned",
+    description: taskForm.description,
+    category: taskForm.category,
+  };
+
+  try {
+    const response = await fetch("http://localhost:5000/api/tasks", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newTask),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to create task.");
+    }
+
+    setTasks((current) => [
+      { ...data.task, id: data.task._id },
+      ...current,
+    ]);
+
     setTaskForm(emptyTask);
     closeModal();
+    setFeedback("Task created successfully.");
+  } catch (error) {
+    setFeedback(error.message);
   }
+}
+
 
   function handleAssignTeam(event) {
     event.preventDefault();
@@ -342,20 +461,48 @@ export default function Tasks() {
     closeModal();
   }
 
-  function updateTaskStatus(task, status) {
+
+  
+async function updateTaskStatus(task, status) {
+  setFeedback("");
+
+  try {
+    const response = await fetch(
+      `http://localhost:5000/api/tasks/${task.id}/status`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to update task status.");
+    }
+
+    const updatedTask = {
+      ...data.task,
+      id: data.task._id,
+    };
+
     setTasks((current) =>
       current.map((item) =>
-        item.id === task.id
-          ? {
-              ...item,
-              status,
-              progress: status === "Completed" ? 100 : item.progress,
-            }
-          : item
+        item.id === task.id ? updatedTask : item
       )
     );
+
     setSelectedTask(null);
+    setFeedback("Task status updated successfully.");
+  } catch (error) {
+    setFeedback(error.message);
   }
+}
+
 
   function resetFilters() {
     setSearch("");
@@ -907,20 +1054,27 @@ export default function Tasks() {
                   </FormField>
 
                   <FormField label="Project">
-                    <select
-                      value={taskForm.project}
-                      onChange={(event) =>
-                        setTaskForm({
-                          ...taskForm,
-                          project: event.target.value,
-                        })
-                      }
-                    >
-                      {projects.map((project) => (
-                        <option key={project.id}>{project.name}</option>
-                      ))}
-                    </select>
-                  </FormField>
+                  <select
+                    required
+                    value={taskForm.project}
+                    onChange={(event) =>
+                      setTaskForm((current) => ({
+                        ...current,
+                        project: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="" disabled>
+                      Select a project
+                    </option>
+
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.name}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
 
                   <FormField label="Priority">
                     <select
