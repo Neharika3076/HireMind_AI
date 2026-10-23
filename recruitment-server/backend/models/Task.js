@@ -82,6 +82,25 @@ const taskSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    department: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Department",
+  default: null,
+  index: true
+},
+
+assignedTo: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+  index: true
+},
+
+createdBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null
+},
   },
   { timestamps: true }
 );

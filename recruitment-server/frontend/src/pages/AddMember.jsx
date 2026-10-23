@@ -255,26 +255,24 @@ export default function AddMember() {
 
   // Members follow the Admin → Executive → Manager → Employee reporting chain.
   const managers = members.filter((member) => {
-    const departmentId = String(
-      member.department?._id || member.department || ""
-    );
+  const departmentId = String(
+    member.department?._id || member.department || ""
+  );
 
-    const expectedManagerRole =
-      memberForm.role === "employee"
-        ? "manager"
-        : memberForm.role === "manager"
-          ? "recruiter"
-          : ["recruiter", "hr"].includes(memberForm.role)
-          ? "admin"
-          : null;
+  const expectedManagerRole = {
+    employee: "manager",
+    manager: "executive",
+    executive: "admin",
+    hr: "admin",
+  }[memberForm.role];
 
-    return (
-      member.role === expectedManagerRole &&
-      (!["employee", "manager"].includes(memberForm.role) ||
-        departmentId === String(memberForm.department)) &&
-      String(member._id) !== String(user?._id)
-    );
-  });
+  return (
+    member.role === expectedManagerRole &&
+    (!["employee", "manager"].includes(memberForm.role) ||
+      departmentId === String(memberForm.department)) &&
+    String(member._id) !== String(user?._id)
+  );
+});
 
   return (
     <div className="dashboard-shell">
@@ -483,7 +481,7 @@ export default function AddMember() {
                       >
                         <option value="admin">Admin</option>
                         <option value="hr">HR</option>
-                        <option value="recruiter">Executive</option>
+                        <option value="executive">Executive</option>
                         <option value="manager">Manager</option>
                         <option value="employee">Employee</option>
                       </select>

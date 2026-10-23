@@ -42,7 +42,19 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
 // Admin: create an organization account in the reporting hierarchy.
 router.post("/", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { fullName, email, role = "employee", password, department, designation = "", position = "", manager = "" } = req.body;
+    const {
+  fullName,
+  email,
+  password,
+  department,
+  designation = "",
+  position = "",
+  manager = "",
+} = req.body;
+
+const role = String(req.body.role || "employee")
+  .trim()
+  .toLowerCase();
 
     if (
       typeof fullName !== "string" ||
@@ -56,10 +68,18 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
       });
     }
 
-    if (!["employee", "recruiter", "manager", "hr", "admin"].includes(role)) {
+    const allowedRoles = [
+      "admin",
+      "hr",
+      "executive",
+      "manager",
+      "employee",
+    ];
+
+    if (!allowedRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: "Role must be employee, recruiter, manager, HR, or admin.",
+        message: "Role must be admin, hr, executive, manager, or employee.",
       });
     }
 
@@ -94,9 +114,9 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
     if (manager) {
       const expectedManagerRole = {
         employee: "manager",
-        manager: "recruiter",
-        recruiter: "admin",
-        hr: "admin"
+        manager: "executive",
+        executive: "admin",
+        hr: "admin",
       }[role];
       const managerQuery = {
         _id: manager,
@@ -111,7 +131,12 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
       if (!managerQuery.role) {
         return res.status(400).json({
           success: false,
-          message: "Admins cannot have a manager.",
+          message:
+            role === "employee"
+              ? "Select a manager from the chosen department."
+              : role === "manager"
+                ? "Select an executive from the chosen department."
+                : "Select an admin from your organization.",
         });
       }
 

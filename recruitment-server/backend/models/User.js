@@ -26,11 +26,15 @@ const userSchema = new mongoose.Schema(
       required: true,
       select: false
     },
+    
     role: {
       type: String,
-      enum: ["employee", "admin", "recruiter", "manager", "hr"],
-      default: "employee"
+      enum: ["admin", "hr", "executive", "manager", "employee"],
+      default: "employee",
+      lowercase: true,
+      trim: true
     },
+
     designation: { type: String, trim: true, default: '' },
     position: { type: String, trim: true, default: '' },
     department: { type: mongoose.Schema.Types.ObjectId, ref: "Department", default: null },

@@ -22,9 +22,11 @@ const projectSchema = new mongoose.Schema(
       maxlength: 50,
     },
     department: {
-      type: String,
-      default: "Engineering",
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: true,
+      index: true,
+      // trim: true,
     },
     description: {
       type: String,
@@ -59,10 +61,22 @@ const projectSchema = new mongoose.Schema(
       type: String,
       default: "teal",
     },
-    teamMembers: {
-      type: [String],
-      default: [],
+    teamMembers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }],
+    
+    projectManagers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }],
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     },
+
   },
   { timestamps: true }
 );

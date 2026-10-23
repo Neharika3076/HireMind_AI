@@ -1,7 +1,9 @@
 
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
+const User = require("../models/User");
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   if (!process.env.JWT_SECRET) {
     console.error("JWT_SECRET is missing.");
 
@@ -23,18 +25,47 @@ function requireAuth(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!decoded.userId) {
-      throw new Error("Token does not contain a user ID");
+    if (!mongoose.isValidObjectId(decoded.userId)) {
+      throw new Error("Invalid user ID in token");
+    }
+
+    // Load the current database role instead of trusting
+    // a potentially outdated role stored in the JWT.
+    const user = await User.findById(decoded.userId)
+      .select("_id role organization department manager status");
+
+    if (!user || user.status !== "active") {
+      res.clearCookie("terrahire_token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/"
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Your account is inactive or no longer exists."
+      });
     }
 
     req.user = {
-      userId: decoded.userId,
-      role: decoded.role,
-      organization: decoded.organization || null
+      userId: user._id.toString(),
+      role: user.role,
+      organization: user.organization
+        ? user.organization.toString()
+        : null,
+      department: user.department
+        ? user.department.toString()
+        : null,
+      manager: user.manager
+        ? user.manager.toString()
+        : null
     };
 
     return next();
   } catch (error) {
+    console.error("Authentication error:", error.message);
+
     res.clearCookie("terrahire_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -44,7 +75,7 @@ function requireAuth(req, res, next) {
 
     return res.status(401).json({
       success: false,
-      message: "Your session has expired or is invalid. Please log in again."
+      message: "Your session is invalid. Please log in again."
     });
   }
 }
@@ -61,11 +92,11 @@ function authorizeRoles(...allowedRoles) {
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have permission to access this resource."
+        message: "You do not have permission to perform this action."
       });
     }
 
-    return next();
+    next();
   };
 }
 

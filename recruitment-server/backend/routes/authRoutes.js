@@ -98,7 +98,7 @@ router.post("/login", async (req, res) => {
     if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-        message: "Invalid login credentials."
+        message: "Password is Incorrect."
       });
     }
 
