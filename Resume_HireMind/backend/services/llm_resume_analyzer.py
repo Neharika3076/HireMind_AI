@@ -11,8 +11,12 @@ from backend.models.resume import ResumeProfile
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+# Prevent double '/openai/v1' path issue if GROQ_BASE_URL is set to 'https://api.groq.com/openai/v1'
+if os.getenv("GROQ_BASE_URL", "").rstrip("/").endswith("/openai/v1"):
+    del os.environ["GROQ_BASE_URL"]
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_INTERVIEW_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL") or os.getenv("GROQ_INTERVIEW_MODEL", "openai/gpt-oss-20b")
 
 if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY is not configured.")
