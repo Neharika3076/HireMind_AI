@@ -124,6 +124,21 @@ router.post("/", async (req, res) => {
 
     const role = String(creator.role || "").toLowerCase();
 
+if (role === "executive") {
+  if (!assignedUser) {
+    return res.status(400).json({
+      success: false,
+      message: "Please select a Manager to assign this task.",
+    });
+  }
+
+  if (String(assignedUser.role || "").toLowerCase() !== "manager") {
+    return res.status(403).json({
+      success: false,
+      message: "Executives can assign tasks only to Managers.",
+    });
+  }
+}
     // HR can view task statistics but cannot create tasks.
     if (role === "hr") {
       return res.status(403).json({
@@ -131,6 +146,8 @@ router.post("/", async (req, res) => {
         message: "HR has read-only access to tasks."
       });
     }
+
+
 
     // Department-assigned admins and HR can create tasks only
     // for their own department. An admin with no department
@@ -227,12 +244,7 @@ if (!currentUser) {
   });
 }
 
-if (String(currentUser.role).toLowerCase() === "hr") {
-  return res.status(403).json({
-    success: false,
-    message: "HR has read-only access to tasks."
-  });
-}
+
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -265,23 +277,31 @@ if (String(currentUser.role).toLowerCase() === "hr") {
 
     
 
-    
-    const task = await Task.findOneAndUpdate(
-      {
-        _id: id,
-        organization: req.user.organization
-      },
-      {
-        $set: {
-          status,
-          progress: progressByStatus[status]
-        }
-      },
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+const normalizedRole = String(currentUser.role || "").toLowerCase();
+
+const taskFilter = {
+  _id: id,
+  organization: req.user.organization,
+};
+
+// HR can update only a task assigned to their own account.
+if (normalizedRole === "hr") {
+  taskFilter.assignedTo = currentUser._id;
+}
+
+const task = await Task.findOneAndUpdate(
+  taskFilter,
+  {
+    $set: {
+      status,
+      progress: progressByStatus[status],
+    },
+  },
+  {
+    new: true,
+    runValidators: true,
+  }
+);
 
     if (!task) {
       return res.status(404).json({
@@ -339,6 +359,13 @@ async function getTaskScope(user) {
 
     return { organization };
   }
+  // HR sees only tasks assigned to their own account.
+if (String(currentUser.role || "").toLowerCase() === "hr") {
+  return {
+    organization,
+    assignedTo: currentUser._id,
+  };
+}
 
   // HR & Hiring department members: tasks in their own department
   if (isHiringDepartmentName(currentUser.department?.name)) {

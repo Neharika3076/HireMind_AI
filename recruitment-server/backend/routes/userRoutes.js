@@ -22,11 +22,55 @@ function requireAdmin(req, res, next) {
 
 // GET /api/users
 // Admin: list users belonging to their organization.
-router.get("/", requireAuth, requireAdmin, async (req, res) => {
+
+ // GET /api/users
+// Admins can list organization users.
+// Executives can list managers in their own department.
+router.get("/", requireAuth, async (req, res) => {
   try {
-    const users = await User.find({
+    const role = String(req.user.role || "").toLowerCase();
+
+    let query = {
       organization: req.user.organization,
-    }).select("fullName email employeeId role designation position department manager status organization createdAt").populate("department", "name description").populate("manager", "fullName");
+    };
+
+    if (role === "executive") {
+      // Find the executive's department from their database record.
+      const executive = await User.findById(req.user.userId)
+        .select("organization department role");
+
+      if (!executive) {
+        return res.status(404).json({
+          success: false,
+          message: "Executive account not found.",
+        });
+      }
+
+      if (String(executive.role).toLowerCase() !== "executive") {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view team members.",
+        });
+      }
+
+      query = {
+        organization: executive.organization,
+        department: executive.department,
+        role: "manager",
+      };
+    } else if (role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view team members.",
+      });
+    }
+
+    const users = await User.find(query)
+      .select(
+        "fullName email employeeId role designation position department manager status organization createdAt"
+      )
+      .populate("department", "name description")
+      .populate("manager", "fullName");
 
     return res.json({ success: true, users });
   } catch (error) {
@@ -69,12 +113,10 @@ const role = String(req.body.role || "employee")
     }
 
     const allowedRoles = [
-<<<<<<< HEAD
+
       "admin",
-=======
 
       "hr",
->>>>>>> 789382c (fix admin create-Project)
       "executive",
       "manager",
       "employee",
@@ -115,37 +157,40 @@ const role = String(req.body.role || "employee")
         message: "Select a manager in the organization hierarchy."
       });
     }
-    if (manager) {
-      const isHiringDepartmentMember =
-        departmentDoc?.name?.trim().toLowerCase() === "hr & hiring";
-      const allowedManagerRoles = isHiringDepartmentMember
-        ? ["admin"]
-        : {
-            executive: ["admin"],
-            manager: ["admin", "executive"],
-            employee: ["admin", "executive", "manager"],
-          }[role];
 
-      if (!allowedManagerRoles) {
-        return res.status(400).json({
-          success: false,
-          message: "This account role cannot report to another member.",
-        });
-      }
+if (manager) {
+const allowedManagerRoles = {
+  executive: ["admin"],
+  hr: ["admin"],
+  manager: ["executive"],
+  employee: ["manager"],
+}[role];
 
-      const managerQuery = {
-        _id: manager,
-        organization: req.user.organization,
-        role: { $in: allowedManagerRoles },
-      };
-      managerDoc = await User.findOne(managerQuery);
-      if (!managerDoc) {
-        return res.status(400).json({
-          success: false,
-          message: "Select a valid manager from the allowed roles in your organization.",
-        });
-      }
-    }
+if (!allowedManagerRoles) {
+  return res.status(400).json({
+    success: false,
+    message: "This account role cannot report to another member.",
+  });
+}
+
+const managerDoc = await User.findOne({
+  _id: manager,
+  organization: req.user.organization,
+  role: { $in: allowedManagerRoles },
+});
+
+if (!managerDoc) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Selected manager is invalid. Choose someone with an allowed role in your organization.",
+  });
+}
+
+
+}
+
+
     if (password && password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters." });
     // Accept an admin-provided password; otherwise generate a temporary one.
     const temporaryPassword = password || crypto.randomBytes(9).toString("base64url");

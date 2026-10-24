@@ -28,6 +28,15 @@ const navigation = {
     { label: "Payroll", path: "/recruiter/payroll", icon: "＄" },
     { label: "Recruitment", path: "/recruiter/recruitment", icon: "◎" },
   ],
+  
+  hr: [
+    { label: "HR Dashboard", path: "/recruiter/dashboard", icon: "⌂" },
+    { label: "Tasks", path: "/recruiter/tasks", icon: "▤" },
+    { label: "Attendance", path: "/recruiter/attendance", icon: "▦" },
+    { label: "Payroll", path: "/recruiter/payroll", icon: "＄" },
+    { label: "Recruitment", path: "/recruiter/recruitment", icon: "◎" },
+  ],
+
   manager: [
     { label: "Manager Dashboard", path: "/manager/dashboard", icon: "⌂" },
     { label: "Tasks", path: "/manager/tasks", icon: "▤" },
@@ -38,6 +47,7 @@ const navigation = {
 
 const roleLabels = {
   admin: "Admin",
+  hr: "HR",
   recruiter: "Executive",
   manager: "Manager",
   employee: "Employee",
@@ -46,7 +56,12 @@ const roleLabels = {
 
 export default function Sidebar({ user, role }) {
   const navigate = useNavigate();
-  const normalizedRole = role === "executive" ? "recruiter" : role;
+  const currentRole = String(user?.role || role || "employee")
+  .trim()
+  .toLowerCase();
+
+const normalizedRole =
+  currentRole === "executive" ? "recruiter" : currentRole;
   const links = [...(navigation[normalizedRole] || navigation.employee)];
   if (
     isHiringDepartment(user) &&
@@ -83,7 +98,7 @@ export default function Sidebar({ user, role }) {
         </div>
         <div className="workday-user-meta">
           <strong>{user?.fullName || "Workspace User"}</strong>
-          <span>{roleLabels[role] || role || "Employee"}</span>
+          <span>{roleLabels[normalizedRole] || normalizedRole}</span>
           <small>{user?.email || ""}</small>
         </div>
       </div>
