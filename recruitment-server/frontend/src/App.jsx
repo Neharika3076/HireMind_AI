@@ -13,6 +13,7 @@ import Payroll from "./pages/Payroll";
 import Recruitment from "./pages/Recruitment";
 import Interviews from "./pages/Interviews";
 import JobOpenings from "./pages/JobOpenings";
+import PublicJobOpenings from "./pages/PublicJobOpenings";
 
 import "./index.css";
 import "./premium.css";
@@ -439,6 +440,7 @@ return (
     <Route path="/jobs" element={<JobOpenings />} />
     <Route path="/application" element={<JobOpenings />} />
     <Route path="/application.html" element={<JobOpenings />} />
+    <Route path="/public-job-openings" element={<PublicJobOpenings />} />
     <Route path="/login" element={<Login />} />
     <Route path="/login.html" element={<Login />} />
     <Route path="/ai-interview" element={<Interviews />} />
@@ -478,11 +480,6 @@ return (
 <Route path="/recruiter/attendance" element={<Attendance />} />
 <Route path="/recruiter/payroll" element={<Payroll />} />
 <Route path="/recruiter/recruitment" element={<Recruitment />} />
-<Route path="/hr/dashboard" element={<EmployeeDashboard />} />
-<Route path="/hr/tasks" element={<Tasks />} />
-<Route path="/hr/attendance" element={<Attendance />} />
-<Route path="/hr/payroll" element={<Payroll />} />
-<Route path="/hr/recruitment" element={<Recruitment />} />
 <Route path="/manager/dashboard" element={<EmployeeDashboard />} />
 <Route path="/manager/tasks" element={<Tasks />} />
 <Route path="/manager/attendance" element={<Attendance />} />

@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { isHiringDepartment } from "../utils/departmentAccess";
 import "../styles/Tasks.css";
+
 
 const initialProjects = [
   {
@@ -41,7 +43,7 @@ const emptyProject = {
   name: "",
   code: "",
   description: "",
-  department: "Engineering",
+  department: "",
   start: "",
   due: "",
 };
@@ -57,13 +59,154 @@ const emptyTask = {
   member: "",
 };
 
+
+function getDepartmentId(department) {
+  if (!department) return "";
+
+  return typeof department === "object"
+    ? department._id || ""
+    : department;
+}
+
+function getDepartmentName(department, departments = []) {
+  if (!department) return "No department";
+
+  if (typeof department === "object") {
+    return department.name || "No department";
+  }
+
+  const found = departments.find(
+    (item) => item._id === department
+  );
+
+  return found?.name || "No department";
+}
+
+function getPersonId(value) {
+  if (!value) return "";
+
+  return String(
+    typeof value === "object" ? value._id || "" : value
+  );
+}
+
+function getRoleLabel(role) {
+  const labels = {
+    admin: "Admin",
+    hr: "HR",
+    executive: "Executive",
+    manager: "Manager",
+    employee: "Employee",
+  };
+
+  const normalizedRole = String(role || "").toLowerCase();
+
+  return labels[normalizedRole] || normalizedRole || "Employee";
+}
+
+function isSeniorTo(leadId, memberId, people) {
+  const normalizedLeadId = getPersonId(leadId);
+  const normalizedMemberId = getPersonId(memberId);
+
+  if (!normalizedLeadId || !normalizedMemberId ||
+      normalizedLeadId === normalizedMemberId) {
+    return false;
+  }
+
+  const peopleById = new Map(
+    people.map(person => [getPersonId(person._id), person])
+  );
+
+  let current = peopleById.get(normalizedMemberId);
+  const visited = new Set();
+
+  while (current?.manager) {
+    const managerId = getPersonId(current.manager);
+
+    if (!managerId || visited.has(managerId)) {
+      return false;
+    }
+
+    if (managerId === normalizedLeadId) {
+      return true;
+    }
+
+    visited.add(managerId);
+    current = peopleById.get(managerId);
+  }
+
+  return false;
+}
+function displayValue(value, fallback = "Unassigned") {
+  if (value == null || value === "") return fallback;
+
+  if (typeof value === "object") {
+    return (
+      value.name ||
+      value.fullName ||
+      value.title ||
+      value.email ||
+      fallback
+    );
+  }
+
+  return String(value);
+}
+
+
 export default function Tasks() {
   const location = useLocation();
 
-const [user, setUser] = useState(null);
-const [projects, setProjects] = useState([]);
-const [tasks, setTasks] = useState([]);
-const [profileError, setProfileError] = useState("");
+  const [user, setUser] = useState(null);
+
+  const role = String(
+    user?.role || user?.user?.role || ""
+  ).toLowerCase();
+
+  const isAdmin = role === "admin";
+  const isHiringDepartmentMember = isHiringDepartment(user?.user || user);
+  const isManager = role === "manager";
+  const isExecutor = role === "executive";
+
+  const canCreateProject = isAdmin || isHiringDepartmentMember;
+  const canAssignTeam = isAdmin || isHiringDepartmentMember;
+  const canAddDeliverable =
+    isAdmin || isHiringDepartmentMember || isManager || isExecutor;
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [profileError, setProfileError] = useState("");
+
+  // This URL must match the profile endpoint provided by your backend.
+  useEffect(() => {
+    let active = true;
+
+    async function fetchProfile() {
+      try {
+        const response = await fetch("http://localhost:5000/api/users/me", {
+          credentials: "include",
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Unable to load your profile.");
+        }
+
+        const profile = data.user || data.profile || data;
+        if (active) setUser(profile);
+      } catch (error) {
+        if (active) {
+          setProfileError(
+            "Could not load your role. Update the profile endpoint in Tasks.jsx to match your backend."
+          );
+        }
+      }
+    }
+
+    fetchProfile();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const [projectFilter, setProjectFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -87,125 +230,308 @@ const [profileError, setProfileError] = useState("");
   });
 
   useEffect(() => {
-  let active = true;
+    let active = true;
 
-  async function fetchTasks() {
-    try {
-      const response = await fetch("http://localhost:5000/api/tasks", {
-        credentials: "include",
-      });
+    async function fetchTasks() {
+      try {
+        const response = await fetch("http://localhost:5000/api/tasks", {
+          credentials: "include",
+        });
 
-      const data = await response.json();
-      console.log("Tasks received from backend:", data.tasks);
-      console.log("Total tasks received:", data.tasks?.length);
+        const data = await response.json();
+        console.log("Tasks received from backend:", data.tasks);
+        console.log("Total tasks received:", data.tasks?.length);
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load tasks.");
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load tasks.");
+        }
+
+        if (active) {
+          setTasks(
+            (data.tasks || []).map((task) => ({
+              ...task,
+              id: task._id,
+            }))
+          );
+        }
+      } catch (error) {
+        if (active) {
+          setFeedback(error.message);
+        }
+      }
+    }
+
+    fetchTasks();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+
+
+  useEffect(() => {
+    let active = true;
+
+    async function fetchProjects() {
+      try {
+        const response = await fetch("http://localhost:5000/api/projects", {
+          credentials: "include",
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load projects.");
+        }
+
+        if (active) {
+          const savedProjects = (data.projects || []).map((project) => ({
+            ...project,
+            id: project._id,
+            departmentId: getDepartmentId(project.department),
+            departmentName: getDepartmentName(project.department),
+            members: project.members ?? 0,
+            progress: project.progress ?? 0,
+            status: project.status || "Assigned",
+            color: project.color || "teal",
+          }));
+
+          setProjects(savedProjects);
+
+          setTaskForm((current) => ({
+            ...current,
+            project: savedProjects.some(
+              (project) => project.name === current.project
+            )
+              ? current.project
+              : savedProjects[0]?.name || "",
+          }));
+
+          setTeamForm((current) => ({
+            ...current,
+            project: savedProjects.some(
+              (project) => project.name === current.project
+            )
+              ? current.project
+              : savedProjects[0]?.name || "",
+          }));
+        }
+      } catch (error) {
+        if (active) {
+          setFeedback(error.message);
+        }
+      }
+    }
+
+    fetchProjects();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+
+  const projectsWithMemberCounts = useMemo(() => {
+    return projects.map((project) => {
+      const assignedMembers = new Set();
+
+      // Count members assigned directly to the project, if available.
+      if (Array.isArray(project.teamMembers)) {
+        project.teamMembers.forEach((member) => {
+          const name =
+            typeof member === "string"
+              ? member
+              : member?.fullName || member?.name || member?.email;
+
+          if (
+            name &&
+            name.trim() &&
+            name.toLowerCase() !== "unassigned"
+          ) {
+            assignedMembers.add(name.trim().toLowerCase());
+          }
+        });
       }
 
-      if (active) {
-        setTasks(
-          (data.tasks || []).map((task) => ({
-            ...task,
-            id: task._id,
-          }))
+      // Also count members assigned to tasks in this project.
+      tasks
+        .filter(
+          (task) =>
+            String(
+              typeof task.project === "object"
+                ? task.project?.name || ""
+                : task.project || ""
+            ).trim().toLowerCase() ===
+            String(project.name || "").trim().toLowerCase()
+        )
+        .forEach((task) => {
+          const member =
+            typeof task.member === "string"
+              ? task.member
+              : task.member?.fullName ||
+              task.member?.name ||
+              task.member?.email;
+
+          if (
+            member &&
+            member.trim() &&
+            member.toLowerCase() !== "unassigned"
+          ) {
+            assignedMembers.add(member.trim().toLowerCase());
+          }
+        });
+
+      return {
+        ...project,
+        members: assignedMembers.size,
+      };
+    });
+  }, [projects, tasks]);
+
+
+
+
+
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function fetchDepartments() {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/departments",
+          {
+            credentials: "include",
+          }
         );
-      }
-    } catch (error) {
-      if (active) {
-        setFeedback(error.message);
-      }
-    }
-  }
 
-  fetchTasks();
+        const data = await response.json();
 
-  return () => {
-    active = false;
-  };
-}, []);
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to fetch departments"
+          );
+        }
 
+        const list = Array.isArray(data)
+          ? data
+          : data.departments || data.data || [];
 
-
-  
-useEffect(() => {
-  let active = true;
-
-  async function fetchProjects() {
-    try {
-      const response = await fetch("http://localhost:5000/api/projects", {
-        credentials: "include",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load projects.");
-      }
-
-      if (active) {
-const savedProjects = (data.projects || []).map((project) => ({
-    ...project,
-    id: project._id,
-    members: project.members ?? 0,
-    progress: project.progress ?? 0,
-    status: project.status || "Assigned",
-    color: project.color || "teal",
-  }));
-
-  setProjects(savedProjects);
-
-  setTaskForm((current) => ({
-    ...current,
-    project: savedProjects.some(
-      (project) => project.name === current.project
-    )
-      ? current.project
-      : savedProjects[0]?.name || "",
-  }));
-
-  setTeamForm((current) => ({
-    ...current,
-    project: savedProjects.some(
-      (project) => project.name === current.project
-    )
-      ? current.project
-      : savedProjects[0]?.name || "",
-  }));
-      }
-    } catch (error) {
-      if (active) {
-        setFeedback(error.message);
+        if (active) {
+          setDepartments(list);
+        }
+      } catch (error) {
+        console.error("Fetch departments error:", error);
+        if (active) {
+          setFeedback(error.message);
+        }
       }
     }
+
+    fetchDepartments();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+
+  const [people, setPeople] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function fetchPeople() {
+      try {
+        const token = localStorage.getItem("token");
+
+        const response = await fetch("http://localhost:5000/api/users", {
+          credentials: "include",
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load team members.");
+        }
+
+        const users = data.users || data.employees || [];
+
+        if (active) {
+          setPeople(
+            users.map((person) => ({
+              ...person,
+              _id: person._id,
+              fullName: person.fullName || person.name || person.email,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Fetch team members error:", error);
+      }
+    }
+
+    fetchPeople();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Get the department of the currently selected project.
+  const selectedTaskProject = projects.find(
+    (project) => project.name === taskForm.project
+  );
+
+  const selectedProjectDepartmentId =
+    getDepartmentId(selectedTaskProject?.department) ||
+    selectedTaskProject?.departmentId ||
+    "";
+  // Only show people who belong to the selected project's department.
+  const projectDepartmentPeople = useMemo(() => {
+    if (!selectedProjectDepartmentId) return [];
+
+    return people.filter((person) => {
+      const personDepartmentId =
+        getDepartmentId(person.department) ||
+        person.departmentId ||
+        "";
+
+      return (
+        String(personDepartmentId) ===
+        String(selectedProjectDepartmentId)
+      );
+    });
+  }, [people, selectedProjectDepartmentId]);
+
+const eligibleAssignedMembers = useMemo(() => {
+  if (!user?._id) return [];
+
+  // Admin can assign tasks to anyone in the selected project department.
+  if (isAdmin) {
+    return projectDepartmentPeople.filter(
+      (person) => String(person._id) !== String(user._id)
+    );
   }
 
-  fetchProjects();
-
-  return () => {
-    active = false;
-  };
-}, []);
-
-
-
-
-  const departments = [
-    "Engineering",
-    "Talent",
-    "Operations",
-    "Design",
-    "Marketing",
-    "Finance",
-  ];
-
-  const people = [
-    "Aarav Sharma",
-    "Meera Kapoor",
-    "Rohan Mehta",
-    "Isha Verma",
-  ];
-
+  // Other roles can assign tasks only within their reporting hierarchy.
+  return projectDepartmentPeople.filter((person) =>
+    isSeniorTo(user._id, person._id, people)
+  );
+}, [
+  user?._id,
+  isAdmin,
+  projectDepartmentPeople,
+  people,
+]);
   const uniqueValues = (key) => [
     ...new Set(tasks.map((task) => task[key]).filter(Boolean)),
   ];
@@ -216,9 +542,9 @@ const savedProjects = (data.projects || []).map((project) => ({
     return tasks.filter((task) => {
       const matchesSearch =
         !query ||
-        task.title.toLowerCase().includes(query) ||
-        task.project.toLowerCase().includes(query) ||
-        task.team.toLowerCase().includes(query);
+        displayValue(task.title, "").toLowerCase().includes(query) ||
+        displayValue(task.project, "").toLowerCase().includes(query) ||
+        displayValue(task.team, "").toLowerCase().includes(query);
 
       return (
         matchesSearch &&
@@ -241,14 +567,45 @@ const savedProjects = (data.projects || []).map((project) => ({
     statusFilter,
   ]);
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(
+  // Get tasks relevant to the logged-in user.
+  const myTasks = useMemo(() => {
+    if (!user?._id) return [];
+
+    // Admin and HR can see workspace-wide statistics.
+    if (isAdmin || isHR) {
+      return tasks;
+    }
+
+    // Other users see tasks assigned to them.
+    return tasks.filter((task) => {
+      const getId = (value) => {
+        if (!value) return "";
+        return String(
+          typeof value === "object" ? value._id || "" : value
+        );
+      };
+
+      const userId = String(user._id);
+
+      return (
+        getId(task.member) === userId ||
+        getId(task.lead) === userId ||
+        getId(task.manager) === userId
+      );
+    });
+  }, [tasks, user, isAdmin, isHR]);
+
+  const totalTasks = myTasks.length;
+
+  const completedTasks = myTasks.filter(
     (task) => task.status === "Completed"
   ).length;
-  const inProgressTasks = tasks.filter(
+
+  const inProgressTasks = myTasks.filter(
     (task) => task.status === "In Progress"
   ).length;
-  const overdueTasks = tasks.filter(
+
+  const overdueTasks = myTasks.filter(
     (task) =>
       task.status !== "Completed" &&
       task.due &&
@@ -256,122 +613,156 @@ const savedProjects = (data.projects || []).map((project) => ({
   ).length;
 
   function openModal(type) {
-  setFeedback("");
+    setFeedback("");
 
-  if (type === "task") {
-    const selectedProject = projects.some(
-      (project) => project.name === projectFilter
-    )
-      ? projectFilter
-      : projects.some(
-          (project) => project.name === taskForm.project
-        )
+    if (type === "project" && !canCreateProject) {
+      setFeedback("You do not have permission to create projects.");
+      return;
+    }
+    if (type === "team" && !canAssignTeam) {
+      setFeedback("You do not have permission to assign project teams.");
+      return;
+    }
+    if (type === "task" && !canAddDeliverable) {
+      setFeedback("You do not have permission to create deliverables.");
+      return;
+    }
+
+if (type === "task") {
+  const selectedProject = projects.some(
+    (project) => project.name === projectFilter
+  )
+    ? projectFilter
+    : projects.some(
+        (project) => project.name === taskForm.project
+      )
       ? taskForm.project
       : projects[0]?.name || "";
 
-    setTaskForm((current) => ({
-      ...current,
-      project: selectedProject,
-    }));
-  }
+  setTaskForm({
+    ...emptyTask,
+    project: selectedProject,
+    lead: user?._id || "",
+    member: "",
+  });
 
-  if (type === "team") {
-    setTeamForm((current) => ({
-      ...current,
-      project: projects.some(
-        (project) => project.name === current.project
-      )
-        ? current.project
-        : projects[0]?.name || "",
-    }));
+  if (!user?._id) {
+    setFeedback("Your profile is still loading. Please try again.");
+    return;
   }
-
-  setModal(type);
 }
+    if (type === "team") {
+      setTeamForm((current) => ({
+        ...current,
+        project: projects.some(
+          (project) => project.name === current.project
+        )
+          ? current.project
+          : projects[0]?.name || "",
+      }));
+    }
+
+    setModal(type);
+  }
 
   function closeModal() {
     setModal("");
     setSelectedTask(null);
   }
 
-  
-async function handleCreateProject(event) {
-  event.preventDefault();
-  setFeedback("");
-  
+
+  async function handleCreateProject(event) {
+    event.preventDefault();
+    setFeedback("");
+
     const name = projectForm.name.trim();
     const code = projectForm.code.trim();
 
 
-  if (!name || !code) {
-    setFeedback("Project name and code are required.");
-    return;
-  }
-
-  if (
-    projects.some(
-      (project) =>
-        project.name.toLowerCase() === name.toLowerCase()
-    )
-  ) {
-    setFeedback("A project with this name already exists.");
-    return;
-  }
-
-  const newProject = {
-    name,
-    code,
-    department: projectForm.department,
-    description: projectForm.description,
-    start: projectForm.start,
-    due: projectForm.due,
-    progress: 0,
-    status: "Assigned",
-    members: 0,
-    color: "teal",
-  };
-
-  try {
-    const response = await fetch("http://localhost:5000/api/projects", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(newProject),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to create project.");
+    if (!name || !code || !projectForm.department) {
+      setFeedback("Project name and code are required.");
+      return;
     }
 
-    const savedProject = {
-      ...data.project,
-      id: data.project._id,
-      members: data.project.members ?? 0,
-      progress: data.project.progress ?? 0,
-      status: data.project.status || "Assigned",
-      color: data.project.color || "teal",
+    if (
+      projects.some(
+        (project) =>
+          project.name.toLowerCase() === name.toLowerCase()
+      )
+    ) {
+      setFeedback("A project with this name already exists.");
+      return;
+    }
+
+    const newProject = {
+      name,
+      code,
+      department: projectForm.department,
+      description: projectForm.description,
+      start: projectForm.start,
+      due: projectForm.due,
+      progress: 0,
+      status: "Assigned",
+      members: 0,
+      color: "teal",
     };
 
-    setProjects((current) => [...current, savedProject]);
-    setProjectForm(emptyProject);
-    closeModal();
-    setFeedback("Project saved successfully.");
-  } catch (error) {
-    setFeedback(error.message);
-  }
-}
+    try {
+      const response = await fetch("http://localhost:5000/api/projects", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newProject),
+      });
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create project.");
+      }
+
+      const savedProject = {
+        ...data.project,
+        id: data.project._id,
+        departmentId:
+          getDepartmentId(data.project.department) ||
+          projectForm.department,
+        departmentName: getDepartmentName(
+          data.project.department,
+          departments
+        ),
+        members: data.project.members ?? 0,
+        progress: data.project.progress ?? 0,
+        status: data.project.status || "Assigned",
+        color: data.project.color || "teal",
+      };
+      setProjects((current) => [...current, savedProject]);
+      setProjectForm(emptyProject);
+      closeModal();
+      setFeedback("Project saved successfully.");
+    } catch (error) {
+      setFeedback(error.message);
+    }
+  }
 
 
 async function handleCreateTask(event) {
   event.preventDefault();
   setFeedback("");
-    if (!projects.some((project) => project.name === taskForm.project)) {
-    setFeedback("Please select an existing project before creating a task.");
+
+  if (!user?._id) {
+    setFeedback("Unable to identify the logged-in user.");
+    return;
+  }
+
+  const selectedProject = projects.find(
+    (project) => project.name === taskForm.project
+  );
+
+  if (!selectedProject) {
+    setFeedback("Please select an existing project.");
     return;
   }
 
@@ -380,15 +771,62 @@ async function handleCreateTask(event) {
     return;
   }
 
+  if (!taskForm.member) {
+    setFeedback("Please select an assigned member.");
+    return;
+  }
+
+  if (String(user._id) === String(taskForm.member)) {
+    setFeedback("You cannot assign a task to yourself.");
+    return;
+  }
+
+  // Confirm the selected member belongs to the allowed list.
+  const allowedMember = eligibleAssignedMembers.some(
+    (person) => String(person._id) === String(taskForm.member)
+  );
+
+  if (!allowedMember) {
+    setFeedback(
+      "You cannot assign a task to this member. Check the department and reporting hierarchy."
+    );
+    return;
+  }
+
+  // Verify the reporting relationship for non-admin users.
+  if (
+    !isAdmin &&
+    !isSeniorTo(user._id, taskForm.member, people)
+  ) {
+    setFeedback(
+      "You can only assign tasks to your subordinates."
+    );
+    return;
+  }
+
   const newTask = {
     project: taskForm.project,
     title: taskForm.title.trim(),
-    team:
-      projects.find((project) => project.name === taskForm.project)
-        ?.department || "Engineering",
-    manager: taskForm.lead || "Unassigned",
-    lead: taskForm.lead || "Unassigned",
-    member: taskForm.member || "Unassigned",
+
+    team: getDepartmentName(
+      selectedProject.department,
+      departments
+    ),
+
+    department:
+      getDepartmentId(selectedProject.department) ||
+      selectedProject.departmentId ||
+      "",
+
+    // The logged-in user who assigned the task.
+    lead: user._id,
+
+    // Keep this aligned with your backend's meaning for manager.
+    manager: user._id,
+
+    // The person receiving the task.
+    member: taskForm.member,
+
     priority: taskForm.priority,
     due: taskForm.due,
     progress: 0,
@@ -398,19 +836,24 @@ async function handleCreateTask(event) {
   };
 
   try {
-    const response = await fetch("http://localhost:5000/api/tasks", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(newTask),
-    });
+    const response = await fetch(
+      "http://localhost:5000/api/tasks",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newTask),
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "Failed to create task.");
+      throw new Error(
+        data.message || "Failed to create task."
+      );
     }
 
     setTasks((current) => [
@@ -418,14 +861,17 @@ async function handleCreateTask(event) {
       ...current,
     ]);
 
-    setTaskForm(emptyTask);
+    setTaskForm({
+      ...emptyTask,
+      lead: user._id,
+    });
+
     closeModal();
     setFeedback("Task created successfully.");
   } catch (error) {
     setFeedback(error.message);
   }
 }
-
 
   function handleAssignTeam(event) {
     event.preventDefault();
@@ -449,10 +895,10 @@ async function handleCreateTask(event) {
       current.map((task) =>
         task.project === project
           ? {
-              ...task,
-              manager: managers[0] || task.manager,
-              lead: leads[0] || task.lead,
-            }
+            ...task,
+            manager: managers[0] || task.manager,
+            lead: leads[0] || task.lead,
+          }
           : task
       )
     );
@@ -462,46 +908,46 @@ async function handleCreateTask(event) {
   }
 
 
-  
-async function updateTaskStatus(task, status) {
-  setFeedback("");
 
-  try {
-    const response = await fetch(
-      `http://localhost:5000/api/tasks/${task.id}/status`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status }),
+  async function updateTaskStatus(task, status) {
+    setFeedback("");
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/tasks/${task.id}/status`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update task status.");
       }
-    );
 
-    const data = await response.json();
+      const updatedTask = {
+        ...data.task,
+        id: data.task._id,
+      };
 
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to update task status.");
+      setTasks((current) =>
+        current.map((item) =>
+          item.id === task.id ? updatedTask : item
+        )
+      );
+
+      setSelectedTask(null);
+      setFeedback("Task status updated successfully.");
+    } catch (error) {
+      setFeedback(error.message);
     }
-
-    const updatedTask = {
-      ...data.task,
-      id: data.task._id,
-    };
-
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === task.id ? updatedTask : item
-      )
-    );
-
-    setSelectedTask(null);
-    setFeedback("Task status updated successfully.");
-  } catch (error) {
-    setFeedback(error.message);
   }
-}
 
 
   function resetFilters() {
@@ -546,18 +992,22 @@ async function updateTaskStatus(task, status) {
           </div>
 
           <div className="tasks-header-actions">
-            <button
-              className="tasks-button tasks-button-secondary"
-              onClick={() => openModal("team")}
-            >
-              <span>♧</span> Assign team
-            </button>
-            <button
-              className="tasks-button tasks-button-primary"
-              onClick={() => openModal("project")}
-            >
-              <span>＋</span> Create project
-            </button>
+            {canAssignTeam && (
+              <button
+                className="tasks-button tasks-button-secondary"
+                onClick={() => openModal("team")}
+              >
+                <span>♧</span> Assign team
+              </button>
+            )}
+            {canCreateProject && (
+              <button
+                className="tasks-button tasks-button-primary"
+                onClick={() => openModal("project")}
+              >
+                <span>＋</span> Create project
+              </button>
+            )}
           </div>
         </header>
 
@@ -578,12 +1028,14 @@ async function updateTaskStatus(task, status) {
               One place to track delivery, understand priorities, and keep
               everyone aligned.
             </p>
-            <button
-              className="tasks-button tasks-button-light"
-              onClick={() => openModal("task")}
-            >
-              + Add a deliverable <span>→</span>
-            </button>
+            {canAddDeliverable && (
+              <button
+                className="tasks-button tasks-button-light"
+                onClick={() => openModal("task")}
+              >
+                + Add a deliverable <span>→</span>
+              </button>
+            )}
           </div>
 
           <div className="tasks-hero-art" aria-hidden="true">
@@ -653,18 +1105,17 @@ async function updateTaskStatus(task, status) {
           </div>
 
           <div className="project-grid">
-            {projects.map((project) => (
+            {projectsWithMemberCounts.map((project) => (
               <article className="project-card" key={project.id}>
                 <div className="project-card-top">
                   <span className={`project-symbol ${project.color}`}>
                     {project.name.charAt(0)}
                   </span>
                   <span
-                    className={`task-status ${
-                      project.status === "Completed"
-                        ? "status-completed"
-                        : "status-progress"
-                    }`}
+                    className={`task-status ${project.status === "Completed"
+                      ? "status-completed"
+                      : "status-progress"
+                      }`}
                   >
                     <i />
                     {project.status}
@@ -673,7 +1124,10 @@ async function updateTaskStatus(task, status) {
 
                 <span className="project-code">{project.code}</span>
                 <h3>{project.name}</h3>
-                <p className="project-department">{project.department}</p>
+                <p className="project-department">
+                  {project.departmentName ||
+                    getDepartmentName(project.department, departments)}
+                </p>
 
                 <div className="project-progress-heading">
                   <span>Completion</span>
@@ -688,7 +1142,9 @@ async function updateTaskStatus(task, status) {
                 </div>
 
                 <div className="project-card-footer">
-                  <span>♙ {project.members} members</span>
+                  <span>
+                    ♙ {project.members ?? project.teamMembers?.length ?? 0} members
+                  </span>
                   <button
                     onClick={() => {
                       setProjectFilter(project.name);
@@ -703,14 +1159,16 @@ async function updateTaskStatus(task, status) {
               </article>
             ))}
 
-            <button
-              className="project-create-card"
-              onClick={() => openModal("project")}
-            >
-              <span className="project-create-icon">＋</span>
-              <strong>Create a project</strong>
-              <span>Start organizing your next initiative.</span>
-            </button>
+            {canCreateProject && (
+              <button
+                className="project-create-card"
+                onClick={() => openModal("project")}
+              >
+                <span className="project-create-icon">＋</span>
+                <strong>Create a project</strong>
+                <span>Start organizing your next initiative.</span>
+              </button>
+            )}
           </div>
         </section>
 
@@ -722,12 +1180,14 @@ async function updateTaskStatus(task, status) {
               <p>Search, filter, and manage deliverables in one place.</p>
             </div>
 
-            <button
-              className="tasks-button tasks-button-primary"
-              onClick={() => openModal("task")}
-            >
-              ＋ Add deliverable
-            </button>
+            {canAddDeliverable && (
+              <button
+                className="tasks-button tasks-button-primary"
+                onClick={() => openModal("task")}
+              >
+                ＋ Add deliverable
+              </button>
+            )}
           </div>
 
           <div className="queue-toolbar">
@@ -757,12 +1217,14 @@ async function updateTaskStatus(task, status) {
               onChange={setProjectFilter}
               options={projects.map((project) => project.name)}
             />
+
             <FilterSelect
               label="Department"
               value={departmentFilter}
               onChange={setDepartmentFilter}
-              options={departments}
+              options={departments.map((department) => department.name).filter(Boolean)}
             />
+
             <FilterSelect
               label="Manager"
               value={managerFilter}
@@ -820,14 +1282,30 @@ async function updateTaskStatus(task, status) {
                 {filteredTasks.map((task) => (
                   <tr key={task.id}>
                     <td>
-                      <div className="table-task-title">{task.title}</div>
-                      <div className="table-task-project">{task.project}</div>
+                      <div className="table-task-title">
+                        {displayValue(task.title, "Untitled task")}
+                      </div>
+                      <div className="table-task-project">
+                        {displayValue(task.project, "No project")}
+                      </div>
                     </td>
 
-                    <td>
-                      <div className="table-team">{task.team}</div>
-                      <div className="table-team-member">{task.member}</div>
-                    </td>
+<td>
+  <div className="table-team">
+    {displayValue(task.team, "No department")}
+  </div>
+  <div className="table-team-member">
+    {displayValue(
+      typeof task.member === "object"
+        ? task.member
+        : people.find(
+            (person) =>
+              String(person._id) === String(task.member)
+          ),
+      "Unassigned"
+    )}
+  </div>
+</td>
 
                     <td>
                       <span
@@ -921,15 +1399,15 @@ async function updateTaskStatus(task, status) {
                   {modal === "project"
                     ? "Create a project"
                     : modal === "team"
-                    ? "Assign project team"
-                    : "Add a deliverable"}
+                      ? "Assign project team"
+                      : "Add a deliverable"}
                 </h2>
                 <p>
                   {modal === "project"
                     ? "Set up a new initiative for your team."
                     : modal === "team"
-                    ? "Choose the people responsible for a project."
-                    : "Create a task and assign its owner."}
+                      ? "Choose the people responsible for a project."
+                      : "Create a task and assign its owner."}
                 </p>
               </div>
               <button
@@ -972,21 +1450,28 @@ async function updateTaskStatus(task, status) {
                     />
                   </FormField>
 
+
                   <FormField label="Department">
                     <select
+                      required
                       value={projectForm.department}
                       onChange={(event) =>
-                        setProjectForm({
-                          ...projectForm,
+                        setProjectForm((current) => ({
+                          ...current,
                           department: event.target.value,
-                        })
+                        }))
                       }
                     >
+                      <option value="">Select a department</option>
+
                       {departments.map((department) => (
-                        <option key={department}>{department}</option>
+                        <option key={department._id} value={department._id}>
+                          {department.name}
+                        </option>
                       ))}
                     </select>
                   </FormField>
+
 
                   <FormField label="Start date">
                     <input
@@ -1054,27 +1539,29 @@ async function updateTaskStatus(task, status) {
                   </FormField>
 
                   <FormField label="Project">
-                  <select
-                    required
-                    value={taskForm.project}
-                    onChange={(event) =>
-                      setTaskForm((current) => ({
-                        ...current,
-                        project: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="" disabled>
-                      Select a project
-                    </option>
-
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.name}>
-                        {project.name}
+                    <select
+                      required
+                      value={taskForm.project}
+                      onChange={(event) =>
+                        setTaskForm((current) => ({
+                          ...current,
+                          project: event.target.value,
+                          lead: "",
+                          member: "",
+                        }))
+                      }
+                    >
+                      <option value="" disabled>
+                        Select a project
                       </option>
-                    ))}
-                  </select>
-                </FormField>
+
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.name}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
 
                   <FormField label="Priority">
                     <select
@@ -1093,39 +1580,43 @@ async function updateTaskStatus(task, status) {
                     </select>
                   </FormField>
 
-                  <FormField label="Team lead">
-                    <select
-                      value={taskForm.lead}
-                      onChange={(event) =>
-                        setTaskForm({
-                          ...taskForm,
-                          lead: event.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Unassigned</option>
-                      {people.map((person) => (
-                        <option key={person}>{person}</option>
-                      ))}
-                    </select>
-                  </FormField>
 
-                  <FormField label="Assigned member">
-                    <select
-                      value={taskForm.member}
-                      onChange={(event) =>
-                        setTaskForm({
-                          ...taskForm,
-                          member: event.target.value,
-                        })
-                      }
-                    >
-                      <option value="">Unassigned</option>
-                      {people.map((person) => (
-                        <option key={person}>{person}</option>
-                      ))}
-                    </select>
-                  </FormField>
+
+<FormField label="Assigned member">
+  <select
+    required
+    value={taskForm.member}
+    onChange={(event) =>
+      setTaskForm((current) => ({
+        ...current,
+        member: event.target.value,
+      }))
+    }
+  >
+    <option value="">Select an assigned member</option>
+
+    {eligibleAssignedMembers.map((person) => (
+      <option key={person._id} value={person._id}>
+        {person.fullName} — {getRoleLabel(person.role)}
+      </option>
+    ))}
+  </select>
+</FormField>
+
+<FormField label="Team lead">
+  <input
+    type="text"
+    value={
+      user?.fullName ||
+      user?.name ||
+      user?.email ||
+      "Loading user..."
+    }
+    readOnly
+  />
+</FormField>
+
+
 
                   <FormField label="Category">
                     <input
@@ -1196,25 +1687,27 @@ async function updateTaskStatus(task, status) {
                 <FormField label="Project members">
                   <div className="tasks-selection-list">
                     {people.map((person) => (
-                      <label key={person}>
+                      <label key={person._id}>
                         <input
                           type="checkbox"
-                          checked={teamForm.members.includes(person)}
+                          checked={teamForm.members.includes(person._id)}
                           onChange={(event) =>
-                            setTeamForm({
-                              ...teamForm,
+                            setTeamForm((current) => ({
+                              ...current,
                               members: event.target.checked
-                                ? [...teamForm.members, person]
-                                : teamForm.members.filter(
-                                    (member) => member !== person
-                                  ),
-                            })
+                                ? [...current.members, person._id]
+                                : current.members.filter(
+                                  (id) => id !== person._id
+                                ),
+                            }))
                           }
                         />
                         <span className="selection-avatar">
-                          {person.charAt(0)}
+                          {(person.fullName || person.email || "?")
+                            .charAt(0)
+                            .toUpperCase()}
                         </span>
-                        <span>{person}</span>
+                        <span>{person.fullName || person.email}</span>
                       </label>
                     ))}
                   </div>
@@ -1224,18 +1717,22 @@ async function updateTaskStatus(task, status) {
                   <select
                     value={teamForm.managers[0] || ""}
                     onChange={(event) =>
-                      setTeamForm({
-                        ...teamForm,
+                      setTeamForm((current) => ({
+                        ...current,
                         managers: event.target.value
                           ? [event.target.value]
                           : [],
-                      })
+                      }))
                     }
                   >
                     <option value="">No manager selected</option>
-                    {people.map((person) => (
-                      <option key={person}>{person}</option>
-                    ))}
+                    {people
+                      .filter((person) => person.role === "manager")
+                      .map((person) => (
+                        <option key={person._id} value={person._id}>
+                          {person.fullName}
+                        </option>
+                      ))}
                   </select>
                 </FormField>
 
@@ -1243,16 +1740,22 @@ async function updateTaskStatus(task, status) {
                   <select
                     value={teamForm.leads[0] || ""}
                     onChange={(event) =>
-                      setTeamForm({
-                        ...teamForm,
-                        leads: event.target.value ? [event.target.value] : [],
-                      })
+                      setTeamForm((current) => ({
+                        ...current,
+                        leads: event.target.value
+                          ? [event.target.value]
+                          : [],
+                      }))
                     }
                   >
                     <option value="">No lead selected</option>
-                    {people.map((person) => (
-                      <option key={person}>{person}</option>
-                    ))}
+                    {people
+                      .filter((person) => person.role === "executive")
+                      .map((person) => (
+                        <option key={person._id} value={person._id}>
+                          {person.fullName}
+                        </option>
+                      ))}
                   </select>
                 </FormField>
 
@@ -1293,32 +1796,68 @@ async function updateTaskStatus(task, status) {
               </button>
             </div>
 
-            <div className="task-detail-grid">
-              <div>
-                <span>Responsible team</span>
-                <strong>{selectedTask.team}</strong>
-              </div>
-              <div>
-                <span>Assigned member</span>
-                <strong>{selectedTask.member}</strong>
-              </div>
-              <div>
-                <span>Priority</span>
-                <strong>{selectedTask.priority}</strong>
-              </div>
-              <div>
-                <span>Deadline</span>
-                <strong>{formatDate(selectedTask.due)}</strong>
-              </div>
-              <div>
-                <span>Progress</span>
-                <strong>{selectedTask.progress}%</strong>
-              </div>
-              <div>
-                <span>Current status</span>
-                <strong>{selectedTask.status}</strong>
-              </div>
-            </div>
+
+<div className="task-detail-grid">
+  <div>
+    <span>Responsible team</span>
+    <strong>
+      {displayValue(selectedTask.team, "No department")}
+    </strong>
+  </div>
+
+  <div>
+    <span>Assigned member</span>
+    <strong>
+      {displayValue(
+        typeof selectedTask.member === "object"
+          ? selectedTask.member
+          : people.find(
+              (person) =>
+                String(person._id) ===
+                String(selectedTask.member)
+            ),
+        "Unassigned"
+      )}
+    </strong>
+  </div>
+
+  <div>
+    <span>Reporting member (Team Lead)</span>
+    <strong>
+      {displayValue(
+        typeof selectedTask.lead === "object"
+          ? selectedTask.lead
+          : people.find(
+              (person) =>
+                String(person._id) ===
+                String(selectedTask.lead)
+            ),
+        "Unassigned"
+      )}
+    </strong>
+  </div>
+
+  <div>
+    <span>Priority</span>
+    <strong>{selectedTask.priority}</strong>
+  </div>
+
+  <div>
+    <span>Deadline</span>
+    <strong>{formatDate(selectedTask.due)}</strong>
+  </div>
+
+  <div>
+    <span>Progress</span>
+    <strong>{selectedTask.progress}%</strong>
+  </div>
+
+  <div>
+    <span>Current status</span>
+    <strong>{selectedTask.status}</strong>
+  </div>
+</div>
+
 
             <div className="task-detail-actions">
               <button

@@ -119,6 +119,15 @@ export default function AddMember() {
       setUser(profile.user);
       setDepartments(departmentList);
       setMembers(memberData.users || []);
+      console.log(
+        "Users loaded for Reports to:",
+        (memberData.users || []).map((member) => ({
+          id: member._id,
+          name: member.fullName,
+          role: member.role,
+          organization: member.organization,
+        }))
+      );
 
       setMemberForm((current) => {
         const currentExists = departmentList.some(
@@ -253,27 +262,48 @@ export default function AddMember() {
     }
   }
 
+  const selectedDepartment = departments.find(
+    (department) => String(department._id) === String(memberForm.department)
+  );
+  const isHiringDepartmentMember =
+    selectedDepartment?.name?.trim().toLowerCase() === "hr & hiring";
+
   // Members follow the Admin → Executive → Manager → Employee reporting chain.
   const managers = members.filter((member) => {
-    const departmentId = String(
+    const memberRole = String(member.role || "")
+      .trim()
+      .toLowerCase();
+
+    const memberDepartmentId = String(
       member.department?._id || member.department || ""
     );
 
-    const expectedManagerRole =
-      memberForm.role === "employee"
-        ? "manager"
-        : memberForm.role === "manager"
-          ? "recruiter"
-          : ["recruiter", "hr"].includes(memberForm.role)
-          ? "admin"
-          : null;
+    const selectedDepartmentId = String(memberForm.department || "");
 
-    return (
-      member.role === expectedManagerRole &&
-      (!["employee", "manager"].includes(memberForm.role) ||
-        departmentId === String(memberForm.department)) &&
-      String(member._id) !== String(user?._id)
-    );
+    const expectedManagerRole = isHiringDepartmentMember
+      ? "admin"
+      : {
+          employee: "manager",
+          manager: "executive",
+          executive: "admin",
+          hr: "admin",
+        }[memberForm.role];
+
+    // Only show the required reporting role.
+    if (!expectedManagerRole || memberRole !== expectedManagerRole) {
+      return false;
+    }
+
+    // Employees and managers must report within their department.
+    if (!isHiringDepartmentMember && ["employee", "manager"].includes(memberForm.role)) {
+      if (memberDepartmentId !== selectedDepartmentId) {
+        return false;
+      }
+    }
+
+    // Do NOT exclude the logged-in Admin when creating HR or Executive.
+    // The company Admin must be able to appear in their Reports to list.
+    return true;
   });
 
   return (
@@ -468,22 +498,15 @@ export default function AddMember() {
                         value={memberForm.role}
                         onChange={(e) => {
                           const role = e.target.value;
-                          const hrDepartment = departments.find(
-                            (department) => department.name.trim().toLowerCase() === "hr & hiring"
-                          );
                           setMemberForm((current) => ({
                             ...current,
                             role,
                             manager: "",
-                            department: role === "hr" && hrDepartment
-                              ? String(hrDepartment._id)
-                              : current.department,
                           }));
                         }}
                       >
-                        <option value="admin">Admin</option>
                         <option value="hr">HR</option>
-                        <option value="recruiter">Executive</option>
+                        <option value="executive">Executive</option>
                         <option value="manager">Manager</option>
                         <option value="employee">Employee</option>
                       </select>
@@ -531,16 +554,16 @@ export default function AddMember() {
                           }
                         >
                           <option value="">
-                            {memberForm.role === "employee"
-                              ? "Select a manager"
+                            {isHiringDepartmentMember || memberForm.role === "executive"
+                              ? "Select an admin"
                               : memberForm.role === "manager"
-                                ? "Select an executive"
-                                : "Select an admin"}
+                                ? "Select an admin or executive"
+                                : "Select an admin, executive, or manager"}
                           </option>
 
                           {managers.map((manager) => (
                             <option key={manager._id} value={manager._id}>
-                              {manager.fullName}
+                              {manager.fullName} ({manager.role})
                             </option>
                           ))}
                         </select>

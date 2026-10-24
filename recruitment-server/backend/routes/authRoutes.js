@@ -3,6 +3,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Department = require("../models/Department");
 const {
   requireAuth,
   authorizeRoles
@@ -18,9 +19,6 @@ function dashboardForRole(role) {
 
     case "recruiter":
       return "/recruiter/dashboard";
-
-    case "hr":
-      return "/hr/dashboard";
 
     case "manager":
       return "/manager/dashboard";
@@ -98,8 +96,20 @@ router.post("/login", async (req, res) => {
     if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-        message: "Invalid login credentials."
+        message: "Password is Incorrect."
       });
+    }
+
+    if (user.role === "hr") {
+      const hiringDepartment = user.organization
+        ? await Department.findOne({
+            organization: user.organization,
+            name: /^HR\s*&\s*Hiring$/i
+          }).select("_id")
+        : null;
+      user.role = "employee";
+      if (hiringDepartment) user.department = hiringDepartment._id;
+      await user.save();
     }
 
     // Create JWT after verifying credentials

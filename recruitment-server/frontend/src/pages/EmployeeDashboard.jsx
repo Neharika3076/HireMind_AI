@@ -25,7 +25,6 @@ function getRoleLabel(role) {
   if (role === "admin") return "Admin";
   if (role === "recruiter") return "Executive";
   if (role === "manager") return "Manager";
-  if (role === "hr") return "HR";
   return "Employee";
 }
 

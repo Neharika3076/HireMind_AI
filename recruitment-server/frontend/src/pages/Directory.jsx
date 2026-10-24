@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import { isHiringDepartment } from "../utils/departmentAccess";
 import "../styles/OrganizationPages.css";
 
 const API = "http://localhost:5000/api";
@@ -8,7 +9,6 @@ const API = "http://localhost:5000/api";
 function getRoleLabel(role) {
   if (role === "recruiter") return "Executive";
   if (role === "manager") return "Manager";
-  if (role === "hr") return "HR";
   if (role === "admin") return "Admin";
   return "Employee";
 }
@@ -63,7 +63,7 @@ export default function Directory() {
 
   const filteredMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const roleOrder = { admin: 0, hr: 1, recruiter: 2, manager: 3, employee: 4 };
+    const roleOrder = { admin: 0, recruiter: 1, manager: 2, employee: 3 };
 
     return members
       .filter((member) => {
@@ -131,9 +131,9 @@ export default function Directory() {
                 </strong>
               </article>
               <article className="org-stat-card">
-                <span>HR</span>
+                <span>HR &amp; HIRING DEPARTMENT</span>
                 <strong>
-                  {members.filter((member) => member.role === "hr").length}
+                  {members.filter(isHiringDepartment).length}
                 </strong>
               </article>
               <article className="org-stat-card">
@@ -202,7 +202,6 @@ export default function Directory() {
                   <option value="All">All roles</option>
                   <option value="employee">Employee</option>
                   <option value="admin">Admin</option>
-                  <option value="hr">HR</option>
                   <option value="recruiter">Executive</option>
                   <option value="manager">Manager</option>
                 </select>

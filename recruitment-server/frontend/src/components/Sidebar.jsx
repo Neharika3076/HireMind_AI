@@ -1,6 +1,7 @@
 
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { isHiringDepartment } from "../utils/departmentAccess";
 
 const navigation = {
   employee: [
@@ -27,13 +28,6 @@ const navigation = {
     { label: "Payroll", path: "/recruiter/payroll", icon: "＄" },
     { label: "Recruitment", path: "/recruiter/recruitment", icon: "◎" },
   ],
-  hr: [
-    { label: "HR Dashboard", path: "/hr/dashboard", icon: "⌂" },
-    { label: "Tasks", path: "/hr/tasks", icon: "▤" },
-    { label: "Attendance & Leave", path: "/hr/attendance", icon: "▦" },
-    { label: "Payroll", path: "/hr/payroll", icon: "＄" },
-    { label: "Recruitment", path: "/hr/recruitment", icon: "◎" },
-  ],
   manager: [
     { label: "Manager Dashboard", path: "/manager/dashboard", icon: "⌂" },
     { label: "Tasks", path: "/manager/tasks", icon: "▤" },
@@ -45,14 +39,22 @@ const navigation = {
 const roleLabels = {
   admin: "Admin",
   recruiter: "Executive",
-  hr: "HR",
   manager: "Manager",
   employee: "Employee",
+  executive: "Executive",
 };
 
 export default function Sidebar({ user, role }) {
   const navigate = useNavigate();
-  const links = navigation[role] || navigation.employee;
+  const normalizedRole = role === "executive" ? "recruiter" : role;
+  const links = [...(navigation[normalizedRole] || navigation.employee)];
+  if (
+    isHiringDepartment(user) &&
+    normalizedRole !== "admin" &&
+    !links.some((item) => item.label === "Recruitment")
+  ) {
+    links.push({ label: "Recruitment", path: "/recruiter/recruitment", icon: "◎" });
+  }
 
   async function handleLogout() {
     try {
