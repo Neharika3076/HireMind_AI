@@ -7,6 +7,7 @@ const LeaveRequest = require("../models/LeaveRequest");
 const User = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
 const { countDaysByMonth, listDateKeys, isValidDateKey, getDateKey } = require("../utils/attendanceDate");
+const { canReviewLeaveRequest, leaveApprovalRoles } = require("../services/leave-approval-access");
 
 const router = express.Router();
 const MONTHLY_LEAVE_LIMIT = 3;
@@ -142,38 +143,66 @@ router.use(requireAuth, requireOrganization);
 
 router.get("/", async (req, res) => {
   try {
-    let filter;
-    if (req.user.role === "admin") {
-      filter = { organization: req.user.organization };
-    } else if (req.user.isHiringDepartment) {
-      const employees = await User.find({
-        organization: req.user.organization,
-        role: "employee",
-        department: { $ne: req.user.department },
-        status: "active"
-      }).select("_id").lean();
-      filter = {
-        organization: req.user.organization,
-        $or: [
-          { user: req.user.userId },
-          { user: { $in: employees.map((employee) => employee._id) }, status: "pending" }
-        ]
-      };
-    } else {
-      filter = { organization: req.user.organization, user: req.user.userId };
+    const view = req.query.view === "mine" ? "mine" : "approvals";
+    let filter = {
+      organization: req.user.organization,
+      user: req.user.userId
+    };
+
+    if (view === "approvals") {
+      if (req.user.role === "admin") {
+        filter = { organization: req.user.organization, status: "pending" };
+      } else {
+        let potentialRequesters = [];
+        if (["manager", "executive"].includes(req.user.role) && !req.user.isHiringDepartment) {
+          potentialRequesters = await User.find({
+            organization: req.user.organization,
+            role: "employee",
+            manager: req.user.userId
+          }).select("_id role manager department").populate("department", "name").lean();
+        } else if (req.user.role === "employee" && req.user.isHiringDepartment) {
+          potentialRequesters = await User.find({
+            organization: req.user.organization,
+            role: { $in: ["employee", "manager"] },
+            _id: { $ne: req.user.userId }
+          }).select("_id role manager department").populate("department", "name").lean();
+        }
+
+        const reviewableUserIds = potentialRequesters
+          .filter((requester) => canReviewLeaveRequest(req.user, requester))
+          .map((requester) => requester._id);
+
+        filter = {
+          organization: req.user.organization,
+          user: { $in: reviewableUserIds },
+          status: "pending"
+        };
+      }
     }
 
-    const requests = await LeaveRequest.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .populate({
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 40));
+    const [requests, total] = await Promise.all([
+      LeaveRequest.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate({
         path: "user",
-        select: "fullName email employeeId role department",
+        select: "fullName email employeeId role department manager",
         populate: { path: "department", select: "name" }
-      })
-      .populate("reviewedBy", "fullName")
-      .lean();
-    return res.json({ success: true, requests });
+        })
+        .populate("reviewedBy", "fullName")
+        .lean(),
+      LeaveRequest.countDocuments(filter)
+    ]);
+    return res.json({
+      success: true,
+      requests,
+      page,
+      total,
+      hasMore: page * limit < total
+    });
   } catch (error) {
     console.error("List leave requests error:", error);
     return res.status(500).json({
@@ -282,7 +311,9 @@ router.post("/", async (req, res) => {
       .lean();
     return res.status(201).json({
       success: true,
-      message: isAdmin ? "Your leave was approved and recorded." : "Your leave request was submitted.",
+      message: isAdmin
+        ? "Your leave was approved and recorded."
+        : `Your leave request was submitted to ${leaveApprovalRoles(req.user).map((role) => ({ manager: "your manager", hr: "HR & Hiring", admin: "an administrator" })[role]).join(", ").replace(/, ([^,]*)$/, " and $1")} for review.`,
       request: populated
     });
   } catch (error) {
@@ -299,10 +330,10 @@ router.post("/", async (req, res) => {
 
 router.post("/:id/decision", async (req, res) => {
   try {
-    if (req.user.role !== "admin" && !req.user.isHiringDepartment) {
+    if (!["admin", "manager", "executive"].includes(req.user.role) && !(req.user.role === "employee" && req.user.isHiringDepartment)) {
       return res.status(403).json({
         success: false,
-        message: "Only administrators and HR & Hiring department members can review leave requests."
+        message: "You are not authorized to review leave requests."
       });
     }
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -327,20 +358,15 @@ router.post("/:id/decision", async (req, res) => {
         message: "Pending leave request not found."
       });
     }
-    if (req.user.isHiringDepartment) {
-      const employee = await User.exists({
-        _id: leave.user,
-        organization: req.user.organization,
-        role: "employee",
-        department: { $ne: req.user.department },
-        status: "active"
+    const requester = await User.findOne({
+      _id: leave.user,
+      organization: req.user.organization
+    }).select("role manager department").populate("department", "name").lean();
+    if (!requester || !canReviewLeaveRequest(req.user, requester)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not in the approval chain for this leave request."
       });
-      if (!employee) {
-        return res.status(403).json({
-          success: false,
-          message: "HR & Hiring department members can review employee requests outside their own department."
-        });
-      }
     }
 
     if (decision === "approved") {

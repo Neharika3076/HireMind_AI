@@ -61,6 +61,12 @@ function roleLabel(role) {
   return "—";
 }
 
+function referenceId(value) {
+  if (!value) return "";
+  if (typeof value === "object") return String(value._id || value.id || value);
+  return String(value);
+}
+
 export default function Attendance() {
   const location = useLocation();
   const [user, setUser] = useState(null);
@@ -81,6 +87,13 @@ export default function Attendance() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState("");
   const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leavePage, setLeavePage] = useState(1);
+  const [leaveTotal, setLeaveTotal] = useState(0);
+  const [leaveHasMore, setLeaveHasMore] = useState(false);
+  const [myLeaveRequests, setMyLeaveRequests] = useState([]);
+  const [myLeavePage, setMyLeavePage] = useState(1);
+  const [myLeaveTotal, setMyLeaveTotal] = useState(0);
+  const [myLeaveHasMore, setMyLeaveHasMore] = useState(false);
   const [leaveLoading, setLeaveLoading] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [leaveError, setLeaveError] = useState("");
@@ -96,7 +109,11 @@ export default function Attendance() {
   const [now, setNow] = useState(() => Date.now());
 
   const isAdmin = user?.role === "admin";
-  const isHiringDepartmentMember = isHiringDepartment(user);
+  const isManager = user?.role === "manager";
+  const isExecutive = user?.role === "executive";
+  const isHiringDepartmentMember = user?.role === "employee" && isHiringDepartment(user);
+  const showLeaveApprovalColumns = isAdmin || isHiringDepartmentMember || isManager || isExecutive;
+  const canReviewLeaves = showLeaveApprovalColumns;
   const routeRole = location.pathname.split("/")[1];
 
   const todayDateKey = useMemo(() => {
@@ -168,20 +185,45 @@ export default function Attendance() {
     }
   }, []);
 
-  const loadLeaveRequests = useCallback(async () => {
+  const loadLeaveRequests = useCallback(async (page = 1, append = false) => {
     setLeaveLoading(true);
     setLeaveError("");
     try {
-      const response = await fetch(`${API}/leaves`, { credentials: "include" });
+      const view = canReviewLeaves ? "approvals" : "mine";
+      const response = await fetch(`${API}/leaves?view=${view}&page=${page}&limit=40`, { credentials: "include" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Unable to load leave requests.");
-      setLeaveRequests(data.requests || []);
+      const nextRequests = data.requests || [];
+      setLeaveRequests((current) => append ? [...current, ...nextRequests] : nextRequests);
+      setLeavePage(Number(data.page) || page);
+      setLeaveTotal(Number(data.total) || 0);
+      setLeaveHasMore(Boolean(data.hasMore));
     } catch (loadError) {
       setLeaveError(loadError.message || "Unable to load leave requests.");
     } finally {
       setLeaveLoading(false);
     }
-  }, []);
+  }, [canReviewLeaves]);
+
+  const loadMyLeaveRequests = useCallback(async (page = 1, append = false) => {
+    if (!canReviewLeaves) return;
+    setLeaveLoading(true);
+    setLeaveError("");
+    try {
+      const response = await fetch(`${API}/leaves?view=mine&page=${page}&limit=40`, { credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Unable to load your leave history.");
+      const nextRequests = data.requests || [];
+      setMyLeaveRequests((current) => append ? [...current, ...nextRequests] : nextRequests);
+      setMyLeavePage(Number(data.page) || page);
+      setMyLeaveTotal(Number(data.total) || 0);
+      setMyLeaveHasMore(Boolean(data.hasMore));
+    } catch (loadError) {
+      setLeaveError(loadError.message || "Unable to load your leave history.");
+    } finally {
+      setLeaveLoading(false);
+    }
+  }, [canReviewLeaves]);
 
   useEffect(() => {
     let active = true;
@@ -230,7 +272,8 @@ export default function Attendance() {
     if (!user) return;
     loadCalendar(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1);
     loadLeaveRequests();
-  }, [calendarMonth, loadCalendar, loadLeaveRequests, user]);
+    if (canReviewLeaves) loadMyLeaveRequests();
+  }, [calendarMonth, canReviewLeaves, loadCalendar, loadLeaveRequests, loadMyLeaveRequests, user]);
 
   useEffect(() => {
     if (!ownRecord?.checkInAt || ownRecord.checkOutAt) return undefined;
@@ -367,6 +410,7 @@ export default function Attendance() {
       setLeaveForm({ startDateKey: "", endDateKey: "", reason: "" });
       await Promise.all([
         loadLeaveRequests(),
+        canReviewLeaves ? loadMyLeaveRequests() : Promise.resolve(),
         loadCalendar(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1),
       ]);
     } catch (submitError) {
@@ -392,6 +436,7 @@ export default function Attendance() {
       setLeaveMessage(data.message || "Leave request reviewed.");
       await Promise.all([
         loadLeaveRequests(),
+        canReviewLeaves ? loadMyLeaveRequests() : Promise.resolve(),
         loadCalendar(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1),
       ]);
     } catch (decisionError) {
@@ -486,7 +531,7 @@ export default function Attendance() {
                 </select>
               </div>
 
-              <div className="org-table-wrap">
+              <div className="org-table-wrap attendance-team-scroll" role="region" aria-label="Team attendance records" tabIndex={0}>
                 <table className="org-table attendance-table">
                   <thead><tr><th>Team member</th><th>Role</th><th>Department</th><th>Check in</th><th>Check out</th><th>Hours</th><th>Status</th></tr></thead>
                   <tbody>
@@ -668,47 +713,58 @@ export default function Attendance() {
           <p className="attendance-leave-policy">
             {isAdmin
               ? "Your leave requests are approved automatically, subject to the monthly limit."
-              : isHiringDepartmentMember
-                ? "Employee requests can be approved by the HR & Hiring department. Your own requests require administrator approval."
-                : "An HR & Hiring department member or administrator will review your request."}
+              : isManager
+                ? "Manager leave requests are reviewed by HR & Hiring or an administrator."
+                : isExecutive
+                  ? "Executive leave requests are reviewed by an administrator. You can review employee requests assigned directly to you."
+                  : isHiringDepartmentMember
+                    ? "HR & Hiring leave requests are reviewed by an administrator. You can review manager requests and employee requests outside HR & Hiring."
+                    : "Employee leave requests can be reviewed by your assigned manager, HR & Hiring, or an administrator."}
           </p>
         </section>
 
         <section className="org-card attendance-records-card attendance-leave-requests-card">
           <div className="org-section-heading">
             <div>
-              <span className="org-eyebrow">{isAdmin ? "ORGANIZATION REQUESTS" : isHiringDepartmentMember ? "EMPLOYEE REQUESTS & YOUR LEAVE" : "YOUR REQUESTS"}</span>
-              <h2>{isAdmin || isHiringDepartmentMember ? "Leave approvals" : "Your leave requests"}</h2>
+              <span className="org-eyebrow">{isAdmin ? "ORGANIZATION REQUESTS" : isHiringDepartmentMember ? "EMPLOYEE & MANAGER REQUESTS" : isManager || isExecutive ? "YOUR TEAM REQUESTS" : "YOUR REQUESTS"}</span>
+              <h2>{canReviewLeaves ? (isManager || isExecutive ? "Team leave approvals" : "Leave approvals") : "Your leave requests"}</h2>
             </div>
-            <span className="org-count-pill">{leaveRequests.length} requests</span>
+            <span className="org-count-pill">{leaveRequests.length}{leaveHasMore ? ` of ${leaveTotal}` : ""} {canReviewLeaves ? "awaiting review" : "requests"}</span>
           </div>
           {leaveLoading && !leaveRequests.length ? <p>Loading leave requests…</p> : (
-            <div className="org-table-wrap">
+            <div className="org-table-wrap attendance-leave-scroll" role="region" aria-label="Leave requests" tabIndex={0}>
               <table className="org-table attendance-leave-table">
                 <thead>
                   <tr>
-                    {(isAdmin || isHiringDepartmentMember) && <th>Team member</th>}
+                    {showLeaveApprovalColumns && <th>Team member</th>}
                     <th>Dates</th><th>Reason</th><th>Status</th><th>Reviewed by</th>
-                    {(isAdmin || isHiringDepartmentMember) && <th>Action</th>}
+                    {showLeaveApprovalColumns && <th>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {leaveRequests.map((request) => {
                     const member = typeof request.user === "object" ? request.user : {};
-                    const canReview = request.status === "pending" &&
-                      (isAdmin || (
-                      isHiringDepartmentMember &&
+                    const canReview = request.status === "pending" && (
+                      isAdmin || (
+                        isHiringDepartmentMember && (
+                          member.role === "manager" ||
+                          (member.role === "employee" && !isHiringDepartment(member))
+                        )
+                      ) || (
+                        (isManager || isExecutive) &&
                         member.role === "employee" &&
+                        referenceId(member.manager) === String(user?._id) &&
                         !isHiringDepartment(member)
-                      ));
+                      )
+                    );
                     return (
                       <tr key={request._id}>
-                        {(isAdmin || isHiringDepartmentMember) && <td>{member.fullName || "Workspace user"}{member.role && <small className="attendance-request-role">{roleLabel(member.role)}</small>}</td>}
+                        {showLeaveApprovalColumns && <td>{member.fullName || "Workspace user"}{member.role && <small className="attendance-request-role">{roleLabel(member.role)}</small>}</td>}
                         <td>{request.startDateKey === request.endDateKey ? formatDate(request.startDateKey) : `${formatDate(request.startDateKey)} – ${formatDate(request.endDateKey)}`}</td>
                         <td className="attendance-leave-reason-cell">{request.reason}</td>
                         <td><span className={`org-status-badge ${request.status === "approved" ? "present" : request.status}`}>{request.status}</span></td>
                         <td>{request.reviewedBy?.fullName || (request.status === "pending" ? "Awaiting review" : "—")}</td>
-                        {(isAdmin || isHiringDepartmentMember) && (
+                        {showLeaveApprovalColumns && (
                           <td>
                             {canReview ? (
                               <div className="attendance-leave-actions">
@@ -721,12 +777,58 @@ export default function Attendance() {
                       </tr>
                     );
                   })}
-                  {!leaveRequests.length && <tr><td colSpan={isAdmin || isHiringDepartmentMember ? 6 : 4} className="org-empty">No leave requests yet.</td></tr>}
+                  {!leaveRequests.length && <tr><td colSpan={showLeaveApprovalColumns ? 6 : 4} className="org-empty">{canReviewLeaves ? "No pending leave approvals." : "No leave requests yet."}</td></tr>}
                 </tbody>
               </table>
             </div>
           )}
+          {leaveHasMore && (
+            <div className="attendance-history-actions">
+              <button
+                className="org-secondary-btn"
+                disabled={leaveLoading}
+                onClick={() => loadLeaveRequests(leavePage + 1, true)}
+              >
+                {leaveLoading ? "Loading…" : canReviewLeaves ? "Load more approvals" : "Load more leave requests"}
+              </button>
+            </div>
+          )}
         </section>
+
+        {canReviewLeaves && (
+          <section className="org-card attendance-records-card attendance-history-card attendance-my-leave-card">
+            <div className="org-section-heading">
+              <div>
+                <span className="org-eyebrow">YOUR LEAVE HISTORY</span>
+                <h2>Your requests</h2>
+              </div>
+              <span className="org-count-pill">{myLeaveRequests.length}{myLeaveHasMore ? ` of ${myLeaveTotal}` : ""} requests</span>
+            </div>
+            <div className="org-table-wrap attendance-leave-scroll" role="region" aria-label="Your leave request history" tabIndex={0}>
+              <table className="org-table attendance-leave-table">
+                <thead><tr><th>Dates</th><th>Reason</th><th>Status</th><th>Reviewed by</th></tr></thead>
+                <tbody>
+                  {myLeaveRequests.map((request) => (
+                    <tr key={request._id}>
+                      <td>{request.startDateKey === request.endDateKey ? formatDate(request.startDateKey) : `${formatDate(request.startDateKey)} – ${formatDate(request.endDateKey)}`}</td>
+                      <td className="attendance-leave-reason-cell">{request.reason}</td>
+                      <td><span className={`org-status-badge ${request.status === "approved" ? "present" : request.status}`}>{request.status}</span></td>
+                      <td>{request.reviewedBy?.fullName || (request.status === "pending" ? "Awaiting review" : "—")}</td>
+                    </tr>
+                  ))}
+                  {!myLeaveRequests.length && <tr><td colSpan="4" className="org-empty">You have not submitted any leave requests.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            {myLeaveHasMore && (
+              <div className="attendance-history-actions">
+                <button className="org-secondary-btn" disabled={leaveLoading} onClick={() => loadMyLeaveRequests(myLeavePage + 1, true)}>
+                  {leaveLoading ? "Loading…" : "Load more of your requests"}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="org-card attendance-records-card attendance-history-card">
           <div className="org-section-heading">
@@ -737,7 +839,7 @@ export default function Attendance() {
             <span className="org-count-pill">{history.length} of {historyTotal} records</span>
           </div>
           {historyError && <div className="org-feedback attendance-feedback error" role="alert">{historyError}</div>}
-          <div className="org-table-wrap">
+          <div className="org-table-wrap attendance-history-scroll" role="region" aria-label="Attendance history" tabIndex={0}>
             <table className="org-table attendance-table attendance-history-table">
               <thead>
                 <tr>
