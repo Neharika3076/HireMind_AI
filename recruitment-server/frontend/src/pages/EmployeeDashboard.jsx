@@ -22,9 +22,11 @@ function greetingForHour(hour) {
 }
 
 function getRoleLabel(role) {
-  if (role === "admin") return "Admin";
-  if (role === "recruiter") return "Executive";
-  if (role === "manager") return "Manager";
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "admin") return "Admin";
+  if (normalized === "recruiter" || normalized === "executive") return "Executive";
+  if (normalized === "manager") return "Manager";
+  if (normalized === "hr") return "HR";
   return "Employee";
 }
 

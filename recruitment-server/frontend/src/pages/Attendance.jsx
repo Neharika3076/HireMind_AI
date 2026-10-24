@@ -52,9 +52,12 @@ function statusBadgeClass(status) {
 }
 
 function roleLabel(role) {
-  if (role === "admin") return "Admin";
-  if (role === "recruiter") return "Executive";
-  if (role === "employee") return "Employee";
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "admin") return "Admin";
+  if (normalized === "recruiter" || normalized === "executive") return "Executive";
+  if (normalized === "manager") return "Manager";
+  if (normalized === "hr") return "HR";
+  if (normalized === "employee") return "Employee";
   return "—";
 }
 
@@ -95,6 +98,22 @@ export default function Attendance() {
   const isAdmin = user?.role === "admin";
   const isHiringDepartmentMember = isHiringDepartment(user);
   const routeRole = location.pathname.split("/")[1];
+
+  const todayDateKey = useMemo(() => {
+    if (dateKey) return dateKey;
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [dateKey]);
+
+  const isCheckedInToday = Boolean(ownRecord?.checkInAt);
+
+  const tomorrowDateKey = useMemo(() => {
+    const [y, m, d] = todayDateKey.split("-").map(Number);
+    const next = new Date(Date.UTC(y, m - 1, d + 1));
+    return next.toISOString().slice(0, 10);
+  }, [todayDateKey]);
+
+  const minLeaveStartDate = isCheckedInToday ? tomorrowDateKey : todayDateKey;
 
   const loadAttendance = useCallback(async () => {
     const response = await fetch(`${API}/attendance/today`, {
@@ -317,6 +336,24 @@ export default function Attendance() {
     setLeaveSaving(true);
     setLeaveError("");
     setLeaveMessage("");
+
+    if (!leaveForm.startDateKey || !leaveForm.endDateKey) {
+      setLeaveError("Please select both start and end dates.");
+      setLeaveSaving(false);
+      return;
+    }
+
+    if (leaveForm.startDateKey < todayDateKey) {
+      setLeaveError("Leave cannot be requested for past dates. Please select today or a future date.");
+      setLeaveSaving(false);
+      return;
+    }
+
+    if (leaveForm.startDateKey <= todayDateKey && leaveForm.endDateKey >= todayDateKey && isCheckedInToday) {
+      setLeaveError("You cannot apply for leave for today because you are already checked in.");
+      setLeaveSaving(false);
+      return;
+    }
     try {
       const response = await fetch(`${API}/leaves`, {
         method: "POST",
@@ -580,12 +617,46 @@ export default function Attendance() {
           <form className="attendance-leave-form" onSubmit={submitLeave}>
             <label>
               Start date
-              <input type="date" required min="2000-01-01" max="2100-12-31" value={leaveForm.startDateKey} onChange={(event) => setLeaveForm((current) => ({ ...current, startDateKey: event.target.value }))} />
+              <input
+                type="date"
+                required
+                min={minLeaveStartDate}
+                max="2100-12-31"
+                value={leaveForm.startDateKey}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  setLeaveForm((current) => ({
+                    ...current,
+                    startDateKey: val,
+                    endDateKey: current.endDateKey && current.endDateKey < val ? val : current.endDateKey,
+                  }));
+                }}
+              />
             </label>
             <label>
               End date
-              <input type="date" required min={leaveForm.startDateKey || "2000-01-01"} max="2100-12-31" value={leaveForm.endDateKey} onChange={(event) => setLeaveForm((current) => ({ ...current, endDateKey: event.target.value }))} />
+              <input
+                type="date"
+                required
+                min={leaveForm.startDateKey || minLeaveStartDate}
+                max="2100-12-31"
+                value={leaveForm.endDateKey}
+                onChange={(event) => setLeaveForm((current) => ({ ...current, endDateKey: event.target.value }))}
+              />
             </label>
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                fontSize: "12px",
+                color: isCheckedInToday ? "#fbbf24" : "var(--mist)",
+                marginTop: "-4px",
+                marginBottom: "6px"
+              }}
+            >
+              {isCheckedInToday
+                ? "⚠️ You are checked in today. Leave can only be requested for future dates starting tomorrow."
+                : "ℹ️ Leave can only be applied for today (before checking in) or future dates."}
+            </div>
             <label className="attendance-leave-reason">
               Reason
               <textarea required maxLength={1000} rows={3} value={leaveForm.reason} onChange={(event) => setLeaveForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Briefly describe your leave request" />

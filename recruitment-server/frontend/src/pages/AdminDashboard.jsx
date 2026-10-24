@@ -16,7 +16,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const hrCount = members.filter(isHiringDepartment).length;
-  const executiveCount = members.filter((member) => member.role === "recruiter").length;
+  const executiveCount = members.filter((member) => member.role === "recruiter" || member.role === "executive").length;
   const managerCount = members.filter((member) => member.role === "manager").length;
   const employeeCount = members.filter((member) => member.role === "employee").length;
 

@@ -6,7 +6,7 @@ const LeaveMonthBalance = require("../models/LeaveMonthBalance");
 const LeaveRequest = require("../models/LeaveRequest");
 const User = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
-const { countDaysByMonth, listDateKeys, isValidDateKey } = require("../utils/attendanceDate");
+const { countDaysByMonth, listDateKeys, isValidDateKey, getDateKey } = require("../utils/attendanceDate");
 
 const router = express.Router();
 const MONTHLY_LEAVE_LIMIT = 3;
@@ -197,6 +197,29 @@ router.post("/", async (req, res) => {
         success: false,
         message: "A reason of up to 1,000 characters is required."
       });
+    }
+
+    const today = getDateKey();
+    if (startDateKey < today) {
+      return res.status(400).json({
+        success: false,
+        message: "Leave cannot be requested for past dates. Please select today or a future date."
+      });
+    }
+
+    if (startDateKey <= today && endDateKey >= today) {
+      const todayAttendance = await Attendance.findOne({
+        organization: req.user.organization,
+        user: req.user.userId,
+        dateKey: today
+      }).select("checkInAt").lean();
+
+      if (todayAttendance && todayAttendance.checkInAt) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot apply for leave for today because you have already checked in."
+        });
+      }
     }
 
     const dateKeys = listDateKeys(startDateKey, endDateKey);

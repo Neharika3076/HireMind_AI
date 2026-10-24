@@ -7,9 +7,11 @@ import "../styles/OrganizationPages.css";
 const API = "http://localhost:5000/api";
 
 function getRoleLabel(role) {
-  if (role === "recruiter") return "Executive";
-  if (role === "manager") return "Manager";
-  if (role === "admin") return "Admin";
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "executive" || normalized === "recruiter") return "Executive";
+  if (normalized === "manager") return "Manager";
+  if (normalized === "admin") return "Admin";
+  if (normalized === "hr") return "HR";
   return "Employee";
 }
 
@@ -63,31 +65,40 @@ export default function Directory() {
 
   const filteredMembers = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const roleOrder = { admin: 0, recruiter: 1, manager: 2, employee: 3 };
+    const roleOrder = { admin: 0, executive: 1, recruiter: 1, manager: 2, hr: 3, employee: 4 };
 
     return members
       .filter((member) => {
         const departmentName = member.department?.name || "Unassigned";
+        const memberRole = String(member.role || "").trim().toLowerCase();
+        const roleLabel = getRoleLabel(memberRole);
         const searchable = [
           member.fullName,
           member.email,
           departmentName,
-          getRoleLabel(member.role),
+          roleLabel,
+          memberRole,
           member.designation,
           member.position,
         ]
           .join(" ")
           .toLowerCase();
 
+        const matchesRole =
+          role === "All" ||
+          memberRole === role ||
+          (role === "executive" && (memberRole === "executive" || memberRole === "recruiter")) ||
+          (role === "recruiter" && (memberRole === "executive" || memberRole === "recruiter"));
+
         return (
           searchable.includes(query) &&
           (department === "All" || departmentName === department) &&
-          (role === "All" || member.role === role)
+          matchesRole
         );
       })
       .sort(
         (left, right) =>
-          roleOrder[left.role] - roleOrder[right.role] ||
+          ((roleOrder[left.role] ?? 99) - (roleOrder[right.role] ?? 99)) ||
           left.fullName.localeCompare(right.fullName)
       );
   }, [members, search, department, role]);
@@ -139,7 +150,7 @@ export default function Directory() {
               <article className="org-stat-card">
                 <span>EXECUTIVES</span>
                 <strong>
-                  {members.filter((member) => member.role === "recruiter").length}
+                  {members.filter((member) => member.role === "executive" || member.role === "recruiter").length}
                 </strong>
               </article>
               <article className="org-stat-card">
@@ -200,10 +211,11 @@ export default function Directory() {
 
                 <select value={role} onChange={(e) => setRole(e.target.value)}>
                   <option value="All">All roles</option>
+                  <option value="executive">Executive</option>
+                  <option value="manager">Manager</option>
+                  <option value="hr">HR</option>
                   <option value="employee">Employee</option>
                   <option value="admin">Admin</option>
-                  <option value="recruiter">Executive</option>
-                  <option value="manager">Manager</option>
                 </select>
               </div>
 
