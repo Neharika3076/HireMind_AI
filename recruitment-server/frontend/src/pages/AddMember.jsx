@@ -119,6 +119,15 @@ export default function AddMember() {
       setUser(profile.user);
       setDepartments(departmentList);
       setMembers(memberData.users || []);
+      console.log(
+        "Users loaded for Reports to:",
+        (memberData.users || []).map((member) => ({
+          id: member._id,
+          name: member.fullName,
+          role: member.role,
+          organization: member.organization,
+        }))
+      );
 
       setMemberForm((current) => {
         const currentExists = departmentList.some(
@@ -253,6 +262,7 @@ export default function AddMember() {
     }
   }
 
+<<<<<<< HEAD
   const selectedDepartment = departments.find(
     (department) => String(department._id) === String(memberForm.department)
   );
@@ -269,6 +279,45 @@ export default function AddMember() {
   const managers = members.filter((member) => {
     return allowedManagerRoles.includes(member.role);
   });
+=======
+  // Members follow the Admin → Executive → Manager → Employee reporting chain.
+
+const managers = members.filter((member) => {
+  const memberRole = String(member.role || "")
+    .trim()
+    .toLowerCase();
+
+  const memberDepartmentId = String(
+    member.department?._id || member.department || ""
+  );
+
+  const selectedDepartmentId = String(memberForm.department || "");
+
+  const expectedManagerRole = {
+    employee: "manager",
+    manager: "executive",
+    executive: "admin",
+    hr: "admin",
+  }[memberForm.role];
+
+  // Only show the required reporting role.
+  if (!expectedManagerRole || memberRole !== expectedManagerRole) {
+    return false;
+  }
+
+  // Employees and managers must report within their department.
+  if (["employee", "manager"].includes(memberForm.role)) {
+    if (memberDepartmentId !== selectedDepartmentId) {
+      return false;
+    }
+  }
+
+  // Do NOT exclude the logged-in Admin when creating HR or Executive.
+  // The company Admin must be able to appear in their Reports to list.
+
+  return true;
+});
+>>>>>>> 789382c (fix admin create-Project)
 
   return (
     <div className="dashboard-shell">
@@ -469,6 +518,11 @@ export default function AddMember() {
                           }));
                         }}
                       >
+<<<<<<< HEAD
+=======
+
+                        <option value="hr">HR</option>
+>>>>>>> 789382c (fix admin create-Project)
                         <option value="executive">Executive</option>
                         <option value="manager">Manager</option>
                         <option value="employee">Employee</option>

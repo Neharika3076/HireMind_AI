@@ -82,7 +82,61 @@ function getDepartmentName(department, departments = []) {
   return found?.name || "No department";
 }
 
+function getPersonId(value) {
+  if (!value) return "";
 
+  return String(
+    typeof value === "object" ? value._id || "" : value
+  );
+}
+
+function getRoleLabel(role) {
+  const labels = {
+    admin: "Admin",
+    hr: "HR",
+    executive: "Executive",
+    manager: "Manager",
+    employee: "Employee",
+  };
+
+  const normalizedRole = String(role || "").toLowerCase();
+
+  return labels[normalizedRole] || normalizedRole || "Employee";
+}
+
+function isSeniorTo(leadId, memberId, people) {
+  const normalizedLeadId = getPersonId(leadId);
+  const normalizedMemberId = getPersonId(memberId);
+
+  if (!normalizedLeadId || !normalizedMemberId ||
+      normalizedLeadId === normalizedMemberId) {
+    return false;
+  }
+
+  const peopleById = new Map(
+    people.map(person => [getPersonId(person._id), person])
+  );
+
+  let current = peopleById.get(normalizedMemberId);
+  const visited = new Set();
+
+  while (current?.manager) {
+    const managerId = getPersonId(current.manager);
+
+    if (!managerId || visited.has(managerId)) {
+      return false;
+    }
+
+    if (managerId === normalizedLeadId) {
+      return true;
+    }
+
+    visited.add(managerId);
+    current = peopleById.get(managerId);
+  }
+
+  return false;
+}
 function displayValue(value, fallback = "Unassigned") {
   if (value == null || value === "") return fallback;
 
@@ -114,10 +168,17 @@ export default function Tasks() {
   const isManager = role === "manager";
   const isExecutor = role === "executive";
 
+<<<<<<< HEAD
   const canCreateProject = isAdmin || isHiringDepartmentMember;
   const canAssignTeam = isAdmin || isHiringDepartmentMember;
   const canAddDeliverable =
     isAdmin || isHiringDepartmentMember || isManager || isExecutor;
+=======
+  const canCreateProject = isAdmin;
+  const canAssignTeam = isAdmin;
+  const canAddDeliverable =
+    isAdmin || isManager || isExecutor;
+>>>>>>> 789382c (fix admin create-Project)
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [profileError, setProfileError] = useState("");
@@ -341,120 +402,143 @@ export default function Tasks() {
 
 
 
-const [departments, setDepartments] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
-useEffect(() => {
-  let active = true;
+  useEffect(() => {
+    let active = true;
 
-  async function fetchDepartments() {
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/departments",
-        {
-          credentials: "include",
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to fetch departments"
+    async function fetchDepartments() {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/departments",
+          {
+            credentials: "include",
+          }
         );
-      }
 
-      const list = Array.isArray(data)
-        ? data
-        : data.departments || data.data || [];
+        const data = await response.json();
 
-      if (active) {
-        setDepartments(list);
-      }
-    } catch (error) {
-      console.error("Fetch departments error:", error);
-      if (active) {
-        setFeedback(error.message);
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to fetch departments"
+          );
+        }
+
+        const list = Array.isArray(data)
+          ? data
+          : data.departments || data.data || [];
+
+        if (active) {
+          setDepartments(list);
+        }
+      } catch (error) {
+        console.error("Fetch departments error:", error);
+        if (active) {
+          setFeedback(error.message);
+        }
       }
     }
-  }
 
-  fetchDepartments();
+    fetchDepartments();
 
-  return () => {
-    active = false;
-  };
-}, []);
+    return () => {
+      active = false;
+    };
+  }, []);
 
 
 
   const [people, setPeople] = useState([]);
 
-useEffect(() => {
-  let active = true;
+  useEffect(() => {
+    let active = true;
 
-  async function fetchPeople() {
-    try {
-      const token = localStorage.getItem("token");
+    async function fetchPeople() {
+      try {
+        const token = localStorage.getItem("token");
 
-      const response = await fetch("http://localhost:5000/api/users", {
-        credentials: "include",
-        headers: token
-          ? { Authorization: `Bearer ${token}` }
-          : {},
-      });
+        const response = await fetch("http://localhost:5000/api/users", {
+          credentials: "include",
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load team members.");
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load team members.");
+        }
+
+        const users = data.users || data.employees || [];
+
+        if (active) {
+          setPeople(
+            users.map((person) => ({
+              ...person,
+              _id: person._id,
+              fullName: person.fullName || person.name || person.email,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Fetch team members error:", error);
       }
-
-      const users = data.users || data.employees || [];
-
-      if (active) {
-        setPeople(
-          users.map((person) => ({
-            ...person,
-            _id: person._id,
-            fullName: person.fullName || person.name || person.email,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Fetch team members error:", error);
     }
+
+    fetchPeople();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Get the department of the currently selected project.
+  const selectedTaskProject = projects.find(
+    (project) => project.name === taskForm.project
+  );
+
+  const selectedProjectDepartmentId =
+    getDepartmentId(selectedTaskProject?.department) ||
+    selectedTaskProject?.departmentId ||
+    "";
+  // Only show people who belong to the selected project's department.
+  const projectDepartmentPeople = useMemo(() => {
+    if (!selectedProjectDepartmentId) return [];
+
+    return people.filter((person) => {
+      const personDepartmentId =
+        getDepartmentId(person.department) ||
+        person.departmentId ||
+        "";
+
+      return (
+        String(personDepartmentId) ===
+        String(selectedProjectDepartmentId)
+      );
+    });
+  }, [people, selectedProjectDepartmentId]);
+
+const eligibleAssignedMembers = useMemo(() => {
+  if (!user?._id) return [];
+
+  // Admin can assign tasks to anyone in the selected project department.
+  if (isAdmin) {
+    return projectDepartmentPeople.filter(
+      (person) => String(person._id) !== String(user._id)
+    );
   }
 
-  fetchPeople();
-
-  return () => {
-    active = false;
-  };
-}, []);
-
-// Get the department of the currently selected project.
-const selectedTaskProject = projects.find(
-  (project) => project.name === taskForm.project
-);
-
-const selectedProjectDepartmentId = getDepartmentId(
-  selectedTaskProject?.department
-) || selectedTaskProject?.departmentId || "";
-
-// Only show people who belong to the selected project's department.
-const projectDepartmentPeople = useMemo(() => {
-  if (!selectedProjectDepartmentId) return [];
-
-  return people.filter((person) => {
-    const personDepartmentId = getDepartmentId(person.department);
-
-    return (
-      String(personDepartmentId) ===
-      String(selectedProjectDepartmentId)
-    );
-  });
-}, [people, selectedProjectDepartmentId]);
-
+  // Other roles can assign tasks only within their reporting hierarchy.
+  return projectDepartmentPeople.filter((person) =>
+    isSeniorTo(user._id, person._id, people)
+  );
+}, [
+  user?._id,
+  isAdmin,
+  projectDepartmentPeople,
+  people,
+]);
   const uniqueValues = (key) => [
     ...new Set(tasks.map((task) => task[key]).filter(Boolean)),
   ];
@@ -463,11 +547,11 @@ const projectDepartmentPeople = useMemo(() => {
     const query = search.toLowerCase().trim();
 
     return tasks.filter((task) => {
-    const matchesSearch =
-      !query ||
-      displayValue(task.title, "").toLowerCase().includes(query) ||
-      displayValue(task.project, "").toLowerCase().includes(query) ||
-      displayValue(task.team, "").toLowerCase().includes(query);
+      const matchesSearch =
+        !query ||
+        displayValue(task.title, "").toLowerCase().includes(query) ||
+        displayValue(task.project, "").toLowerCase().includes(query) ||
+        displayValue(task.team, "").toLowerCase().includes(query);
 
       return (
         matchesSearch &&
@@ -490,14 +574,45 @@ const projectDepartmentPeople = useMemo(() => {
     statusFilter,
   ]);
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(
+  // Get tasks relevant to the logged-in user.
+  const myTasks = useMemo(() => {
+    if (!user?._id) return [];
+
+    // Admin and HR can see workspace-wide statistics.
+    if (isAdmin || isHR) {
+      return tasks;
+    }
+
+    // Other users see tasks assigned to them.
+    return tasks.filter((task) => {
+      const getId = (value) => {
+        if (!value) return "";
+        return String(
+          typeof value === "object" ? value._id || "" : value
+        );
+      };
+
+      const userId = String(user._id);
+
+      return (
+        getId(task.member) === userId ||
+        getId(task.lead) === userId ||
+        getId(task.manager) === userId
+      );
+    });
+  }, [tasks, user, isAdmin, isHR]);
+
+  const totalTasks = myTasks.length;
+
+  const completedTasks = myTasks.filter(
     (task) => task.status === "Completed"
   ).length;
-  const inProgressTasks = tasks.filter(
+
+  const inProgressTasks = myTasks.filter(
     (task) => task.status === "In Progress"
   ).length;
-  const overdueTasks = tasks.filter(
+
+  const overdueTasks = myTasks.filter(
     (task) =>
       task.status !== "Completed" &&
       task.due &&
@@ -520,23 +635,29 @@ const projectDepartmentPeople = useMemo(() => {
       return;
     }
 
-    if (type === "task") {
-      const selectedProject = projects.some(
-        (project) => project.name === projectFilter
+if (type === "task") {
+  const selectedProject = projects.some(
+    (project) => project.name === projectFilter
+  )
+    ? projectFilter
+    : projects.some(
+        (project) => project.name === taskForm.project
       )
-        ? projectFilter
-        : projects.some(
-          (project) => project.name === taskForm.project
-        )
-          ? taskForm.project
-          : projects[0]?.name || "";
+      ? taskForm.project
+      : projects[0]?.name || "";
 
-      setTaskForm((current) => ({
-        ...current,
-        project: selectedProject,
-      }));
-    }
+  setTaskForm({
+    ...emptyTask,
+    project: selectedProject,
+    lead: user?._id || "",
+    member: "",
+  });
 
+  if (!user?._id) {
+    setFeedback("Your profile is still loading. Please try again.");
+    return;
+  }
+}
     if (type === "team") {
       setTeamForm((current) => ({
         ...current,
@@ -612,12 +733,18 @@ const projectDepartmentPeople = useMemo(() => {
       const savedProject = {
         ...data.project,
         id: data.project._id,
+        departmentId:
+          getDepartmentId(data.project.department) ||
+          projectForm.department,
+        departmentName: getDepartmentName(
+          data.project.department,
+          departments
+        ),
         members: data.project.members ?? 0,
         progress: data.project.progress ?? 0,
         status: data.project.status || "Assigned",
         color: data.project.color || "teal",
       };
-
       setProjects((current) => [...current, savedProject]);
       setProjectForm(emptyProject);
       closeModal();
@@ -628,70 +755,130 @@ const projectDepartmentPeople = useMemo(() => {
   }
 
 
+async function handleCreateTask(event) {
+  event.preventDefault();
+  setFeedback("");
 
-  async function handleCreateTask(event) {
-    event.preventDefault();
-    setFeedback("");
-    if (!projects.some((project) => project.name === taskForm.project)) {
-      setFeedback("Please select an existing project before creating a task.");
-      return;
-    }
+  if (!user?._id) {
+    setFeedback("Unable to identify the logged-in user.");
+    return;
+  }
 
-    if (!taskForm.title.trim()) {
-      setFeedback("Task title is required.");
-      return;
-    }
+  const selectedProject = projects.find(
+    (project) => project.name === taskForm.project
+  );
 
-    const newTask = {
-      project: taskForm.project,
-      title: taskForm.title.trim(),
-      team: getDepartmentName(
-        projects.find((project) => project.name === taskForm.project)?.department,
-        departments
-      ),
-      department: getDepartmentId(
-        projects.find((project) => project.name === taskForm.project)?.department
-      ),
-      manager: taskForm.lead || "Unassigned",
-      lead: taskForm.lead || "Unassigned",
-      member: taskForm.member || "Unassigned",
-      priority: taskForm.priority,
-      due: taskForm.due,
-      progress: 0,
-      status: "Assigned",
-      description: taskForm.description,
-      category: taskForm.category,
-    };
+  if (!selectedProject) {
+    setFeedback("Please select an existing project.");
+    return;
+  }
 
-    try {
-      const response = await fetch("http://localhost:5000/api/tasks", {
+  if (!taskForm.title.trim()) {
+    setFeedback("Task title is required.");
+    return;
+  }
+
+  if (!taskForm.member) {
+    setFeedback("Please select an assigned member.");
+    return;
+  }
+
+  if (String(user._id) === String(taskForm.member)) {
+    setFeedback("You cannot assign a task to yourself.");
+    return;
+  }
+
+  // Confirm the selected member belongs to the allowed list.
+  const allowedMember = eligibleAssignedMembers.some(
+    (person) => String(person._id) === String(taskForm.member)
+  );
+
+  if (!allowedMember) {
+    setFeedback(
+      "You cannot assign a task to this member. Check the department and reporting hierarchy."
+    );
+    return;
+  }
+
+  // Verify the reporting relationship for non-admin users.
+  if (
+    !isAdmin &&
+    !isSeniorTo(user._id, taskForm.member, people)
+  ) {
+    setFeedback(
+      "You can only assign tasks to your subordinates."
+    );
+    return;
+  }
+
+  const newTask = {
+    project: taskForm.project,
+    title: taskForm.title.trim(),
+
+    team: getDepartmentName(
+      selectedProject.department,
+      departments
+    ),
+
+    department:
+      getDepartmentId(selectedProject.department) ||
+      selectedProject.departmentId ||
+      "",
+
+    // The logged-in user who assigned the task.
+    lead: user._id,
+
+    // Keep this aligned with your backend's meaning for manager.
+    manager: user._id,
+
+    // The person receiving the task.
+    member: taskForm.member,
+
+    priority: taskForm.priority,
+    due: taskForm.due,
+    progress: 0,
+    status: "Assigned",
+    description: taskForm.description,
+    category: taskForm.category,
+  };
+
+  try {
+    const response = await fetch(
+      "http://localhost:5000/api/tasks",
+      {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(newTask),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to create task.");
       }
+    );
 
-      setTasks((current) => [
-        { ...data.task, id: data.task._id },
-        ...current,
-      ]);
+    const data = await response.json();
 
-      setTaskForm(emptyTask);
-      closeModal();
-      setFeedback("Task created successfully.");
-    } catch (error) {
-      setFeedback(error.message);
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to create task."
+      );
     }
-  }
 
+    setTasks((current) => [
+      { ...data.task, id: data.task._id },
+      ...current,
+    ]);
+
+    setTaskForm({
+      ...emptyTask,
+      lead: user._id,
+    });
+
+    closeModal();
+    setFeedback("Task created successfully.");
+  } catch (error) {
+    setFeedback(error.message);
+  }
+}
 
   function handleAssignTeam(event) {
     event.preventDefault();
@@ -1037,7 +1224,7 @@ const projectDepartmentPeople = useMemo(() => {
               onChange={setProjectFilter}
               options={projects.map((project) => project.name)}
             />
-            
+
             <FilterSelect
               label="Department"
               value={departmentFilter}
@@ -1102,22 +1289,30 @@ const projectDepartmentPeople = useMemo(() => {
                 {filteredTasks.map((task) => (
                   <tr key={task.id}>
                     <td>
-                    <div className="table-task-title">
-                      {displayValue(task.title, "Untitled task")}
-                    </div>
-                    <div className="table-task-project">
-                      {displayValue(task.project, "No project")}
-                    </div>
+                      <div className="table-task-title">
+                        {displayValue(task.title, "Untitled task")}
+                      </div>
+                      <div className="table-task-project">
+                        {displayValue(task.project, "No project")}
+                      </div>
                     </td>
 
-                    <td>
-                    <div className="table-team">
-                      {displayValue(task.team, "No department")}
-                    </div>
-                    <div className="table-team-member">
-                      {displayValue(task.member)}
-                    </div>
-                    </td>
+<td>
+  <div className="table-team">
+    {displayValue(task.team, "No department")}
+  </div>
+  <div className="table-team-member">
+    {displayValue(
+      typeof task.member === "object"
+        ? task.member
+        : people.find(
+            (person) =>
+              String(person._id) === String(task.member)
+          ),
+      "Unassigned"
+    )}
+  </div>
+</td>
 
                     <td>
                       <span
@@ -1263,26 +1458,26 @@ const projectDepartmentPeople = useMemo(() => {
                   </FormField>
 
 
-<FormField label="Department">
-  <select
-    required
-    value={projectForm.department}
-    onChange={(event) =>
-      setProjectForm((current) => ({
-        ...current,
-        department: event.target.value,
-      }))
-    }
-  >
-    <option value="">Select a department</option>
+                  <FormField label="Department">
+                    <select
+                      required
+                      value={projectForm.department}
+                      onChange={(event) =>
+                        setProjectForm((current) => ({
+                          ...current,
+                          department: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Select a department</option>
 
-    {departments.map((department) => (
-      <option key={department._id} value={department._id}>
-        {department.name}
-      </option>
-    ))}
-  </select>
-</FormField>
+                      {departments.map((department) => (
+                        <option key={department._id} value={department._id}>
+                          {department.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
 
 
                   <FormField label="Start date">
@@ -1358,6 +1553,8 @@ const projectDepartmentPeople = useMemo(() => {
                         setTaskForm((current) => ({
                           ...current,
                           project: event.target.value,
+                          lead: "",
+                          member: "",
                         }))
                       }
                     >
@@ -1390,28 +1587,11 @@ const projectDepartmentPeople = useMemo(() => {
                     </select>
                   </FormField>
 
-                  <FormField label="Team lead">
-  <select
-    value={taskForm.lead}
-    onChange={(event) =>
-      setTaskForm((current) => ({
-        ...current,
-        lead: event.target.value,
-      }))
-    }
-  >
-    <option value="">Unassigned</option>
 
-        {projectDepartmentPeople.map((person) => (
-      <option key={person._id} value={person._id}>
-        {person.fullName}
-      </option>
-    ))}
-  </select>
-</FormField>
 
-                  <FormField label="Assigned member">
+<FormField label="Assigned member">
   <select
+    required
     value={taskForm.member}
     onChange={(event) =>
       setTaskForm((current) => ({
@@ -1420,15 +1600,30 @@ const projectDepartmentPeople = useMemo(() => {
       }))
     }
   >
-    <option value="">Unassigned</option>
+    <option value="">Select an assigned member</option>
 
-    {projectDepartmentPeople.map((person) => (
+    {eligibleAssignedMembers.map((person) => (
       <option key={person._id} value={person._id}>
-        {person.fullName}
+        {person.fullName} — {getRoleLabel(person.role)}
       </option>
     ))}
   </select>
 </FormField>
+
+<FormField label="Team lead">
+  <input
+    type="text"
+    value={
+      user?.fullName ||
+      user?.name ||
+      user?.email ||
+      "Loading user..."
+    }
+    readOnly
+  />
+</FormField>
+
+
 
                   <FormField label="Category">
                     <input
@@ -1497,79 +1692,79 @@ const projectDepartmentPeople = useMemo(() => {
                 </FormField>
 
                 <FormField label="Project members">
-  <div className="tasks-selection-list">
-    {people.map((person) => (
-      <label key={person._id}>
-        <input
-          type="checkbox"
-          checked={teamForm.members.includes(person._id)}
-          onChange={(event) =>
-            setTeamForm((current) => ({
-              ...current,
-              members: event.target.checked
-                ? [...current.members, person._id]
-                : current.members.filter(
-                    (id) => id !== person._id
-                  ),
-            }))
-          }
-        />
-        <span className="selection-avatar">
-          {(person.fullName || person.email || "?")
-            .charAt(0)
-            .toUpperCase()}
-        </span>
-        <span>{person.fullName || person.email}</span>
-      </label>
-    ))}
-  </div>
-</FormField>
+                  <div className="tasks-selection-list">
+                    {people.map((person) => (
+                      <label key={person._id}>
+                        <input
+                          type="checkbox"
+                          checked={teamForm.members.includes(person._id)}
+                          onChange={(event) =>
+                            setTeamForm((current) => ({
+                              ...current,
+                              members: event.target.checked
+                                ? [...current.members, person._id]
+                                : current.members.filter(
+                                  (id) => id !== person._id
+                                ),
+                            }))
+                          }
+                        />
+                        <span className="selection-avatar">
+                          {(person.fullName || person.email || "?")
+                            .charAt(0)
+                            .toUpperCase()}
+                        </span>
+                        <span>{person.fullName || person.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                </FormField>
 
-<FormField label="Responsible manager">
-  <select
-    value={teamForm.managers[0] || ""}
-    onChange={(event) =>
-      setTeamForm((current) => ({
-        ...current,
-        managers: event.target.value
-          ? [event.target.value]
-          : [],
-      }))
-    }
-  >
-    <option value="">No manager selected</option>
-    {people
-      .filter((person) => person.role === "manager")
-      .map((person) => (
-        <option key={person._id} value={person._id}>
-          {person.fullName}
-        </option>
-      ))}
-  </select>
-</FormField>
+                <FormField label="Responsible manager">
+                  <select
+                    value={teamForm.managers[0] || ""}
+                    onChange={(event) =>
+                      setTeamForm((current) => ({
+                        ...current,
+                        managers: event.target.value
+                          ? [event.target.value]
+                          : [],
+                      }))
+                    }
+                  >
+                    <option value="">No manager selected</option>
+                    {people
+                      .filter((person) => person.role === "manager")
+                      .map((person) => (
+                        <option key={person._id} value={person._id}>
+                          {person.fullName}
+                        </option>
+                      ))}
+                  </select>
+                </FormField>
 
-<FormField label="Team lead">
-  <select
-    value={teamForm.leads[0] || ""}
-    onChange={(event) =>
-      setTeamForm((current) => ({
-        ...current,
-        leads: event.target.value
-          ? [event.target.value]
-          : [],
-      }))
-    }
-  >
-    <option value="">No lead selected</option>
-    {people
-      .filter((person) => person.role === "executive")
-      .map((person) => (
-        <option key={person._id} value={person._id}>
-          {person.fullName}
-        </option>
-      ))}
-  </select>
-</FormField>
+                <FormField label="Team lead">
+                  <select
+                    value={teamForm.leads[0] || ""}
+                    onChange={(event) =>
+                      setTeamForm((current) => ({
+                        ...current,
+                        leads: event.target.value
+                          ? [event.target.value]
+                          : [],
+                      }))
+                    }
+                  >
+                    <option value="">No lead selected</option>
+                    {people
+                      .filter((person) => person.role === "executive")
+                      .map((person) => (
+                        <option key={person._id} value={person._id}>
+                          {person.fullName}
+                        </option>
+                      ))}
+                  </select>
+                </FormField>
 
                 <ModalActions
                   onCancel={closeModal}
@@ -1608,32 +1803,68 @@ const projectDepartmentPeople = useMemo(() => {
               </button>
             </div>
 
-            <div className="task-detail-grid">
-              <div>
-                <span>Responsible team</span>
-                <strong>{selectedTask.team}</strong>
-              </div>
-              <div>
-                <span>Assigned member</span>
-                <strong>{selectedTask.member}</strong>
-              </div>
-              <div>
-                <span>Priority</span>
-                <strong>{selectedTask.priority}</strong>
-              </div>
-              <div>
-                <span>Deadline</span>
-                <strong>{formatDate(selectedTask.due)}</strong>
-              </div>
-              <div>
-                <span>Progress</span>
-                <strong>{selectedTask.progress}%</strong>
-              </div>
-              <div>
-                <span>Current status</span>
-                <strong>{selectedTask.status}</strong>
-              </div>
-            </div>
+
+<div className="task-detail-grid">
+  <div>
+    <span>Responsible team</span>
+    <strong>
+      {displayValue(selectedTask.team, "No department")}
+    </strong>
+  </div>
+
+  <div>
+    <span>Assigned member</span>
+    <strong>
+      {displayValue(
+        typeof selectedTask.member === "object"
+          ? selectedTask.member
+          : people.find(
+              (person) =>
+                String(person._id) ===
+                String(selectedTask.member)
+            ),
+        "Unassigned"
+      )}
+    </strong>
+  </div>
+
+  <div>
+    <span>Reporting member (Team Lead)</span>
+    <strong>
+      {displayValue(
+        typeof selectedTask.lead === "object"
+          ? selectedTask.lead
+          : people.find(
+              (person) =>
+                String(person._id) ===
+                String(selectedTask.lead)
+            ),
+        "Unassigned"
+      )}
+    </strong>
+  </div>
+
+  <div>
+    <span>Priority</span>
+    <strong>{selectedTask.priority}</strong>
+  </div>
+
+  <div>
+    <span>Deadline</span>
+    <strong>{formatDate(selectedTask.due)}</strong>
+  </div>
+
+  <div>
+    <span>Progress</span>
+    <strong>{selectedTask.progress}%</strong>
+  </div>
+
+  <div>
+    <span>Current status</span>
+    <strong>{selectedTask.status}</strong>
+  </div>
+</div>
+
 
             <div className="task-detail-actions">
               <button

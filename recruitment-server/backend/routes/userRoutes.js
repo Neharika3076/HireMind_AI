@@ -69,7 +69,12 @@ const role = String(req.body.role || "employee")
     }
 
     const allowedRoles = [
+<<<<<<< HEAD
       "admin",
+=======
+
+      "hr",
+>>>>>>> 789382c (fix admin create-Project)
       "executive",
       "manager",
       "employee",
