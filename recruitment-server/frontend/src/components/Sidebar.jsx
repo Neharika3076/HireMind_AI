@@ -23,6 +23,7 @@ const navigation = {
   ],
   recruiter: [
     { label: "Dashboard", path: "/recruiter/dashboard", icon: "⌂" },
+    { label: "Directory", path: "/recruiter/directory", icon: "♙♙" },
     { label: "Tasks", path: "/recruiter/tasks", icon: "▤" },
     { label: "Attendance", path: "/recruiter/attendance", icon: "▦" },
     { label: "Payroll", path: "/recruiter/payroll", icon: "＄" },
@@ -30,6 +31,7 @@ const navigation = {
   ],
   manager: [
     { label: "Manager Dashboard", path: "/manager/dashboard", icon: "⌂" },
+    { label: "Directory", path: "/manager/directory", icon: "♙♙" },
     { label: "Tasks", path: "/manager/tasks", icon: "▤" },
     { label: "Attendance", path: "/manager/attendance", icon: "▦" },
     { label: "Payroll", path: "/manager/payroll", icon: "＄" },
@@ -46,8 +48,9 @@ const roleLabels = {
 
 export default function Sidebar({ user, role }) {
   const navigate = useNavigate();
-  const normalizedRole = role === "executive" ? "recruiter" : role;
-  const links = [...(navigation[normalizedRole] || navigation.employee)];
+  const resolvedRole = role || user?.role || "";
+  const normalizedRole = resolvedRole === "executive" ? "recruiter" : resolvedRole;
+  const links = [...(navigation[normalizedRole] || [])];
   if (
     isHiringDepartment(user) &&
     normalizedRole !== "admin" &&
@@ -83,7 +86,7 @@ export default function Sidebar({ user, role }) {
         </div>
         <div className="workday-user-meta">
           <strong>{user?.fullName || "Workspace User"}</strong>
-          <span>{roleLabels[role] || role || "Employee"}</span>
+          <span>{roleLabels[resolvedRole] || (resolvedRole ? resolvedRole : "Loading account…")}</span>
           <small>{user?.email || ""}</small>
         </div>
       </div>

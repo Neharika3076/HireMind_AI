@@ -15,6 +15,36 @@ function getRoleLabel(role) {
   return "Employee";
 }
 
+function getReferenceId(value) {
+  if (!value) return "";
+  return String(value._id || value.id || value);
+}
+
+function MemberCard({ member }) {
+  return (
+    <article className="org-member-card" key={member._id}>
+      <div className="org-member-card-top">
+        <div className="org-large-avatar">
+          {member.fullName?.charAt(0).toUpperCase() || "U"}
+        </div>
+        <span className={`org-status-badge ${(member.status || "active").toLowerCase()}`}>
+          {member.status || "Active"}
+        </span>
+      </div>
+      <h3>{member.fullName}</h3>
+      <p>{member.designation || member.position || getRoleLabel(member.role)}</p>
+      <div className="org-member-details">
+        <span>{member.email}</span>
+        <span>{member.department?.name || "Unassigned"}</span>
+      </div>
+      <div className="org-member-card-footer">
+        <span className="org-count-pill">{getRoleLabel(member.role)}</span>
+        <span>{member.employeeId || "Account"}</span>
+      </div>
+    </article>
+  );
+}
+
 export default function Directory() {
   const [user, setUser] = useState(null);
   const [members, setMembers] = useState([]);
@@ -42,21 +72,35 @@ export default function Directory() {
     setLoading(true);
     setError("");
 
-    try {
-      const [profile, memberData, departmentData] = await Promise.all([
-        getData("/auth/me"),
-        getData("/users"),
-        getData("/departments"),
-      ]);
+    const [profileResult, memberResult, departmentResult] = await Promise.allSettled([
+      getData("/auth/me"),
+      getData("/users"),
+      getData("/departments"),
+    ]);
 
-      setUser(profile.user);
-      setMembers(memberData.users || []);
-      setDepartments(departmentData.departments || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    const errors = [];
+    if (profileResult.status === "fulfilled") {
+      setUser(profileResult.value.user || null);
+    } else {
+      errors.push(`Profile: ${profileResult.reason.message}`);
     }
+
+    if (memberResult.status === "fulfilled") {
+      setMembers(memberResult.value.users || []);
+    } else {
+      setMembers([]);
+      errors.push(`Members: ${memberResult.reason.message}`);
+    }
+
+    if (departmentResult.status === "fulfilled") {
+      setDepartments(departmentResult.value.departments || []);
+    } else {
+      setDepartments([]);
+      errors.push(`Departments: ${departmentResult.reason.message}`);
+    }
+
+    setError(errors.join(" "));
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -103,9 +147,32 @@ export default function Directory() {
       );
   }, [members, search, department, role]);
 
+  const isExecutive = ["executive", "recruiter"].includes(String(user?.role || "").toLowerCase());
+  const isManager = String(user?.role || "").toLowerCase() === "manager";
+  const executiveHierarchy = useMemo(() => {
+    if (!isExecutive || !user) return null;
+    const managers = members.filter((member) => member.role === "manager");
+    const employees = filteredMembers.filter((member) => member.role === "employee");
+    const visibleManagerIds = new Set(managers.map((member) => String(member._id)));
+    const groupedEmployeeIds = new Set();
+    const groups = managers.map((manager) => {
+      const reports = employees.filter((employee) => getReferenceId(employee.manager) === String(manager._id));
+      reports.forEach((employee) => groupedEmployeeIds.add(String(employee._id)));
+      const managerMatches = filteredMembers.some((item) => String(item._id) === String(manager._id));
+      return { manager, reports, managerMatches };
+    }).filter((group) => group.managerMatches || group.reports.length);
+    const directReports = employees.filter((employee) => getReferenceId(employee.manager) === String(user._id));
+    directReports.forEach((employee) => groupedEmployeeIds.add(String(employee._id)));
+    const otherReports = employees.filter((employee) => {
+      const managerId = getReferenceId(employee.manager);
+      return !groupedEmployeeIds.has(String(employee._id)) && (!managerId || !visibleManagerIds.has(managerId));
+    });
+    return { groups, directReports, otherReports };
+  }, [filteredMembers, isExecutive, members, user]);
+
   return (
     <div className="dashboard-shell">
-      <Sidebar user={user} role={user?.role || "admin"} />
+      <Sidebar user={user} role={user?.role} />
 
       <main className="workday-main org-page">
         <header className="org-page-header">
@@ -114,7 +181,7 @@ export default function Directory() {
             <h1>
               Company <span>Directory.</span>
             </h1>
-            <p>People and departments from your organization database.</p>
+            <p>{isExecutive ? "Managers and employees in your reporting hierarchy." : isManager ? "Employees who report directly to you." : "People and departments from your organization database."}</p>
           </div>
           <span className="org-count-pill">
             {departments.length} departments
@@ -175,7 +242,7 @@ export default function Directory() {
               <div className="org-section-heading">
                 <div>
                   <span className="org-eyebrow">PEOPLE & STRUCTURE</span>
-                  <h2>Explore your organization</h2>
+                  <h2>{isExecutive ? "Your reporting hierarchy" : isManager ? "Your direct reports" : "Explore your organization"}</h2>
                 </div>
                 <button
                   className="org-secondary-btn"
@@ -233,49 +300,37 @@ export default function Directory() {
               </div>
 
               {view === "Members" ? (
-                <div className="org-member-grid">
-                  {filteredMembers.map((member) => (
-                    <article className="org-member-card" key={member._id}>
-                      <div className="org-member-card-top">
-                        <div className="org-large-avatar">
-                          {member.fullName?.charAt(0).toUpperCase() || "U"}
+                isExecutive ? (
+                  <div className="directory-hierarchy">
+                    {executiveHierarchy.groups.map(({ manager, reports }) => (
+                      <section className="org-card directory-team-group" key={manager._id}>
+                        <div className="org-section-heading">
+                          <div><span className="org-eyebrow">MANAGER</span><h3>{manager.fullName}</h3></div>
+                          <span className="org-count-pill">{reports.length} employees</span>
                         </div>
-                        <span
-                          className={`org-status-badge ${
-                            (member.status || "active").toLowerCase()
-                          }`}
-                        >
-                          {member.status || "Active"}
-                        </span>
-                      </div>
-
-                      <h3>{member.fullName}</h3>
-                      <p>
-                        {member.designation ||
-                          member.position ||
-                          getRoleLabel(member.role)}
-                      </p>
-
-                      <div className="org-member-details">
-                        <span>{member.email}</span>
-                        <span>
-                          {member.department?.name || "Unassigned"}
-                        </span>
-                      </div>
-
-                      <div className="org-member-card-footer">
-                        <span className="org-count-pill">
-                          {getRoleLabel(member.role)}
-                        </span>
-                        <span>{member.employeeId || "Account"}</span>
-                      </div>
-                    </article>
-                  ))}
-
-                  {!filteredMembers.length && (
-                    <p className="org-empty">No matching members found.</p>
-                  )}
-                </div>
+                        <div className="org-member-grid"><MemberCard member={manager} />{reports.map((member) => <MemberCard key={member._id} member={member} />)}</div>
+                      </section>
+                    ))}
+                    {executiveHierarchy.directReports.length > 0 && (
+                      <section className="org-card directory-team-group">
+                        <div className="org-section-heading"><div><span className="org-eyebrow">REPORTING TO YOU</span><h3>Direct reports</h3></div><span className="org-count-pill">{executiveHierarchy.directReports.length} employees</span></div>
+                        <div className="org-member-grid">{executiveHierarchy.directReports.map((member) => <MemberCard key={member._id} member={member} />)}</div>
+                      </section>
+                    )}
+                    {executiveHierarchy.otherReports.length > 0 && (
+                      <section className="org-card directory-team-group">
+                        <div className="org-section-heading"><div><span className="org-eyebrow">TEAM MEMBERS</span><h3>Other reports</h3></div><span className="org-count-pill">{executiveHierarchy.otherReports.length} employees</span></div>
+                        <div className="org-member-grid">{executiveHierarchy.otherReports.map((member) => <MemberCard key={member._id} member={member} />)}</div>
+                      </section>
+                    )}
+                    {!filteredMembers.length && <p className="org-empty">No matching members found.</p>}
+                  </div>
+                ) : (
+                  <div className="org-member-grid">
+                    {filteredMembers.map((member) => <MemberCard key={member._id} member={member} />)}
+                    {!filteredMembers.length && <p className="org-empty">No matching members found.</p>}
+                  </div>
+                )
               ) : (
                 <div className="org-department-grid">
                   {departments

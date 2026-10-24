@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Department = require("../models/Department");
 const { requireAuth } = require("../middleware/auth");
+const { visibleDirectoryMembers } = require("../services/directory-access");
 
 const router = express.Router();
 
@@ -21,12 +22,24 @@ function requireAdmin(req, res, next) {
 }
 
 // GET /api/users
-// Admin: list users belonging to their organization.
-router.get("/", requireAuth, requireAdmin, async (req, res) => {
+// Admins see everyone in their organization. Executives and managers see
+// only the people in their reporting hierarchy.
+router.get("/", requireAuth, async (req, res) => {
   try {
-    const users = await User.find({
+    if (!req.user.organization) {
+      return res.status(403).json({ success: false, message: "Your account is not assigned to an organization." });
+    }
+    const organizationUsers = await User.find({
       organization: req.user.organization,
-    }).select("fullName email employeeId role designation position department manager status organization createdAt").populate("department", "name description").populate("manager", "fullName");
+    }).select("fullName email employeeId role designation position department manager status organization createdAt").populate("department", "name description").populate("manager", "fullName email role").lean();
+    const users = visibleDirectoryMembers(organizationUsers, req.user);
+
+    if (!users) {
+      return res.status(403).json({
+        success: false,
+        message: "Directory access is available to admins, executives, and managers.",
+      });
+    }
 
     return res.json({ success: true, users });
   } catch (error) {

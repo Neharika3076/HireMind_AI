@@ -1191,6 +1191,27 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.directory-hierarchy {
+  display: grid;
+  gap: 14px;
+}
+
+.directory-team-group {
+  background: #11151d;
+  border-color: #303744;
+}
+
+.directory-team-group .org-section-heading {
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.directory-team-group .org-section-heading h3 {
+  margin: 3px 0 0;
+  color: #f1f5f9;
+  font-size: 16px;
+}
+
 .attendance-feedback.error {
   border-color: #64373b;
   background: #251719;

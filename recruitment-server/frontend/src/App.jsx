@@ -476,11 +476,14 @@ return (
 
 {/* Recruiter workspace */}
 <Route path="/recruiter/dashboard" element={<EmployeeDashboard />} />
+<Route path="/recruiter/directory" element={<Directory />} />
+<Route path="/executive/directory" element={<Directory />} />
 <Route path="/recruiter/tasks" element={<Tasks />} />
 <Route path="/recruiter/attendance" element={<Attendance />} />
 <Route path="/recruiter/payroll" element={<Payroll />} />
 <Route path="/recruiter/recruitment" element={<Recruitment />} />
 <Route path="/manager/dashboard" element={<EmployeeDashboard />} />
+<Route path="/manager/directory" element={<Directory />} />
 <Route path="/manager/tasks" element={<Tasks />} />
 <Route path="/manager/attendance" element={<Attendance />} />
 <Route path="/manager/payroll" element={<Payroll />} />
