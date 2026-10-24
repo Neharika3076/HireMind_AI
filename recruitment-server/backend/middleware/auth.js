@@ -3,6 +3,10 @@ const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const User = require("../models/User");
 
+function isHiringDepartmentName(name) {
+  return String(name || "").trim().toLowerCase() === "hr & hiring";
+}
+
 async function requireAuth(req, res, next) {
   if (!process.env.JWT_SECRET) {
     console.error("JWT_SECRET is missing.");
@@ -32,7 +36,8 @@ async function requireAuth(req, res, next) {
     // Load the current database role instead of trusting
     // a potentially outdated role stored in the JWT.
     const user = await User.findById(decoded.userId)
-      .select("_id role organization department manager status");
+      .select("_id role organization department manager status")
+      .populate("department", "name");
 
     if (!user || user.status !== "active") {
       res.clearCookie("terrahire_token", {
@@ -55,8 +60,10 @@ async function requireAuth(req, res, next) {
         ? user.organization.toString()
         : null,
       department: user.department
-        ? user.department.toString()
+        ? user.department._id.toString()
         : null,
+      departmentName: user.department?.name || "",
+      isHiringDepartment: isHiringDepartmentName(user.department?.name),
       manager: user.manager
         ? user.manager.toString()
         : null
@@ -102,5 +109,6 @@ function authorizeRoles(...allowedRoles) {
 
 module.exports = {
   requireAuth,
-  authorizeRoles
+  authorizeRoles,
+  isHiringDepartmentName
 };

@@ -996,14 +996,13 @@
 }
 
 .payroll-page {
-  min-height: 100vh;
+  min-height: 0;
 }
 
 .payroll-intro-card {
   display: flex;
   align-items: flex-start;
   gap: 18px;
-  margin-bottom: 20px;
   padding: clamp(22px, 3vw, 32px);
   border: 1px solid #343d24;
   border-radius: 17px;

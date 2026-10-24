@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const User = require("../models/User");
 const Department = require("../models/Department");
-const { requireAuth, authorizeRoles } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -75,8 +75,8 @@ router.get("/", async (req, res) => {
       // No additional filter required.
     }
 
-    // HR and managers: projects in their department.
-    else if (role === "hr" || role === "manager") {
+    // HR & Hiring department members and managers: projects in their department.
+    else if (req.user.isHiringDepartment || role === "manager") {
       if (!user.department) {
         return res.status(200).json({
           success: true,
@@ -142,10 +142,16 @@ router.get("/", async (req, res) => {
 });
 
 // POST /api/projects
-// Admins can create projects.
-// Add "hr" here if HR should also have permission.
-router.post("/", authorizeRoles("admin"), async (req, res) => {
+// Administrators and HR & Hiring department members can create projects.
+router.post("/", async (req, res) => {
   try {
+    if (req.user.role !== "admin" && !req.user.isHiringDepartment) {
+      return res.status(403).json({
+        success: false,
+        message: "Only administrators and HR & Hiring department members can create projects."
+      });
+    }
+
     const user = await User.findById(req.user.userId).select(
       "organization role"
     );

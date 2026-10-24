@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import { isHiringDepartment } from "../utils/departmentAccess";
 import "./Recruitment.css";
 
 const API_BASE = import.meta.env.VITE_RECRUITMENT_API_BASE ||
@@ -84,7 +85,7 @@ export default function Recruitment() {
   const [emailPreview, setEmailPreview] = useState(null);
   const candidateQueryTimer = useRef(null);
 
-  const canManageJobs = ["admin", "recruiter", "hr"].includes(user?.role);
+  const canManageJobs = ["admin", "recruiter", "executive"].includes(user?.role) || isHiringDepartment(user);
   const canDeleteJobs = user?.role === "admin";
   const backendRole = user?.role === "recruiter" ? "executive" : user?.role;
   const userForSidebar = useMemo(() => user && ({
@@ -98,6 +99,7 @@ export default function Recruitment() {
       "x-ems-user-id": user?._id || "",
       "x-ems-user-name": user?.fullName || "",
       "x-ems-user-role": backendRole || "",
+      "x-ems-user-department": user?.department?.name || "",
       "x-ems-organization-id": organizationId(user),
       ...(options.body && !(options.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {}),
@@ -220,8 +222,11 @@ export default function Recruitment() {
       }
       if (profileResult.status === "fulfilled") {
         const profile = profileResult.value;
-        if (!["admin", "recruiter", "hr"].includes(profile.role)) {
-          notify("Recruitment access is limited to administrators, HR, and executives.", true);
+        if (
+          !["admin", "recruiter", "executive"].includes(profile.role) &&
+          !isHiringDepartment(profile)
+        ) {
+          notify("Recruitment access is limited to administrators, executives, and HR & Hiring department members.", true);
           return;
         }
         setUser(profile);

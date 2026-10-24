@@ -145,10 +145,11 @@ router.get("/", async (req, res) => {
     let filter;
     if (req.user.role === "admin") {
       filter = { organization: req.user.organization };
-    } else if (req.user.role === "hr") {
+    } else if (req.user.isHiringDepartment) {
       const employees = await User.find({
         organization: req.user.organization,
         role: "employee",
+        department: { $ne: req.user.department },
         status: "active"
       }).select("_id").lean();
       filter = {
@@ -165,7 +166,11 @@ router.get("/", async (req, res) => {
     const requests = await LeaveRequest.find(filter)
       .sort({ createdAt: -1 })
       .limit(200)
-      .populate("user", "fullName email employeeId role department")
+      .populate({
+        path: "user",
+        select: "fullName email employeeId role department",
+        populate: { path: "department", select: "name" }
+      })
       .populate("reviewedBy", "fullName")
       .lean();
     return res.json({ success: true, requests });
@@ -271,10 +276,10 @@ router.post("/", async (req, res) => {
 
 router.post("/:id/decision", async (req, res) => {
   try {
-    if (!["admin", "hr"].includes(req.user.role)) {
+    if (req.user.role !== "admin" && !req.user.isHiringDepartment) {
       return res.status(403).json({
         success: false,
-        message: "Only HR and administrators can review leave requests."
+        message: "Only administrators and HR & Hiring department members can review leave requests."
       });
     }
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -299,17 +304,18 @@ router.post("/:id/decision", async (req, res) => {
         message: "Pending leave request not found."
       });
     }
-    if (req.user.role === "hr") {
+    if (req.user.isHiringDepartment) {
       const employee = await User.exists({
         _id: leave.user,
         organization: req.user.organization,
         role: "employee",
+        department: { $ne: req.user.department },
         status: "active"
       });
       if (!employee) {
         return res.status(403).json({
           success: false,
-          message: "HR can review employee leave requests only. An administrator must review HR leave."
+          message: "HR & Hiring department members can review employee requests outside their own department."
         });
       }
     }

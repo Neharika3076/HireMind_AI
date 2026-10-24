@@ -70,7 +70,6 @@ const role = String(req.body.role || "employee")
 
     const allowedRoles = [
       "admin",
-      "hr",
       "executive",
       "manager",
       "employee",
@@ -79,7 +78,7 @@ const role = String(req.body.role || "employee")
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: "Role must be admin, hr, executive, manager, or employee.",
+        message: "Role must be admin, executive, manager, or employee.",
       });
     }
 
@@ -112,44 +111,33 @@ const role = String(req.body.role || "employee")
       });
     }
     if (manager) {
-      const expectedManagerRole = {
-        employee: "manager",
-        manager: "executive",
-        executive: "admin",
-        hr: "admin",
-      }[role];
-      const managerQuery = {
-        _id: manager,
-        organization: req.user.organization,
-        role: expectedManagerRole
-      };
+      const isHiringDepartmentMember =
+        departmentDoc?.name?.trim().toLowerCase() === "hr & hiring";
+      const allowedManagerRoles = isHiringDepartmentMember
+        ? ["admin"]
+        : {
+            executive: ["admin"],
+            manager: ["admin", "executive"],
+            employee: ["admin", "executive", "manager"],
+          }[role];
 
-      if (["employee", "manager"].includes(role)) {
-        managerQuery.department = departmentDoc?._id;
-      }
-
-      if (!managerQuery.role) {
+      if (!allowedManagerRoles) {
         return res.status(400).json({
           success: false,
-          message:
-            role === "employee"
-              ? "Select a manager from the chosen department."
-              : role === "manager"
-                ? "Select an executive from the chosen department."
-                : "Select an admin from your organization.",
+          message: "This account role cannot report to another member.",
         });
       }
 
+      const managerQuery = {
+        _id: manager,
+        organization: req.user.organization,
+        role: { $in: allowedManagerRoles },
+      };
       managerDoc = await User.findOne(managerQuery);
       if (!managerDoc) {
         return res.status(400).json({
           success: false,
-          message:
-            role === "employee"
-            ? "Select a manager from the chosen department."
-            : role === "manager"
-              ? "Select an executive from the chosen department."
-              : "Select an admin from your organization.",
+          message: "Select a valid manager from the allowed roles in your organization.",
         });
       }
     }

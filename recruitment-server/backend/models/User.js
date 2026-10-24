@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
     
     role: {
       type: String,
-      enum: ["admin", "hr", "executive", "manager", "employee"],
+      enum: ["admin", "executive", "manager", "employee"],
       default: "employee",
       lowercase: true,
       trim: true
@@ -39,6 +39,7 @@ const userSchema = new mongoose.Schema(
     position: { type: String, trim: true, default: '' },
     department: { type: mongoose.Schema.Types.ObjectId, ref: "Department", default: null },
     manager: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    salaryStructure: { type: mongoose.Schema.Types.ObjectId, ref: "SalaryStructure", default: null },
     status: { type: String, enum: ["active", "inactive"], default: "active" },
     organization: {
       type: mongoose.Schema.Types.ObjectId,

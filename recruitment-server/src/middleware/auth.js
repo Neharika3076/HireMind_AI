@@ -7,15 +7,17 @@ export function requireRecruiter(req, res, next) {
   const id = req.header("x-ems-user-id");
   const name = req.header("x-ems-user-name") || "Recruiter";
   const role = req.header("x-ems-user-role");
+  const departmentName = req.header("x-ems-user-department") || "";
   const organizationId = req.header("x-ems-organization-id");
   if (!id || !role || !organizationId) return res.status(401).json({ error: "Sign in through the EMS to access recruitment data." });
-  if (!["admin", "executive", "manager", "hr"].includes(role)) return res.status(403).json({ error: "Recruitment access is limited to authorized hiring staff." });
-  req.actor = { id, name, role, organizationId };
+  const isHiringDepartment = departmentName.trim().toLowerCase() === "hr & hiring";
+  if (!["admin", "executive", "manager"].includes(role) && !isHiringDepartment) return res.status(403).json({ error: "Recruitment access is limited to administrators, executives, and HR & Hiring department members." });
+  req.actor = { id, name, role, organizationId, isHiringDepartment };
   next();
 }
 
 export const requireAdminOrExecutive = (req, res, next) => {
-  if (!["admin", "executive", "hr"].includes(req.actor.role)) return res.status(403).json({ error: "This action requires an administrator, HR, or executive." });
+  if (!["admin", "executive"].includes(req.actor.role) && !req.actor.isHiringDepartment) return res.status(403).json({ error: "This action requires an administrator, executive, or HR & Hiring department member." });
   next();
 };
 

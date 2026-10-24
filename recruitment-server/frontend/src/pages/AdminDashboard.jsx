@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { isHiringDepartment } from "../utils/departmentAccess";
 import "../styles/Dashboard.css";
 import "../styles/OrganizationPages.css";
 
@@ -14,7 +15,7 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const hrCount = members.filter((member) => member.role === "hr").length;
+  const hrCount = members.filter(isHiringDepartment).length;
   const executiveCount = members.filter((member) => member.role === "recruiter").length;
   const managerCount = members.filter((member) => member.role === "manager").length;
   const employeeCount = members.filter((member) => member.role === "employee").length;
@@ -111,9 +112,9 @@ export default function AdminDashboard() {
           </article>
 
           <article className="org-stat-card">
-            <span>HR</span>
+            <span>HR &amp; HIRING DEPARTMENT</span>
             <strong>{hrCount}</strong>
-            <Link to="/admin/directory">View HR team →</Link>
+            <Link to="/admin/directory">View HR &amp; Hiring team →</Link>
           </article>
 
           <article className="org-stat-card">
@@ -161,7 +162,7 @@ export default function AdminDashboard() {
               <span className="admin-action-icon">＋</span>
               <span className="admin-action-label">PEOPLE</span>
               <h3>Add a team member</h3>
-              <p>Add HR, executives, and employees to the right department.</p>
+              <p>Add members with the right role and department.</p>
             </Link>
 
             <Link className="org-card" to="/admin/directory">

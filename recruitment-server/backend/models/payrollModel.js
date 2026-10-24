@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const payrollSchema = new mongoose.Schema(
     {
+        organization: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Organization",
+            required: true,
+            index: true
+        },
         employeeId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -30,16 +36,51 @@ const payrollSchema = new mongoose.Schema(
             min: 0
         },
 
+        salaryStructure: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "SalaryStructure",
+            required: true
+        },
+
+        salaryStructureName: {
+            type: String,
+            required: true,
+            trim: true
+        },
+
+        currency: {
+            type: String,
+            required: true,
+            default: "USD",
+            match: /^[A-Z]{3}$/
+        },
+
         allowances: {
             type: Number,
             default: 0,
             min: 0
         },
 
+        earnings: {
+            type: [{
+                name: { type: String, required: true, trim: true },
+                amount: { type: Number, required: true, min: 0 }
+            }],
+            default: []
+        },
+
         deductions: {
             type: Number,
             default: 0,
             min: 0
+        },
+
+        deductionItems: {
+            type: [{
+                name: { type: String, required: true, trim: true },
+                amount: { type: Number, required: true, min: 0 }
+            }],
+            default: []
         },
 
         netSalary: {
@@ -57,6 +98,12 @@ const payrollSchema = new mongoose.Schema(
         paymentDate: {
             type: Date,
             default: null
+        },
+
+        processedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true
         }
     },
     {
@@ -65,7 +112,7 @@ const payrollSchema = new mongoose.Schema(
 );
 
 payrollSchema.index(
-    { employeeId: 1, month: 1, year: 1 },
+    { organization: 1, employeeId: 1, month: 1, year: 1 },
     { unique: true }
 );
 

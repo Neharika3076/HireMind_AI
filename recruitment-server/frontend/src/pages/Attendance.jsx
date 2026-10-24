@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, LogIn, LogOut, Send, Users, X } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import { isHiringDepartment } from "../utils/departmentAccess";
 import "../styles/OrganizationPages.css";
 
 const API = "http://localhost:5000/api";
@@ -52,7 +53,6 @@ function statusBadgeClass(status) {
 
 function roleLabel(role) {
   if (role === "admin") return "Admin";
-  if (role === "hr") return "HR";
   if (role === "recruiter") return "Executive";
   if (role === "employee") return "Employee";
   return "—";
@@ -93,7 +93,7 @@ export default function Attendance() {
   const [now, setNow] = useState(() => Date.now());
 
   const isAdmin = user?.role === "admin";
-  const isHr = user?.role === "hr";
+  const isHiringDepartmentMember = isHiringDepartment(user);
   const routeRole = location.pathname.split("/")[1];
 
   const loadAttendance = useCallback(async () => {
@@ -597,17 +597,17 @@ export default function Attendance() {
           <p className="attendance-leave-policy">
             {isAdmin
               ? "Your leave requests are approved automatically, subject to the monthly limit."
-              : isHr
-                ? "Employee requests can be approved by HR. Your own requests require administrator approval."
-                : "An HR team member or administrator will review your request."}
+              : isHiringDepartmentMember
+                ? "Employee requests can be approved by the HR & Hiring department. Your own requests require administrator approval."
+                : "An HR & Hiring department member or administrator will review your request."}
           </p>
         </section>
 
         <section className="org-card attendance-records-card attendance-leave-requests-card">
           <div className="org-section-heading">
             <div>
-              <span className="org-eyebrow">{isAdmin ? "ORGANIZATION REQUESTS" : isHr ? "EMPLOYEE REQUESTS & YOUR LEAVE" : "YOUR REQUESTS"}</span>
-              <h2>{isAdmin || isHr ? "Leave approvals" : "Your leave requests"}</h2>
+              <span className="org-eyebrow">{isAdmin ? "ORGANIZATION REQUESTS" : isHiringDepartmentMember ? "EMPLOYEE REQUESTS & YOUR LEAVE" : "YOUR REQUESTS"}</span>
+              <h2>{isAdmin || isHiringDepartmentMember ? "Leave approvals" : "Your leave requests"}</h2>
             </div>
             <span className="org-count-pill">{leaveRequests.length} requests</span>
           </div>
@@ -616,37 +616,41 @@ export default function Attendance() {
               <table className="org-table attendance-leave-table">
                 <thead>
                   <tr>
-                    {(isAdmin || isHr) && <th>Team member</th>}
+                    {(isAdmin || isHiringDepartmentMember) && <th>Team member</th>}
                     <th>Dates</th><th>Reason</th><th>Status</th><th>Reviewed by</th>
-                    {(isAdmin || isHr) && <th>Action</th>}
+                    {(isAdmin || isHiringDepartmentMember) && <th>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {leaveRequests.map((request) => {
                     const member = typeof request.user === "object" ? request.user : {};
                     const canReview = request.status === "pending" &&
-                      (isAdmin || (isHr && member.role === "employee"));
+                      (isAdmin || (
+                      isHiringDepartmentMember &&
+                        member.role === "employee" &&
+                        !isHiringDepartment(member)
+                      ));
                     return (
                       <tr key={request._id}>
-                        {(isAdmin || isHr) && <td>{member.fullName || "Workspace user"}{member.role && <small className="attendance-request-role">{roleLabel(member.role)}</small>}</td>}
+                        {(isAdmin || isHiringDepartmentMember) && <td>{member.fullName || "Workspace user"}{member.role && <small className="attendance-request-role">{roleLabel(member.role)}</small>}</td>}
                         <td>{request.startDateKey === request.endDateKey ? formatDate(request.startDateKey) : `${formatDate(request.startDateKey)} – ${formatDate(request.endDateKey)}`}</td>
                         <td className="attendance-leave-reason-cell">{request.reason}</td>
                         <td><span className={`org-status-badge ${request.status === "approved" ? "present" : request.status}`}>{request.status}</span></td>
                         <td>{request.reviewedBy?.fullName || (request.status === "pending" ? "Awaiting review" : "—")}</td>
-                        {(isAdmin || isHr) && (
+                        {(isAdmin || isHiringDepartmentMember) && (
                           <td>
                             {canReview ? (
                               <div className="attendance-leave-actions">
                                 <button type="button" aria-label={`Approve leave for ${member.fullName || "employee"}`} disabled={leaveSaving} onClick={() => decideLeave(request._id, "approved")}><Check size={15} /></button>
                                 <button type="button" aria-label={`Reject leave for ${member.fullName || "employee"}`} disabled={leaveSaving} onClick={() => decideLeave(request._id, "rejected")}><X size={15} /></button>
                               </div>
-                            ) : request.status === "pending" && member.role === "hr" && isAdmin ? "HR leave" : "—"}
+                            ) : request.status === "pending" && isHiringDepartment(member) && isAdmin ? "HR & Hiring leave" : "—"}
                           </td>
                         )}
                       </tr>
                     );
                   })}
-                  {!leaveRequests.length && <tr><td colSpan={isAdmin || isHr ? 6 : 4} className="org-empty">No leave requests yet.</td></tr>}
+                  {!leaveRequests.length && <tr><td colSpan={isAdmin || isHiringDepartmentMember ? 6 : 4} className="org-empty">No leave requests yet.</td></tr>}
                 </tbody>
               </table>
             </div>

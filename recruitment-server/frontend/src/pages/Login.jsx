@@ -53,7 +53,6 @@ export default function Login() {
         admin: "/admin/dashboard",
         employee: "/employee/dashboard",
         recruiter: "/recruiter/dashboard",
-        hr: "/hr/dashboard",
         manager: "/manager/dashboard",
       };
 

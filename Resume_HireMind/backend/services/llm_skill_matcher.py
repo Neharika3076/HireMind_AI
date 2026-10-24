@@ -11,7 +11,9 @@ from groq import Groq
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
+requested_model = os.getenv("GROQ_MODEL") or os.getenv("GROQ_INTERVIEW_MODEL")
+GROQ_MODEL = requested_model if requested_model and requested_model != "llama-3.1-8b-instant" else DEFAULT_GROQ_MODEL
 # A dedicated key helps isolate matcher usage in logs and allows independent
 # rotation. It does not increase an organization's Groq rate limits.
 GROQ_MATCHER_API_KEY = (

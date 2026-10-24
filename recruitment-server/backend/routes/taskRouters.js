@@ -2,7 +2,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const Task = require("../models/Task");
-const { requireAuth } = require("../middleware/auth");
+const { requireAuth, isHiringDepartmentName } = require("../middleware/auth");
 
 const router = express.Router();
 const User = require("../models/User");
@@ -204,7 +204,8 @@ router.patch("/:id/status", async (req, res) => {
 
 async function getTaskScope(user) {
   const currentUser = await User.findById(user.userId)
-    .select("role department manager organization");
+    .select("role department manager organization")
+    .populate("department", "name");
 
   if (!currentUser) {
     const error = new Error("User account not found.");
@@ -225,8 +226,8 @@ async function getTaskScope(user) {
     return { organization };
   }
 
-  // HR: tasks in their own department
-  if (currentUser.role === "hr") {
+  // HR & Hiring department members: tasks in their own department
+  if (isHiringDepartmentName(currentUser.department?.name)) {
     if (!currentUser.department) {
       return {
         organization,
@@ -236,7 +237,7 @@ async function getTaskScope(user) {
 
     return {
       organization,
-      department: currentUser.department
+      department: currentUser.department._id
     };
   }
 

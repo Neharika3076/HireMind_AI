@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { isHiringDepartment } from "../utils/departmentAccess";
 import "../styles/Tasks.css";
 
 
@@ -109,14 +110,14 @@ export default function Tasks() {
   ).toLowerCase();
 
   const isAdmin = role === "admin";
-  const isHR = role === "hr";
+  const isHiringDepartmentMember = isHiringDepartment(user?.user || user);
   const isManager = role === "manager";
   const isExecutor = role === "executive";
 
-  const canCreateProject = isAdmin || isHR;
-  const canAssignTeam = isAdmin || isHR;
+  const canCreateProject = isAdmin || isHiringDepartmentMember;
+  const canAssignTeam = isAdmin || isHiringDepartmentMember;
   const canAddDeliverable =
-    isAdmin || isHR || isManager || isExecutor;
+    isAdmin || isHiringDepartmentMember || isManager || isExecutor;
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [profileError, setProfileError] = useState("");

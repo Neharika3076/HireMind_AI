@@ -13,6 +13,7 @@ import { analyzeJob, extractResume, matchCandidate } from "../services/hiremind-
 import { logActivity } from "../services/activity.js";
 import { buildAtsJobProfile } from "../services/job-profile.js";
 import { hashCandidatePassword, verifyCandidatePassword } from "../services/candidate-password.js";
+import { getApplicationDeadlineStart } from "../utils/application-deadline.js";
 
 export const publicCareersRouter = Router();
 const uploadPath = fileURLToPath(new URL("../../private-uploads/", import.meta.url));
@@ -65,8 +66,7 @@ const publicJob = (job) => ({
 
 publicCareersRouter.get("/jobs", async (_req, res, next) => {
   try {
-    const now = new Date();
-    const jobs = await Job.find({ status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: now } }] })
+    const jobs = await Job.find({ status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: getApplicationDeadlineStart() } }] })
       .select("companyName title department employmentType workArrangement location description responsibilities requiredSkills preferredSkills educationRequirements certifications minimumExperience preferredExperience openings applicationDeadline createdAt")
       .sort({ createdAt: -1 }).lean();
     res.json({ items: jobs.map(publicJob) });
@@ -76,7 +76,7 @@ publicCareersRouter.get("/jobs", async (_req, res, next) => {
 publicCareersRouter.get("/jobs/:jobId", async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.jobId)) return res.status(404).json({ error: "This job opening is no longer available." });
-    const job = await Job.findOne({ _id: req.params.jobId, status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: new Date() } }] }).lean();
+    const job = await Job.findOne({ _id: req.params.jobId, status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: getApplicationDeadlineStart() } }] }).lean();
     if (!job) return res.status(404).json({ error: "This job opening is no longer available." });
     res.json({ job: publicJob(job) });
   } catch (error) { next(error); }
@@ -105,7 +105,7 @@ publicCareersRouter.post("/jobs/:jobId/applications", upload.single("resume"), a
   let file = req.file;
   try {
     if (!mongoose.isValidObjectId(req.params.jobId)) return res.status(404).json({ error: "This job opening is no longer available." });
-    const job = await Job.findOne({ _id: req.params.jobId, status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: new Date() } }] });
+    const job = await Job.findOne({ _id: req.params.jobId, status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: getApplicationDeadlineStart() } }] });
     if (!job) return res.status(404).json({ error: "This job opening is no longer available." });
     const fullName = String(req.body.fullName || "").trim().replace(/\s+/g, " ");
     const email = normalizeEmail(req.body.email);
@@ -145,7 +145,7 @@ publicCareersRouter.post("/jobs/:jobId/applications", upload.single("resume"), a
 
     // Extraction validates that this is a readable resume before we create an applicant record.
     const extraction = await extractResume(file);
-    const stillAccepting = await Job.exists({ _id: job._id, organizationId: job.organizationId, status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: new Date() } }] });
+    const stillAccepting = await Job.exists({ _id: job._id, organizationId: job.organizationId, status: "published", $or: [{ applicationDeadline: null }, { applicationDeadline: { $gte: getApplicationDeadlineStart() } }] });
     if (!stillAccepting) return res.status(409).json({ error: "This opening stopped accepting applications while your resume was being checked." });
     const person = extraction.profile?.candidate || {};
     const profile = {

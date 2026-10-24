@@ -11,8 +11,10 @@ from backend.models.job import JobProfile
 
 load_dotenv()
 
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+requested_model = os.getenv("GROQ_MODEL") or os.getenv("GROQ_INTERVIEW_MODEL")
+GROQ_MODEL = requested_model if requested_model and requested_model != "llama-3.1-8b-instant" else DEFAULT_GROQ_MODEL
 
 if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY is not configured.")
