@@ -1,3 +1,4 @@
+
 const express = require("express");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -10,7 +11,7 @@ const router = express.Router();
 
 // Only admins can perform admin-only actions.
 function requireAdmin(req, res, next) {
-  if (req.user.role !== "admin") {
+  if (String(req.user.role || "").toLowerCase() !== "admin") {
     return res.status(403).json({
       success: false,
       message: "Administrator access required.",
@@ -21,44 +22,46 @@ function requireAdmin(req, res, next) {
 }
 
 // GET /api/users
-// Admin: list users belonging to their organization.
-
- // GET /api/users
-// Admins can list organization users.
-// Executives can list managers in their own department.
+// Admin and HR: list users in their organization.
+// Executive: list managers in their department.
+// Manager: list direct-report employees only.
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const role = String(req.user.role || "").toLowerCase();
+    const currentUser = await User.findOne({
+      _id: req.user.userId,
+      organization: req.user.organization,
+    }).select("_id role organization department");
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User account not found.",
+      });
+    }
+
+    const currentRole = String(currentUser.role || "").toLowerCase();
 
     let query = {
-      organization: req.user.organization,
+      organization: currentUser.organization,
     };
 
-    if (role === "executive") {
-      // Find the executive's department from their database record.
-      const executive = await User.findById(req.user.userId)
-        .select("organization department role");
-
-      if (!executive) {
-        return res.status(404).json({
-          success: false,
-          message: "Executive account not found.",
-        });
-      }
-
-      if (String(executive.role).toLowerCase() !== "executive") {
-        return res.status(403).json({
-          success: false,
-          message: "Not authorized to view team members.",
-        });
-      }
-
+    if (currentRole === "admin" || currentRole === "hr") {
+      // Preserve organization-wide access.
+    } else if (currentRole === "executive") {
       query = {
-        organization: executive.organization,
-        department: executive.department,
+        organization: currentUser.organization,
+        department: currentUser.department,
         role: "manager",
+        status: "active",
       };
-    } else if (role !== "admin") {
+    } else if (currentRole === "manager") {
+      query = {
+        organization: currentUser.organization,
+        manager: currentUser._id,
+        role: "employee",
+        status: "active",
+      };
+    } else {
       return res.status(403).json({
         success: false,
         message: "Not authorized to view team members.",
@@ -72,9 +75,13 @@ router.get("/", requireAuth, async (req, res) => {
       .populate("department", "name description")
       .populate("manager", "fullName");
 
-    return res.json({ success: true, users });
+    return res.json({
+      success: true,
+      users,
+    });
   } catch (error) {
     console.error("List users error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Unable to load organization users.",
@@ -87,18 +94,18 @@ router.get("/", requireAuth, async (req, res) => {
 router.post("/", requireAuth, requireAdmin, async (req, res) => {
   try {
     const {
-  fullName,
-  email,
-  password,
-  department,
-  designation = "",
-  position = "",
-  manager = "",
-} = req.body;
+      fullName,
+      email,
+      password,
+      department,
+      designation = "",
+      position = "",
+      manager = "",
+    } = req.body;
 
-const role = String(req.body.role || "employee")
-  .trim()
-  .toLowerCase();
+    const role = String(req.body.role || "employee")
+      .trim()
+      .toLowerCase();
 
     if (
       typeof fullName !== "string" ||
@@ -113,9 +120,7 @@ const role = String(req.body.role || "employee")
     }
 
     const allowedRoles = [
-
       "admin",
-
       "hr",
       "executive",
       "manager",
@@ -125,7 +130,8 @@ const role = String(req.body.role || "employee")
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: "Role must be admin, executive, manager, or employee.",
+        message:
+          "Role must be admin, hr, executive, manager, or employee.",
       });
     }
 
@@ -142,59 +148,99 @@ const role = String(req.body.role || "employee")
       });
     }
 
+    // Validate department.
     let departmentDoc = null;
+
     if (department) {
-      departmentDoc = await Department.findOne({ _id: department, organization: req.user.organization });
-      if (!departmentDoc) return res.status(400).json({ success: false, message: "Select a valid department." });
+      departmentDoc = await Department.findOne({
+        _id: department,
+        organization: req.user.organization,
+      });
+
+      if (!departmentDoc) {
+        return res.status(400).json({
+          success: false,
+          message: "Select a valid department.",
+        });
+      }
     }
+
     if (role !== "admin" && !departmentDoc) {
-      return res.status(400).json({ success: false, message: "Select a department for this account." });
-    }
-    let managerDoc = null;
-    if (role !== "admin" && !manager) {
       return res.status(400).json({
         success: false,
-        message: "Select a manager in the organization hierarchy."
+        message: "Select a department for this account.",
       });
     }
 
-if (manager) {
-const allowedManagerRoles = {
-  executive: ["admin"],
-  hr: ["admin"],
-  manager: ["executive"],
-  employee: ["manager"],
-}[role];
+    // Preserve the existing reporting hierarchy.
+    const allowedManagerRoles = {
+      executive: ["admin"],
+      hr: ["admin"],
+      manager: ["executive"],
+      employee: ["manager"],
+    };
 
-if (!allowedManagerRoles) {
-  return res.status(400).json({
-    success: false,
-    message: "This account role cannot report to another member.",
-  });
-}
+    let managerDoc = null;
 
-const managerDoc = await User.findOne({
-  _id: manager,
-  organization: req.user.organization,
-  role: { $in: allowedManagerRoles },
-});
+    if (manager) {
+      const allowedRolesForManager = allowedManagerRoles[role];
 
-if (!managerDoc) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Selected manager is invalid. Choose someone with an allowed role in your organization.",
-  });
-}
+      if (!allowedRolesForManager) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This account role cannot report to another member.",
+        });
+      }
 
+      managerDoc = await User.findOne({
+        _id: manager,
+        organization: req.user.organization,
+        role: { $in: allowedRolesForManager },
+      });
 
-}
+      if (!managerDoc) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Selected manager is invalid. Choose someone with an allowed role in your organization.",
+        });
+      }
 
+      // The reporting manager and new account must share a department,
+      // except when the reporting manager is an admin.
+      if (
+        role !== "admin" &&
+        String(managerDoc.role).toLowerCase() !== "admin" &&
+        String(managerDoc.department || "") !==
+          String(departmentDoc?._id || "")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "The selected manager must belong to the same department.",
+        });
+      }
+    } else if (role !== "admin") {
+      return res.status(400).json({
+        success: false,
+        message: "Select a manager in the organization hierarchy.",
+      });
+    }
 
-    if (password && password.length < 8) return res.status(400).json({ success: false, message: "Password must be at least 8 characters." });
-    // Accept an admin-provided password; otherwise generate a temporary one.
-    const temporaryPassword = password || crypto.randomBytes(9).toString("base64url");
-    const employeeId = `EMP-${crypto.randomBytes(5)
+    if (password && password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters.",
+      });
+    }
+
+    // Use the provided password or generate a temporary one.
+    const temporaryPassword =
+      password || crypto.randomBytes(9).toString("base64url");
+
+    const employeeId = `EMP-${crypto
+      .randomBytes(5)
       .toString("hex")
       .toUpperCase()}`;
 
@@ -234,11 +280,13 @@ if (!managerDoc) {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "The email or employee ID is already in use. Please retry.",
+        message:
+          "The email or employee ID is already in use. Please retry.",
       });
     }
 
     console.error("Create user error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Unable to create the account.",
@@ -251,7 +299,10 @@ if (!managerDoc) {
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
-      .select("fullName email employeeId role organization department designation position status createdAt").populate("department", "name");
+      .select(
+        "fullName email employeeId role organization department designation position status createdAt"
+      )
+      .populate("department", "name");
 
     if (!user) {
       return res.status(404).json({
@@ -260,9 +311,13 @@ router.get("/me", requireAuth, async (req, res) => {
       });
     }
 
-    return res.json({ success: true, user });
+    return res.json({
+      success: true,
+      user,
+    });
   } catch (error) {
     console.error("Get profile error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Unable to load your profile.",

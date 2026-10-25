@@ -36,113 +36,139 @@ router.use((req, res, next) => {
   next();
 });
 
-// GET /api/projects
-// Return only projects the logged-in user is allowed to see.
+
+
 router.get("/", async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select(
-      "role department manager organization fullName email employeeId"
+      "_id role department manager organization"
     );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found."
+        message: "User not found.",
       });
     }
 
-    const organizationId = user.organization;
-
     if (
-      !organizationId ||
-      String(organizationId) !== String(req.user.organization)
+      !user.organization ||
+      String(user.organization) !== String(req.user.organization)
     ) {
       return res.status(403).json({
         success: false,
-        message: "Your organization access is invalid."
+        message: "Your organization access is invalid.",
       });
     }
 
     const role = normalizeRole(user.role);
+    const organization = user.organization;
+    const filter = { organization };
 
-    // Every query is restricted to this organization.
-    const filter = {
-      organization: organizationId
-    };
+    console.log("Logged-in user role:", user.role);
+    console.log("Normalized role:", role);
 
-    // Admin: all projects within their organization.
     if (role === "admin") {
-      // No additional filter required.
-    }
 
-    // HR & Hiring department members and managers: projects in their department.
-    else if (req.user.isHiringDepartment || role === "manager") {
-      if (!user.department) {
-        return res.status(200).json({
-          success: true,
-          projects: []
+      // if (user.department) {
+      //   filter.$or = [
+      //     { department: user.department },
+      //     { createdBy: user._id },
+      //     { projectManagers: user._id },
+      //     { teamMembers: user._id },
+      //   ];
+
+      // } 
+    }
+    else if (role === "manager") {
+        if (!user.department) {
+          return res.json({ success: true, projects: [] });
+        }
+
+        filter.department = user.department;
+  
+        filter.$or = [
+          { createdBy: user._id },
+          { projectManagers: user._id },
+          { teamMembers: user._id },
+        ];
+
+      } else if (role === "executor") {
+        const Task = require("../models/Task");
+        const visibleTasks = await Task.find({
+          organization,
+          $or: [
+            { assignedTo: user._id },
+            { createdBy: user._id },
+          ],
+        }).select("project");
+
+        const taskProjectNames = [
+          ...new Set(
+            visibleTasks
+              .map((task) => String(task.project || "").trim())
+              .filter(Boolean)
+          ),
+        ];
+
+
+        filter.$or = [
+          { createdBy: user._id },
+          { projectManagers: user._id },
+          { teamMembers: user._id },
+          ...(taskProjectNames.length
+            ? [{ name: { $in: taskProjectNames } }]
+            : []),];
+      } else if (role === "employee" || role === "hr") {
+
+        filter.$or = [
+          { createdBy: user._id },
+          { teamMembers: user._id },
+          { projectManagers: user._id },
+        ];
+
+      }
+      else {
+        console.log("Rejected project role:", user.role, role);
+
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to view projects.",
         });
       }
 
-      const department = await Department.findOne({
-        _id: user.department,
-        organization: organizationId
-      }).select("_id");
+      const projects = await Project.find(filter)
+        .populate("department", "name")
+        .populate("teamMembers", "fullName email role")
+        .populate("projectManagers", "fullName email role")
+        .sort({ createdAt: -1 });
 
-      if (!department) {
-        return res.status(200).json({
-          success: true,
-          projects: []
-        });
-      }
+      const projectsWithMemberCount = projects.map((project) => {
+        const item = project.toObject();
 
-      // Project.department is a Department ObjectId.
-      filter.department = department._id;
-    }
+        item.members = Array.isArray(item.teamMembers)
+          ? item.teamMembers.length
+          : 0;
 
-    // Employees and executors: assigned projects only.
-    else if (role === "employee" || role === "executor") {
-      filter.teamMembers = user._id;
-    }
+        return item;
+      });
 
-    // Unknown roles cannot access projects.
-    else {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to view projects."
+      return res.status(200).json({
+        success: true,
+        projects: projectsWithMemberCount,
       });
     }
-
-    const projects = await Project.find(filter)
-  .populate("department", "name")
-  .populate("teamMembers", "fullName email")
-  .populate("projectManagers", "fullName email")
-  .sort({ createdAt: -1 });
-
-    const projectsWithMemberCount = projects.map((project) => {
-      const item = project.toObject();
-
-      item.members = item.teamMembers.length;
-
-      return item;
-    });
-
-    return res.status(200).json({
-      success: true,
-      projects: projectsWithMemberCount
-    });
-  } catch (error) {
+  catch (error) {
     console.error("Fetch projects error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch projects."
+      message: "Failed to fetch projects.",
     });
   }
 });
 
-// POST /api/projects
-// Administrators and HR & Hiring department members can create projects.
+
 router.post("/", async (req, res) => {
   try {
     if (req.user.role !== "admin" && !req.user.isHiringDepartment) {

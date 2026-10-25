@@ -93,12 +93,50 @@ router.post("/", async (req, res) => {
         });
       }
 
-      assignedUser = await User.findOne({
-        _id: assignedUserId,
-        organization: req.user.organization,
-        department: departmentId,
-        status: "active",
-      }).select("_id fullName email role department organization");
+const creator = await User.findOne({
+  _id: req.user.userId,
+  organization: req.user.organization,
+}).select("_id role department organization");
+
+if (!creator) {
+  return res.status(401).json({
+    success: false,
+    message: "Your user account could not be found.",
+  });
+}
+
+const role = String(creator.role || "").toLowerCase();
+
+const allowedRolesByCreator = {
+  admin: ["hr", "executive", "manager"],
+  hr: [],
+  executive: ["manager"],
+  manager: ["employee"],
+};
+
+const allowedRoles = allowedRolesByCreator[role];
+
+if (!allowedRoles) {
+  return res.status(403).json({
+    success: false,
+    message: "You are not authorized to create tasks.",
+  });
+}
+
+assignedUser = await User.findOne({
+  _id: assignedUserId,
+  organization: req.user.organization,
+  department: departmentId,
+  status: "active",
+  role: { $in: allowedRoles },
+}).select("_id fullName email role department organization manager");
+
+if (!assignedUser) {
+  return res.status(400).json({
+    success: false,
+    message: "Select an active member permitted by your reporting hierarchy and project department.",
+  });
+}
 
       if (!assignedUser) {
         return res.status(400).json({
@@ -124,6 +162,25 @@ router.post("/", async (req, res) => {
 
     const role = String(creator.role || "").toLowerCase();
 
+if (role === "manager") {
+  if (!assignedUser) {
+    return res.status(400).json({
+      success: false,
+      message: "Please select an employee to assign this task.",
+    });
+  }
+
+  if (
+    String(assignedUser.role || "").toLowerCase() !== "employee" ||
+    String(assignedUser.manager || "") !== String(creator._id)
+  ) {
+    return res.status(403).json({
+      success: false,
+      message: "Managers can assign tasks only to their own employees.",
+    });
+  }
+}
+
 if (role === "executive") {
   if (!assignedUser) {
     return res.status(400).json({
@@ -132,13 +189,18 @@ if (role === "executive") {
     });
   }
 
-  if (String(assignedUser.role || "").toLowerCase() !== "manager") {
+  if (
+    String(assignedUser.role || "").toLowerCase() !== "manager" ||
+    String(assignedUser.department || "") !== String(creator.department || "")
+  ) {
     return res.status(403).json({
       success: false,
-      message: "Executives can assign tasks only to Managers.",
+      message: "Executives can assign tasks only to Managers in their department.",
     });
   }
 }
+
+
     // HR can view task statistics but cannot create tasks.
     if (role === "hr") {
       return res.status(403).json({
@@ -346,65 +408,83 @@ async function getTaskScope(user) {
     throw error;
   }
 
-  // Admin: all tasks in their organization
-  // Organization-wide admin sees all tasks.
-// An admin assigned to a department sees that department only.
-  if (currentUser.role === "admin") {
-    if (currentUser.department) {
-      return {
-        organization,
-        department: currentUser.department,
-      };
-    }
+  const role = String(currentUser.role || "").toLowerCase();
 
-    return { organization };
+  // Admin: all tasks in the organization, unless department-restricted.
+  if (role === "admin") {
+    return currentUser.department
+      ? { organization, department: currentUser.department._id }
+      : { organization };
   }
-  // HR sees only tasks assigned to their own account.
-if (String(currentUser.role || "").toLowerCase() === "hr") {
-  return {
-    organization,
-    assignedTo: currentUser._id,
-  };
-}
 
-  // HR & Hiring department members: tasks in their own department
-  if (isHiringDepartmentName(currentUser.department?.name)) {
-    if (!currentUser.department) {
-      return {
-        organization,
-        _id: { $exists: false }
-      };
-    }
-
+  // Executive: tasks in projects they created or tasks assigned to them.
+  // This uses existing fields; see the note below about project ownership.
+  if (role === "executive") {
     return {
       organization,
-      department: currentUser.department._id
+      $or: [
+        { assignedTo: currentUser._id },
+        { createdBy: currentUser._id },
+      ],
     };
   }
 
-  // Manager: own tasks and direct reports' tasks
-  if (currentUser.role === "manager") {
+  // HR: tasks assigned to their own account.
+  if (role === "hr") {
+    return {
+      organization,
+      assignedTo: currentUser._id,
+    };
+  }
+
+  // Manager: own tasks and direct reports' tasks.
+  if (role === "manager") {
     const reportIds = await User.find({
       organization,
-      manager: currentUser._id
+      manager: currentUser._id,
     }).distinct("_id");
 
     return {
       organization,
       $or: [
         { assignedTo: currentUser._id },
-        { assignedTo: { $in: reportIds } }
-      ]
+        { assignedTo: { $in: reportIds } },
+      ],
     };
   }
 
-  // Employee, executor, and recruiter:
-  // only tasks assigned to themselves
+  // Employees and other non-management roles: own assigned tasks only.
   return {
     organization,
-    assignedTo: currentUser._id
+    assignedTo: currentUser._id,
   };
 }
+
+router.get("/my", async (req, res) => {
+  try {
+    const scope = await getTaskScope(req.user);
+
+    const tasks = await Task.find(scope)
+      .populate("assignedTo", "fullName email role")
+      .populate("createdBy", "fullName email role")
+      .populate("department", "name")
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      success: true,
+      tasks,
+    });
+  } catch (error) {
+    console.error("Fetch my tasks error:", error.message);
+
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.status
+        ? error.message
+        : "Failed to fetch your tasks.",
+    });
+  }
+});
 
 router.get("/", async (req, res) => {
   try {
