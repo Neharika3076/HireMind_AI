@@ -226,42 +226,51 @@ export default function AddMember() {
     }
   }
 
-  // Create a team member
-  async function addMember(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    setMessage("");
 
-    try {
-      if (!memberForm.department) {
-        throw new Error("Please create or select a department first.");
-      }
+async function addMember(event) {
+  event.preventDefault();
+  setBusy(true);
+  setError("");
+  setMessage("");
 
-      await request("/users", {
-        method: "POST",
-        body: JSON.stringify(memberForm),
-      });
-
-      setMessage("Member created successfully.");
-
-      const assignedDepartment = memberForm.department;
-
-      setMemberForm({
-        ...emptyMember,
-        department: assignedDepartment,
-      });
-
-      // Refresh team members and department member counts
-      const memberData = await request("/users");
-      setMembers(memberData.users || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
+  try {
+    if (!memberForm.department) {
+      throw new Error("Please create or select a department first.");
     }
-  }
 
+    if (!memberForm.role) {
+      throw new Error("Please select an account role.");
+    }
+
+    const payload = {
+      ...memberForm,
+      role: String(memberForm.role).trim().toLowerCase(),
+    };
+
+    console.log("Creating member with role:", payload.role);
+
+    await request("/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    setMessage("Member created successfully.");
+
+    const assignedDepartment = memberForm.department;
+
+    setMemberForm({
+      ...emptyMember,
+      department: assignedDepartment,
+    });
+
+    const memberData = await request("/users");
+    setMembers(memberData.users || []);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setBusy(false);
+  }
+}
 
 
   // Members follow the Admin → Executive → Manager → Employee reporting chain.

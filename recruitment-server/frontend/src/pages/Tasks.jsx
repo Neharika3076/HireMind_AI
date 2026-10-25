@@ -53,7 +53,9 @@ function getPersonId(value) {
     typeof value === "object" ? value._id || "" : value
   );
 }
-
+function normalizeRole(role) {
+  return String(role || "").trim().toLowerCase();
+}
 function getRoleLabel(role) {
   const labels = {
     admin: "Admin",
@@ -62,8 +64,10 @@ function getRoleLabel(role) {
     manager: "Manager",
     employee: "Employee",
   };
+    const normalizedRole = normalizeRole(role);
 
-  const normalizedRole = String(role || "").toLowerCase();
+
+
 
   return labels[normalizedRole] || normalizedRole || "Employee";
 }
@@ -128,25 +132,31 @@ export default function Tasks() {
   const [profileError, setProfileError] = useState("");
 
   const role = String(
-    user?.role || user?.user?.role || ""
+    user?.role || user?.user?.role || user?.profile?.role || ""
   ).toLowerCase();
-
+  
   const isAdmin = role === "admin";
   const isHR = role === "hr";
   const isHiringDepartmentMember = isHiringDepartment(user?.user || user);
   const isManager = role === "manager";
   const isExecutor = role === "executive";
+  const isEmployee = role === "employee";
 
   // HR cannot create projects, assign teams, or add deliverables.
-  const canCreateProject =
-    !isHR && (isAdmin || isHiringDepartmentMember);
+const canCreateProject =
+  !isEmployee &&
+  !isHR &&
+  (isAdmin || isHiringDepartmentMember);
 
-  const canAssignTeam =
-    !isHR && (isAdmin || isHiringDepartmentMember);
+const canAssignTeam =
+  !isEmployee &&
+  !isHR &&
+  (isAdmin || isHiringDepartmentMember);
 
-  const canAddDeliverable =
-    !isHR &&
-    (isAdmin || isHiringDepartmentMember || isManager || isExecutor);
+const canAddDeliverable =
+  !isEmployee &&
+  !isHR &&
+  (isAdmin || isHiringDepartmentMember || isManager || isExecutor);
 
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -194,6 +204,10 @@ export default function Tasks() {
         }
 
         const profile = data.user || data.profile || data;
+
+        console.log("Profile API response:", data);
+        console.log("Loaded profile:", profile);
+        console.log("Loaded role:", profile?.role);
 
         if (active) {
           setUser(profile);
@@ -323,63 +337,93 @@ export default function Tasks() {
     };
   }, [user, role]);
 
-  // Count members assigned to projects and their tasks.
-  const projectsWithMemberCounts = useMemo(() => {
-    return projects.map((project) => {
-      const assignedMembers = new Set();
 
-      if (Array.isArray(project.teamMembers)) {
-        project.teamMembers.forEach((member) => {
-          const name =
-            typeof member === "string"
-              ? member
-              : member?.fullName || member?.name || member?.email;
+const visibleProjects = useMemo(() => {
+  if (!isAdmin) {
+    return projects;
+  }
 
-          if (
-            name &&
-            name.trim() &&
-            name.toLowerCase() !== "unassigned"
-          ) {
-            assignedMembers.add(name.trim().toLowerCase());
-          }
-        });
+  return projects.filter((project) => {
+    const creatorId =
+      project.createdBy?._id || project.createdBy;
+
+    return String(creatorId || "") === String(user?._id || "");
+  });
+}, [projects, isAdmin, user?._id]);
+
+
+const projectsWithMemberCounts = useMemo(() => {
+  return visibleProjects.map((project) => {
+    const projectTasks = tasks.filter((task) => {
+      const taskProject =
+        typeof task.project === "object" && task.project !== null
+          ? task.project
+          : null;
+
+      const taskProjectId = taskProject
+        ? taskProject._id || taskProject.id
+        : task.projectId;
+
+      const taskProjectName = taskProject
+        ? taskProject.name
+        : typeof task.project === "string"
+          ? task.project
+          : "";
+
+      if (taskProjectId) {
+        return String(taskProjectId) === String(project._id);
       }
 
-      tasks
-        .filter((task) => {
-          const taskProject =
-            typeof task.project === "object"
-              ? task.project?.name || ""
-              : task.project || "";
-
-          return (
-            String(taskProject).trim().toLowerCase() ===
-            String(project.name || "").trim().toLowerCase()
-          );
-        })
-        .forEach((task) => {
-          const member =
-            typeof task.member === "string"
-              ? task.member
-              : task.member?.fullName ||
-                task.member?.name ||
-                task.member?.email;
-
-          if (
-            member &&
-            member.trim() &&
-            member.toLowerCase() !== "unassigned"
-          ) {
-            assignedMembers.add(member.trim().toLowerCase());
-          }
-        });
-
-      return {
-        ...project,
-        members: assignedMembers.size,
-      };
+      return (
+        String(taskProjectName || "").trim().toLowerCase() ===
+        String(project.name || "").trim().toLowerCase()
+      );
     });
-  }, [projects, tasks]);
+
+    const assignedMembers = new Set();
+
+    // Include members already assigned to the project.
+    
+    if (Array.isArray(project.teamMembers)) {
+      project.teamMembers.forEach((member) => {
+        const memberId =
+          typeof member === "object" && member !== null
+            ? member._id || member.id
+            : member;
+
+        if (
+          memberId &&
+          String(memberId).trim().toLowerCase() !== "unassigned"
+        ) {
+          assignedMembers.add(String(memberId).trim().toLowerCase());
+        }
+      });
+    }
+
+    // Include members assigned to tasks in this project.
+    projectTasks.forEach((task) => {
+      const member = task.assignedTo || task.member || task.assignee;
+
+      const memberId =
+        typeof member === "object" && member !== null
+          ? member._id || member.id
+          : member;
+
+      if (
+        memberId &&
+        String(memberId).trim().toLowerCase() !== "unassigned"
+      ) {
+        assignedMembers.add(String(memberId).trim().toLowerCase());
+      }
+    });
+
+    return {
+      ...project,
+      members: assignedMembers.size,
+      taskCount: projectTasks.length,
+    };
+  });
+}, [visibleProjects, tasks]);
 
   // HR does not need department data.
   useEffect(() => {
@@ -511,38 +555,83 @@ const projectDepartmentPeople = useMemo(() => {
   });
 }, [people, selectedProjectDepartmentId]);
 
-const eligibleAssignedMembers = useMemo(() => {
-  if (!user?._id) return [];
 
-  if (isExecutor) {
-    return projectDepartmentPeople.filter(
-      (person) =>
-        String(person.role || "").toLowerCase() === "manager"
-    );
-  }
-    if (isManager) {
-    return projectDepartmentPeople.filter((person) =>
-      isSeniorTo(user._id, person._id, people)
-    );
-  }
+// const eligibleAssignedMembers = useMemo(() => {
+//   if (!user?._id) return [];
 
-  if (isAdmin) {
-    return projectDepartmentPeople.filter(
-      (person) => String(person._id) !== String(user._id)
-    );
-  }
+//   if (isExecutor) {
+//     return projectDepartmentPeople.filter(
+//       (person) =>
+//         String(person.role || "").toLowerCase() === "manager"
+//     );
+//   }
+//     if (isManager) {
+//     return projectDepartmentPeople.filter((person) =>
+//       isSeniorTo(user._id, person._id, people)
+//     );
+//   }
 
-  return projectDepartmentPeople.filter((person) =>
-    isSeniorTo(user._id, person._id, people)
+//   if (isAdmin) {
+//     return projectDepartmentPeople.filter((person) => {
+//       const role = String(person.role || "").toLowerCase();
+
+//       return (
+//         String(person._id) !== String(user._id) &&
+//         ["manager", "executive", "hr"].includes(role)
+//       );
+//     });
+//   }
+
+//   return projectDepartmentPeople.filter((person) =>
+//     isSeniorTo(user._id, person._id, people)
+//   );
+// }, [
+//   user?._id,
+//   isExecutor,
+//   isManager,
+//   isAdmin,
+//   projectDepartmentPeople,
+//   people,
+// ]);
+
+
+const getPersonId = (value) => {
+  if (!value) return "";
+  return String(
+    typeof value === "object" ? value._id || value.id || "" : value
   );
-}, [
-  user?._id,
-  isExecutor,
-  isManager,
-  isAdmin,
-  projectDepartmentPeople,
-  people,
-]);
+};
+
+const eligibleAssignedMembers = people.filter((person) => {
+
+
+  if (person.status && person.status !== "active") return false;
+    const role = normalizeRole(person.role);
+
+
+  // Manager: only direct-report employees
+  if (isManager) {
+    return (
+      role === "employee" &&
+      getPersonId(person.manager) === getPersonId(user?._id)
+    );
+  }
+
+  // Executive: only managers in the same department
+  if (isExecutor) {
+    return (
+      role === "manager" &&
+      getPersonId(person.department) === getPersonId(user?.department)
+    );
+  }
+    if (isAdmin) {
+    return ["hr", "executive", "manager"].includes(role);
+  }
+
+  // Admin and other permitted roles can use the existing broader list
+  return isHiringDepartmentMember;
+});
+
 
 console.log("Logged-in role:", role);
 console.log("Selected project:", selectedTaskProject);
@@ -589,43 +678,158 @@ console.log("Eligible assigned members:", eligibleAssignedMembers);
     statusFilter,
   ]);
 
-  // Get tasks relevant to the logged-in user.
-  const myTasks = useMemo(() => {
-    if (!user?._id) return [];
 
-    // The backend must return only HR's assigned tasks.
-    if (isHR) return tasks;
+const userId = String(user?._id || user?.user?._id || "");
 
-    if (isAdmin) return tasks;
+const receivedTasks = useMemo(() => {
+  if (!userId) return [];
 
-    return tasks.filter((task) => {
-      const userId = String(user._id);
+  // Tasks assigned directly to the logged-in user.
+  return tasks.filter((task) => {
+    return (
+      getPersonId(task.assignedTo) === userId ||
+      getPersonId(task.member) === userId
+    );
+  });
+}, [tasks, userId]);
 
-      return (
-        getPersonId(task.member) === userId ||
-        getPersonId(task.lead) === userId ||
-        getPersonId(task.manager) === userId
-      );
-    });
-  }, [tasks, user, isAdmin, isHR]);
+const assignedByMeTasks = useMemo(() => {
+  if (!userId) return [];
 
-  const totalTasks = myTasks.length;
+  // Tasks created by the logged-in user and assigned to others.
+  return tasks.filter((task) => {
+    const creatorId = getPersonId(task.createdBy);
+    const assignedUserId =
+      getPersonId(task.assignedTo) || getPersonId(task.member);
 
-  const completedTasks = myTasks.filter(
-    (task) => task.status === "Completed"
-  ).length;
+    return creatorId === userId && assignedUserId !== userId;
+  });
+}, [tasks, userId]);
 
-  const inProgressTasks = myTasks.filter(
-    (task) => task.status === "In Progress"
-  ).length;
+// Count only the two task groups, without double-counting tasks.
+// const myTasks = useMemo(() => {
+//   const combined = new Map();
 
-  const overdueTasks = myTasks.filter(
+//   [...receivedTasks, ...assignedByMeTasks].forEach((task) => {
+//     combined.set(String(task._id || task.id), task);
+//   });
+
+//   return [...combined.values()];
+// }, [receivedTasks, assignedByMeTasks]);
+
+
+const myTasks = useMemo(() => {
+  if (!user?._id) return [];
+
+  // Admin sees only tasks created by the Admin.
+  if (isAdmin) {
+    return tasks.filter(
+      (task) =>
+        getPersonId(task.createdBy) === String(user._id)
+    );
+  }
+
+  if (isHR) return tasks;
+
+  const userId = String(user._id);
+
+  if (isEmployee) {
+    return tasks.filter(
+      (task) =>
+        getPersonId(task.assignedTo) === userId ||
+        getPersonId(task.member) === userId
+    );
+  }
+
+  return tasks.filter(
     (task) =>
-      task.status !== "Completed" &&
-      task.due &&
-      new Date(`${task.due}T23:59:59`) < new Date()
-  ).length;
+      getPersonId(task.assignedTo) === userId ||
+      getPersonId(task.createdBy) === userId
+  );
+}, [tasks, user, isAdmin, isHR, isEmployee]);
 
+
+const tasksAssignedToMe = useMemo(() => {
+  if (!user?._id) return [];
+
+  return tasks.filter(
+    (task) => getPersonId(task.assignedTo) === String(user._id)
+  );
+}, [tasks, user?._id]);
+
+
+
+const tasksAssignedByMe = useMemo(() => {
+  if (!userId) return [];
+
+  return tasks.filter((task) => {
+    const creatorId = getPersonId(task.createdBy);
+    const assigneeId =
+      getPersonId(task.assignedTo) ||
+      getPersonId(task.member);
+
+    return creatorId === userId && assigneeId !== userId;
+  });
+}, [tasks, userId]);
+
+// const totalTasks = isAdmin
+//   // ? myTasks.length
+//   ? tasks.length
+//   : isHR || isEmployee
+//     ? myTasks.length
+//     : new Set([
+//         ...tasksAssignedToMe,
+//         ...tasksAssignedByMe,
+//       ].map((task) => String(task._id || task.id))).size;
+
+
+const totalTasks = useMemo(() => {
+  const uniqueTasks = new Map();
+
+  const addTasks = (taskList = []) => {
+    taskList.forEach((task) => {
+      const id = String(task._id || task.id || "");
+      if (id) uniqueTasks.set(id, task);
+    });
+  };
+
+  if (isAdmin) {
+    // Admin: only tasks created/provided by this admin
+    addTasks(tasks.filter(
+      (task) => getPersonId(task.createdBy) === userId
+    ));
+  } else {
+    // Tasks received and tasks provided by this user
+    addTasks(tasksAssignedToMe);
+    addTasks(tasksAssignedByMe);
+  }
+
+  return uniqueTasks.size;
+}, [
+  tasks,
+  tasksAssignedToMe,
+  tasksAssignedByMe,
+  isAdmin,
+  userId,
+]);
+
+
+
+
+const completedTasks = myTasks.filter(
+  (task) => task.status === "Completed"
+).length;
+
+const inProgressTasks = myTasks.filter(
+  (task) => task.status === "In Progress"
+).length;
+
+const overdueTasks = myTasks.filter(
+  (task) =>
+    task.status !== "Completed" &&
+    task.due &&
+    new Date(`${task.due}T23:59:59`) < new Date()
+).length;
   function openModal(type) {
     setFeedback("");
 
@@ -1075,8 +1279,8 @@ if (
               </span>
             </article>
           </section>
-
-          <section className="tasks-section work-queue">
+ 
+          {/* <section className="tasks-section work-queue">
             <div className="tasks-section-heading">
               <div>
                 <span className="tasks-section-kicker">
@@ -1185,11 +1389,491 @@ if (
                 </tbody>
               </table>
             </div>
-          </section>
+          </section> 
+ */}
+{(isManager || isExecutor) ? (
+  <div className="task-groups">
+    {/* Tasks assigned to the logged-in user */}
+    <section className="tasks-section work-queue">
+      <div className="tasks-section-heading">
+        <div>
+          <span className="tasks-section-kicker">YOUR WORK</span>
+          <h2>Tasks Assigned to Me</h2>
+          <p>Tasks assigned to your account.</p>
+        </div>
+
+        <span className="tasks-count-badge">
+          {tasksAssignedToMe.length} tasks
+        </span>
+      </div>
+
+      <div className="tasks-table-wrap">
+        <table className="tasks-table">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Due date</th>
+              <th>Status</th>
+              <th>Update status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {tasksAssignedToMe.map((task) => (
+              <tr key={task.id || task._id}>
+                <td>
+                  <div className="table-task-title">
+                    {displayValue(task.title, "Untitled task")}
+                  </div>
+                </td>
+
+                <td className="task-due-date">
+                  {formatDate(task.due)}
+                </td>
+
+                <td>
+                  <span
+                    className={`task-status status-${String(
+                      task.status || "Assigned"
+                    )
+                      .toLowerCase()
+                      .replaceAll(" ", "-")}`}
+                  >
+                    <i />
+                    {task.status || "Assigned"}
+                  </span>
+                </td>
+
+                <td>
+                  <div className="hr-task-actions">
+                    {task.status !== "In Progress" &&
+                      task.status !== "Completed" && (
+                        <button
+                          className="tasks-button tasks-button-secondary"
+                          onClick={() =>
+                            updateTaskStatus(task, "In Progress")
+                          }
+                        >
+                          Start task
+                        </button>
+                      )}
+
+                    {task.status !== "Completed" && (
+                      <button
+                        className="tasks-button tasks-button-primary"
+                        onClick={() =>
+                          updateTaskStatus(task, "Completed")
+                        }
+                      >
+                        Mark completed
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {tasksAssignedToMe.length === 0 && (
+              <tr>
+                <td colSpan={4}>
+                  <div className="tasks-empty-state">
+                    <strong>No tasks assigned to you</strong>
+                    <p>Tasks assigned to your account will appear here.</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {/* Tasks the logged-in user assigned to others */}
+    <section className="tasks-section work-queue">
+      <div className="tasks-section-heading">
+        <div>
+          <span className="tasks-section-kicker">TEAM WORK</span>
+          <h2>Tasks Assigned by Me</h2>
+          <p>Tasks you created for your team.</p>
+        </div>
+
+        <span className="tasks-count-badge">
+          {tasksAssignedByMe.length} tasks
+        </span>
+      </div>
+
+      <div className="tasks-table-wrap">
+        <table className="tasks-table">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Due date</th>
+              <th>Status</th>
+              <th>Update status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {tasksAssignedByMe.map((task) => (
+              <tr key={task.id || task._id}>
+                <td>
+                  <div className="table-task-title">
+                    {displayValue(task.title, "Untitled task")}
+                  </div>
+                </td>
+
+                <td className="task-due-date">
+                  {formatDate(task.due)}
+                </td>
+
+                <td>
+                  <span
+                    className={`task-status status-${String(
+                      task.status || "Assigned"
+                    )
+                      .toLowerCase()
+                      .replaceAll(" ", "-")}`}
+                  >
+                    <i />
+                    {task.status || "Assigned"}
+                  </span>
+                </td>
+
+                <td>
+                  <div className="hr-task-actions">
+                    {task.status !== "In Progress" &&
+                      task.status !== "Completed" && (
+                        <button
+                          className="tasks-button tasks-button-secondary"
+                          onClick={() =>
+                            updateTaskStatus(task, "In Progress")
+                          }
+                        >
+                          Start task
+                        </button>
+                      )}
+
+                    {task.status !== "Completed" && (
+                      <button
+                        className="tasks-button tasks-button-primary"
+                        onClick={() =>
+                          updateTaskStatus(task, "Completed")
+                        }
+                      >
+                        Mark completed
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {tasksAssignedByMe.length === 0 && (
+              <tr>
+                <td colSpan={4}>
+                  <div className="tasks-empty-state">
+                    <strong>No tasks assigned by you</strong>
+                    <p>Tasks you assign to your team will appear here.</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+) : (
+  /* Admin and other roles retain the single task list */
+  <section className="tasks-section work-queue">
+    <div className="tasks-section-heading">
+      <div>
+        <span className="tasks-section-kicker">YOUR WORK</span>
+        <h2>Assigned tasks</h2>
+        <p>Update the status of your tasks below.</p>
+      </div>
+
+      <span className="tasks-count-badge">
+        {myTasks.length} tasks
+      </span>
+    </div>
+
+    <div className="tasks-table-wrap">
+      <table className="tasks-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Due date</th>
+            <th>Status</th>
+            <th>Update status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {myTasks.map((task) => (
+            <tr key={task.id || task._id}>
+              <td>
+                <div className="table-task-title">
+                  {displayValue(task.title, "Untitled task")}
+                </div>
+              </td>
+
+              <td className="task-due-date">
+                {formatDate(task.due)}
+              </td>
+
+              <td>
+                <span
+                  className={`task-status status-${String(
+                    task.status || "Assigned"
+                  )
+                    .toLowerCase()
+                    .replaceAll(" ", "-")}`}
+                >
+                  <i />
+                  {task.status || "Assigned"}
+                </span>
+              </td>
+
+              <td>
+                <div className="hr-task-actions">
+                  {task.status !== "In Progress" &&
+                    task.status !== "Completed" && (
+                      <button
+                        className="tasks-button tasks-button-secondary"
+                        onClick={() =>
+                          updateTaskStatus(task, "In Progress")
+                        }
+                      >
+                        Start task
+                      </button>
+                    )}
+
+                  {task.status !== "Completed" && (
+                    <button
+                      className="tasks-button tasks-button-primary"
+                      onClick={() =>
+                        updateTaskStatus(task, "Completed")
+                      }
+                    >
+                      Mark completed
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+
+          {myTasks.length === 0 && (
+            <tr>
+              <td colSpan={4}>
+                <div className="tasks-empty-state">
+                  <strong>No tasks available</strong>
+                  <p>Your tasks will appear here.</p>
+                </div>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </section>
+)}
+
+
+          
         </main>
       </div>
     );
   }
+
+
+  if (isEmployee) {
+  return (
+    <div className="dashboard-shell tasks-shell">
+      <Sidebar user={user} role="employee" />
+
+      <main className="workday-main tasks-main">
+        <header className="tasks-page-header">
+          <div>
+            <div className="tasks-eyebrow">KREW / MY WORK</div>
+            <h1>
+              My Tasks<span className="title-dot">.</span>
+            </h1>
+            <p>
+              View your assigned work, track deadlines, and update task status.
+            </p>
+          </div>
+        </header>
+
+        {profileError && (
+          <div className="tasks-feedback" role="alert">
+            {profileError}
+          </div>
+        )}
+
+        {feedback && (
+          <div className="tasks-feedback" role="status">
+            {feedback}
+            <button
+              onClick={() => setFeedback("")}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        <section className="tasks-metrics">
+          <article className="tasks-metric">
+            <div className="metric-top">
+              <span className="metric-icon metric-icon-teal">▦</span>
+              <span className="metric-caption">MY TASKS</span>
+            </div>
+            <strong>{String(totalTasks).padStart(2, "0")}</strong>
+            <span className="metric-footer">Assigned to you</span>
+          </article>
+
+          <article className="tasks-metric">
+            <div className="metric-top">
+              <span className="metric-icon metric-icon-lime">✓</span>
+              <span className="metric-caption">COMPLETED</span>
+            </div>
+            <strong>{String(completedTasks).padStart(2, "0")}</strong>
+            <span className="metric-footer">
+              {totalTasks
+                ? Math.round((completedTasks / totalTasks) * 100)
+                : 0}
+              % completed
+            </span>
+          </article>
+
+          <article className="tasks-metric">
+            <div className="metric-top">
+              <span className="metric-icon metric-icon-orange">◷</span>
+              <span className="metric-caption">OVERDUE</span>
+            </div>
+            <strong>{String(overdueTasks).padStart(2, "0")}</strong>
+            <span className="metric-footer">Need your attention</span>
+          </article>
+        </section>
+
+        <section className="tasks-section work-queue">
+          <div className="tasks-section-heading">
+            <div>
+              <span className="tasks-section-kicker">YOUR WORK</span>
+              <h2>Assigned tasks</h2>
+              <p>Start tasks, review deadlines, and update progress.</p>
+            </div>
+
+            <span className="tasks-count-badge">
+              {myTasks.length} tasks
+            </span>
+          </div>
+
+          <div className="tasks-table-wrap">
+            <table className="tasks-table">
+              <thead>
+                <tr>
+                  <th>Task / Project</th>
+                  <th>Priority</th>
+                  <th>Due date</th>
+                  <th>Status</th>
+                  <th>Update status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {myTasks.map((task) => (
+                  <tr key={task.id || task._id}>
+                    <td>
+                      <div className="table-task-title">
+                        {displayValue(task.title, "Untitled task")}
+                      </div>
+                      <div className="table-task-project">
+                        {displayValue(task.project, "No project")}
+                      </div>
+                    </td>
+
+                    <td>{task.priority || "Medium"}</td>
+
+                    <td className="task-due-date">
+                      {formatDate(task.due)}
+                    </td>
+
+                    <td>
+                      <span
+                        className={`task-status status-${String(
+                          task.status || "Assigned"
+                        )
+                          .toLowerCase()
+                          .replaceAll(" ", "-")}`}
+                      >
+                        <i />
+                        {task.status || "Assigned"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="hr-task-actions">
+                        {task.status !== "In Progress" &&
+                          task.status !== "Completed" && (
+                            <button
+                              className="tasks-button tasks-button-secondary"
+                              onClick={() =>
+                                updateTaskStatus(task, "In Progress")
+                              }
+                            >
+                              Start task
+                            </button>
+                          )}
+
+                        {task.status !== "Completed" && (
+                          <button
+                            className="tasks-button tasks-button-primary"
+                            onClick={() =>
+                              updateTaskStatus(
+                                task,
+                                "Pending Review"
+                              )
+                            }
+                          >
+                            Submit for review
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {myTasks.length === 0 && (
+                  <tr>
+                    <td colSpan={5}>
+                      <div className="tasks-empty-state">
+                        <strong>No tasks assigned yet</strong>
+                        <p>
+                          Tasks assigned to you by your manager will appear here.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer className="tasks-footer">
+          <span className="footer-status-dot" />
+          KREW WORKSPACE
+          <span>Your work, clearly organized.</span>
+        </footer>
+      </main>
+    </div>
+  );
+}
+
+
 
   // Existing full dashboard for non-HR users.
   return (
@@ -1298,7 +1982,14 @@ if (
               <span className="metric-caption">ALL PROJECTS</span>
             </div>
             <strong>
-              {projects.length.toString().padStart(2, "0")}
+              {/* {projects.length.toString().padStart(2, "0")} */}
+
+
+                {projects.filter(
+    (project) =>
+      String(project.createdBy?._id || project.createdBy) ===
+      String(user?._id || user?.id)
+  ).length.toString().padStart(2, "0")}
             </strong>
             <span className="metric-footer">
               Across your workspace
@@ -1370,6 +2061,7 @@ if (
               </p>
             </div>
 
+
             <span className="tasks-count-badge">
               {projects.length} projects
             </span>
@@ -1423,11 +2115,17 @@ if (
 
                 <div className="project-card-footer">
                   <span>
-                    ♙{" "}
+                    {/* ♙{" "}
                     {project.members ??
                       project.teamMembers?.length ??
                       0}{" "}
-                    members
+                    members */}
+
+                    
+                    ♙{" "}
+                    {project.taskCount ?? 0}{" "}
+                    tasks
+
                   </span>
 
                   <button
