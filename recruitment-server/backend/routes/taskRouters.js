@@ -55,17 +55,34 @@ router.post("/", async (req, res) => {
     }
 
     // Get the project from this user's organization.
-    const projectRecord = await Project.findOne({
-      name: project.trim(),
-      organization: req.user.organization,
-    }).select("_id name department organization");
+    // const projectRecord = await Project.findOne({
+    //   name: project.trim(),
+    //   organization: req.user.organization,
+    // }).select("_id name department organization");
 
-    if (!projectRecord) {
-      return res.status(400).json({
-        success: false,
-        message: "Select a valid project from your organization.",
-      });
-    }
+    // if (!projectRecord) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Select a valid project from your organization.",
+    //   });
+    // }
+    const projectValue = String(project || "").trim();
+
+const isObjectId = mongoose.Types.ObjectId.isValid(projectValue);
+
+const projectRecord = await Project.findOne({
+  ...(isObjectId
+    ? { _id: projectValue }
+    : { name: projectValue }),
+  organization: req.user.organization,
+}).select("_id name department organization");
+
+if (!projectRecord) {
+  return res.status(400).json({
+    success: false,
+    message: "Select a valid project from your organization.",
+  });
+}
 
     if (!projectRecord.department) {
       return res.status(400).json({

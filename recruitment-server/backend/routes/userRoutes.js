@@ -22,6 +22,89 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+
+
+/*
+ * GET /api/users/assignment-options
+ * Return only active managers in the logged-in executive's department.
+ */
+router.get("/assignment-options", requireAuth, async (req, res) => {
+  try {
+        const currentUser = await User.findById(req.user.userId)
+      .select("role organization department")
+      .lean();
+
+    if (!currentUser) {
+      return res.status(401).json({
+        success: false,
+        message: "User account not found.",
+      });
+    }
+    const role = String(req.user.role || "").toLowerCase();
+        if (role !== "executive") {
+      return res.status(403).json({
+        success: false,
+        message: "Executive access required.",
+      });
+    }
+        if (!currentUser.organization || !currentUser.department) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account needs an organization and department.",
+      });
+    }
+        const managers = await User.find({
+      organization: currentUser.organization,
+      department: currentUser.department,
+      role: "manager",
+      status: "active",
+    })
+      .select(
+        "_id fullName email role department status"
+      )
+      .populate("department", "name")
+      .sort({ fullName: 1 })
+      .lean();
+
+
+    // if (!["executive", "executor"].includes(role)) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Executive access required.",
+    //   });
+    // }
+
+    // if (!req.user.organization || !req.user.department) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Your account needs an organization and department.",
+    //   });
+    // }
+
+    // const managers = await User.find({
+    //   organization: req.user.organization,
+    //   department: req.user.department,
+    //   role: "manager",
+    //   status: "active",
+    // })
+    //   .select("_id fullName email role department departmentId status")
+    //   .populate("department", "name")
+    //   .lean();
+
+    return res.json({
+      success: true,
+      users: managers,
+    });
+  } catch (error) {
+    console.error("Assignment options error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load assignment options.",
+    });
+  }
+});
+
 // GET /api/users
 // Admin: list users belonging to their organization.
 router.get("/", requireAuth, requireAdmin, async (req, res) => {

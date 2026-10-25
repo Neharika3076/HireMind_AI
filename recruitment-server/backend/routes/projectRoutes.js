@@ -70,94 +70,86 @@ router.get("/", async (req, res) => {
 
     if (role === "admin") {
 
-      // if (user.department) {
-      //   filter.$or = [
-      //     { department: user.department },
-      //     { createdBy: user._id },
-      //     { projectManagers: user._id },
-      //     { teamMembers: user._id },
-      //   ];
 
-      // } 
     }
     else if (role === "manager") {
-        if (!user.department) {
-          return res.json({ success: true, projects: [] });
-        }
-
-        filter.department = user.department;
-  
-        filter.$or = [
-          { createdBy: user._id },
-          { projectManagers: user._id },
-          { teamMembers: user._id },
-        ];
-
-      } else if (role === "executor") {
-        const Task = require("../models/Task");
-        const visibleTasks = await Task.find({
-          organization,
-          $or: [
-            { assignedTo: user._id },
-            { createdBy: user._id },
-          ],
-        }).select("project");
-
-        const taskProjectNames = [
-          ...new Set(
-            visibleTasks
-              .map((task) => String(task.project || "").trim())
-              .filter(Boolean)
-          ),
-        ];
-
-
-        filter.$or = [
-          { createdBy: user._id },
-          { projectManagers: user._id },
-          { teamMembers: user._id },
-          ...(taskProjectNames.length
-            ? [{ name: { $in: taskProjectNames } }]
-            : []),];
-      } else if (role === "employee" || role === "hr") {
-
-        filter.$or = [
-          { createdBy: user._id },
-          { teamMembers: user._id },
-          { projectManagers: user._id },
-        ];
-
-      }
-      else {
-        console.log("Rejected project role:", user.role, role);
-
-        return res.status(403).json({
-          success: false,
-          message: "You are not authorized to view projects.",
-        });
+      if (!user.department) {
+        return res.json({ success: true, projects: [] });
       }
 
-      const projects = await Project.find(filter)
-        .populate("department", "name")
-        .populate("teamMembers", "fullName email role")
-        .populate("projectManagers", "fullName email role")
-        .sort({ createdAt: -1 });
+      filter.department = user.department;
 
-      const projectsWithMemberCount = projects.map((project) => {
-        const item = project.toObject();
+      filter.$or = [
+        { createdBy: user._id },
+        { projectManagers: user._id },
+        { teamMembers: user._id },
+      ];
 
-        item.members = Array.isArray(item.teamMembers)
-          ? item.teamMembers.length
-          : 0;
+    } else if (role === "executor") {
+      const Task = require("../models/Task");
+      const visibleTasks = await Task.find({
+        organization,
+        $or: [
+          { assignedTo: user._id },
+          { createdBy: user._id },
+        ],
+      }).select("project");
 
-        return item;
-      });
+      const taskProjectNames = [
+        ...new Set(
+          visibleTasks
+            .map((task) => String(task.project || "").trim())
+            .filter(Boolean)
+        ),
+      ];
 
-      return res.status(200).json({
-        success: true,
-        projects: projectsWithMemberCount,
+
+      filter.$or = [
+        { createdBy: user._id },
+        { projectManagers: user._id },
+        { teamMembers: user._id },
+        ...(taskProjectNames.length
+          ? [{ name: { $in: taskProjectNames } }]
+          : []),];
+    } else if (role === "employee" || role === "hr") {
+
+      filter.$or = [
+        { createdBy: user._id },
+        { teamMembers: user._id },
+        { projectManagers: user._id },
+      ];
+
+    }
+    else {
+      console.log("Rejected project role:", user.role, role);
+
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to view projects.",
       });
     }
+
+    const projects = await Project.find(filter)
+      .populate("department", "name")
+      .populate("teamMembers", "fullName email role")
+      .populate("projectManagers", "fullName email role")
+      .sort({ createdAt: -1 });
+
+    const projectsWithMemberCount = projects.map((project) => {
+      const item = project.toObject();
+
+      item.members = Array.isArray(item.teamMembers)
+        ? item.teamMembers.length
+        : 0;
+
+      return item;
+    });
+
+    return res.status(200).json({
+      success: true,
+      projects: projectsWithMemberCount,
+    });
+  }
   catch (error) {
     console.error("Fetch projects error:", error);
 
@@ -171,12 +163,26 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    if (req.user.role !== "admin" && !req.user.isHiringDepartment) {
-      return res.status(403).json({
-        success: false,
-        message: "Only administrators and HR & Hiring department members can create projects."
-      });
-    }
+    // if (req.user.role !== "admin" && !req.user.isHiringDepartment) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Only administrators and HR & Hiring department members can create projects."
+    //   });
+    // }
+    
+const role = normalizeRole(req.user.role);
+
+if (
+  role !== "admin" &&
+  role !== "executive" &&
+  !req.user.isHiringDepartment
+) {
+  return res.status(403).json({
+    success: false,
+    message: "You are not authorized to create projects."
+  });
+}
+
 
     const user = await User.findById(req.user.userId).select(
       "organization role"
@@ -281,6 +287,32 @@ router.post("/", async (req, res) => {
     const projectManagerIds = [
       ...new Set(projectManagers || [])
     ];
+    const creatorRole = normalizeRole(user.role);
+
+    if (creatorRole === "admin") {
+      const departmentExecutors = await User.find({
+        organization: user.organization,
+        department: departmentRecord._id,
+        role: { $in: ["executor", "executive"] },
+        status: "active",
+      }).select("_id");
+
+      if (departmentExecutors.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "No active Executor is assigned to the selected department. Please assign an Executor first.",
+        });
+      }
+
+      // Assign the first matching Executor to the project.
+      const executorId = String(departmentExecutors[0]._id);
+
+      if (!teamMemberIds.includes(executorId)) {
+        teamMemberIds.push(executorId);
+      }
+    }
+
 
     const assignedUserIds = [
       ...new Set([...teamMemberIds, ...projectManagerIds])

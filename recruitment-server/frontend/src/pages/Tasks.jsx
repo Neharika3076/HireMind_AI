@@ -22,6 +22,8 @@ const emptyTask = {
   due: "",
   lead: "",
   member: "",
+  manager: "",
+
 };
 
 function getDepartmentId(department) {
@@ -142,8 +144,8 @@ export default function Tasks() {
   const isExecutor = role === "executive";
   const isEmployee = role === "employee";
 
-  const canCreateProject = isAdmin || isHiringDepartmentMember;
-  const canAssignTeam = isAdmin || isHiringDepartmentMember;
+  const canCreateProject = isAdmin || isHiringDepartmentMember || isExecutor;
+  const canAssignTeam = !isAdmin || isHiringDepartmentMember;
   const canAddDeliverable =
     isAdmin || isHiringDepartmentMember || isManager || isExecutor;
   const [projects, setProjects] = useState([]);
@@ -178,11 +180,23 @@ export default function Tasks() {
 
     async function fetchProfile() {
       try {
+        // const response = await fetch(
+        //   "http://localhost:5000/api/users/me",
+        //   { credentials: "include" }
+        // );
+
+
+        const token = localStorage.getItem("token");
+
         const response = await fetch(
           "http://localhost:5000/api/users/me",
-          { credentials: "include" }
+          {
+            credentials: "include",
+            headers: token
+              ? { Authorization: `Bearer ${token}` }
+              : {},
+          }
         );
-
         const data = await response.json();
 
         if (!response.ok) {
@@ -462,22 +476,33 @@ const projectsWithMemberCounts = useMemo(() => {
     let active = true;
 
     async function fetchPeople() {
-      if (!user || role === "hr") {
+      if (!user ) {
         return;
       }
 
       try {
-        const token = localStorage.getItem("token");
 
-        const response = await fetch(
-          "http://localhost:5000/api/users",
-          {
-            credentials: "include",
-            headers: token
-              ? { Authorization: `Bearer ${token}` }
-              : {},
-          }
-        );
+const token = localStorage.getItem("token");
+
+const currentRole = String(user?.role || role || "")
+  .trim()
+  .toLowerCase();
+
+const endpoint =
+  currentRole === "executive"
+    ? "http://localhost:5000/api/users/assignment-options"
+    : "http://localhost:5000/api/users";
+
+console.log("Current role:", currentRole);
+console.log("Users endpoint:", endpoint);
+
+const response = await fetch(endpoint, {
+  credentials: "include",
+  headers: token
+    ? { Authorization: `Bearer ${token}` }
+    : {},
+});
+
 
         const data = await response.json();
 
@@ -544,45 +569,6 @@ const projectDepartmentPeople = useMemo(() => {
 }, [people, selectedProjectDepartmentId]);
 
 
-// const eligibleAssignedMembers = useMemo(() => {
-//   if (!user?._id) return [];
-
-//   if (isExecutor) {
-//     return projectDepartmentPeople.filter(
-//       (person) =>
-//         String(person.role || "").toLowerCase() === "manager"
-//     );
-//   }
-//     if (isManager) {
-//     return projectDepartmentPeople.filter((person) =>
-//       isSeniorTo(user._id, person._id, people)
-//     );
-//   }
-
-//   if (isAdmin) {
-//     return projectDepartmentPeople.filter((person) => {
-//       const role = String(person.role || "").toLowerCase();
-
-//       return (
-//         String(person._id) !== String(user._id) &&
-//         ["manager", "executive", "hr"].includes(role)
-//       );
-//     });
-//   }
-
-//   return projectDepartmentPeople.filter((person) =>
-//     isSeniorTo(user._id, person._id, people)
-//   );
-// }, [
-//   user?._id,
-//   isExecutor,
-//   isManager,
-//   isAdmin,
-//   projectDepartmentPeople,
-//   people,
-// ]);
-
-
 const getPersonId = (value) => {
   if (!value) return "";
   return String(
@@ -590,46 +576,113 @@ const getPersonId = (value) => {
   );
 };
 
-const eligibleAssignedMembers = people.filter((person) => {
+useEffect(() => {
+  console.log(
+    "ALL PEOPLE:",
+    people.map((p) => ({
+      name: p.fullName,
+      role: p.role,
+      department: p.department,
+      departmentId: p.departmentId,
+      status: p.status,
+    }))
+  );
+
+  console.log("PROJECT DEPARTMENT ID:", selectedProjectDepartmentId);
+}, [people, selectedProjectDepartmentId]);
 
 
-  if (person.status && person.status !== "active") return false;
-    const role = normalizeRole(person.role);
+const eligibleAssignedMembers = useMemo(() => {
+  console.log("ELIGIBLE MEMBERS:", people);
+console.log("IS EXECUTOR:", isExecutor);
+console.log("PROJECT DEPARTMENT:", selectedProjectDepartmentId);
+  return people.filter((person) => {
+    // Ignore inactive users.
+    if (
+      person.status &&
+      String(person.status).toLowerCase() !== "active"
+    ) {
+      return false;
+    }
 
+    const personRole = normalizeRole(person.role);
 
-  // Manager: only direct-report employees
-  if (isManager) {
-    return (
-      role === "employee" &&
-      getPersonId(person.manager) === getPersonId(user?._id)
-    );
-  }
-
-  // Executive: only managers in the same department
-  if (isExecutor) {
-    return (
-      role === "manager" &&
-      getPersonId(person.department) === getPersonId(user?.department)
-    );
-  }
+    // Admin: HR and Executor/Executive in the selected
+    // project's department only.
     if (isAdmin) {
-    return ["hr", "executive", "manager"].includes(role);
-  }
+      const personDepartmentId = String(
+        getDepartmentId(person.department) ||
+          person.departmentId ||
+          ""
+      );
 
-  // Admin and other permitted roles can use the existing broader list
-  return isHiringDepartmentMember;
-});
+      const projectDepartmentId = String(
+        selectedProjectDepartmentId || ""
+      );
+      const isActive =
+      String(person.status || "").toLowerCase() === "active";
+
+      return (
+        isActive && 
+        ["hr", "executor", "executive"].includes(personRole) &&
+        projectDepartmentId !== "" &&
+        personDepartmentId === projectDepartmentId
+      );
+    }
+
+    // Manager: only direct-report employees.
+    if (isManager) {
+      return (
+        personRole === "employee" &&
+        getPersonId(person.manager) === getPersonId(user?._id)
+      );
+    }
+
+    // Executor/Executive: managers in the same department.
+    if (isExecutor) {
 
 
-console.log("Logged-in role:", role);
-console.log("Selected project:", selectedTaskProject);
-console.log(
-  "Selected department ID:",
-  selectedProjectDepartmentId
-);
-console.log("People loaded:", people);
-console.log("People in project department:", projectDepartmentPeople);
-console.log("Eligible assigned members:", eligibleAssignedMembers);
+
+      const personDepartmentId = String(
+        getDepartmentId(person.department) ||
+          person.departmentId ||
+          ""
+      );
+
+      const projectDepartmentId = String(
+        selectedProjectDepartmentId || ""
+          // getDepartmentId(user?.department) ||
+          // user?.departmentId ||
+          // ""
+      );
+        console.log("MANAGER FILTER CHECK:", {
+    name: person.fullName,
+    role: personRole,
+    personDepartmentId,
+    projectDepartmentId,
+    status: person.status,
+      });
+
+      return (
+        personRole === "manager" &&
+        projectDepartmentId !== "" &&
+        personDepartmentId === projectDepartmentId
+      );
+    }
+
+    return isHiringDepartmentMember;
+  });
+}, [
+  people,
+  isAdmin,
+  isManager,
+  isExecutor,
+  user,
+  selectedProjectDepartmentId,
+  isHiringDepartmentMember,
+]);
+
+
 
   const uniqueValues = (key) => [
     ...new Set(tasks.map((task) => task[key]).filter(Boolean)),
@@ -694,18 +747,6 @@ const assignedByMeTasks = useMemo(() => {
   });
 }, [tasks, userId]);
 
-// Count only the two task groups, without double-counting tasks.
-// const myTasks = useMemo(() => {
-//   const combined = new Map();
-
-//   [...receivedTasks, ...assignedByMeTasks].forEach((task) => {
-//     combined.set(String(task._id || task.id), task);
-//   });
-
-//   return [...combined.values()];
-// }, [receivedTasks, assignedByMeTasks]);
-
-
 const myTasks = useMemo(() => {
   if (!user?._id) return [];
 
@@ -760,49 +801,84 @@ const tasksAssignedByMe = useMemo(() => {
   });
 }, [tasks, userId]);
 
-// const totalTasks = isAdmin
-//   // ? myTasks.length
-//   ? tasks.length
-//   : isHR || isEmployee
-//     ? myTasks.length
-//     : new Set([
-//         ...tasksAssignedToMe,
-//         ...tasksAssignedByMe,
-//       ].map((task) => String(task._id || task.id))).size;
+
+// const totalTasks = useMemo(() => {
+//   const uniqueTasks = new Map();
+
+//   const addTasks = (taskList = []) => {
+//     taskList.forEach((task) => {
+//       const id = String(task._id || task.id || "");
+//       if (id) uniqueTasks.set(id, task);
+//     });
+//   };
+
+//   if (isAdmin) {
+//     // Admin: only tasks created/provided by this admin
+//     addTasks(tasks.filter(
+//       (task) => getPersonId(task.createdBy) === userId
+//     ));
+//   } else {
+//     // Tasks received and tasks provided by this user
+//     addTasks(tasksAssignedToMe);
+//     addTasks(tasksAssignedByMe);
+//   }
+
+//   return uniqueTasks.size;
+// }, [
+//   tasks,
+//   tasksAssignedToMe,
+//   tasksAssignedByMe,
+//   isAdmin,
+//   userId,
+// ]);
 
 
 const totalTasks = useMemo(() => {
-  const uniqueTasks = new Map();
+  if (!isAdmin || !userId) {
+    const uniqueTasks = new Map();
 
-  const addTasks = (taskList = []) => {
-    taskList.forEach((task) => {
+    [...tasksAssignedToMe, ...tasksAssignedByMe].forEach((task) => {
       const id = String(task._id || task.id || "");
       if (id) uniqueTasks.set(id, task);
     });
-  };
 
-  if (isAdmin) {
-    // Admin: only tasks created/provided by this admin
-    addTasks(tasks.filter(
-      (task) => getPersonId(task.createdBy) === userId
-    ));
-  } else {
-    // Tasks received and tasks provided by this user
-    addTasks(tasksAssignedToMe);
-    addTasks(tasksAssignedByMe);
+    return uniqueTasks.size;
   }
+
+  const allowedAssigneeIds = new Set(
+    people
+      .filter((person) =>
+        ["hr", "executor", "executive"].includes(
+          normalizeRole(person.role)
+        )
+      )
+      .map((person) => getPersonId(person._id))
+  );
+
+  const uniqueTasks = new Set();
+
+  tasks.forEach((task) => {
+    const creatorId = getPersonId(task.createdBy);
+    const assigneeId = getPersonId(task.assignedTo || task.member);
+
+    if (
+      creatorId === userId &&
+      assigneeId &&
+      allowedAssigneeIds.has(assigneeId)
+    ) {
+      uniqueTasks.add(String(task._id || task.id));
+    }
+  });
 
   return uniqueTasks.size;
 }, [
   tasks,
   tasksAssignedToMe,
   tasksAssignedByMe,
+  people,
   isAdmin,
   userId,
 ]);
-
-
-
 
 const completedTasks = myTasks.filter(
   (task) => task.status === "Completed"
@@ -818,6 +894,8 @@ const overdueTasks = myTasks.filter(
     task.due &&
     new Date(`${task.due}T23:59:59`) < new Date()
 ).length;
+
+
   function openModal(type) {
     setFeedback("");
 
@@ -825,6 +903,8 @@ const overdueTasks = myTasks.filter(
       setFeedback("You do not have permission to create projects.");
       return;
     }
+
+
 
     if (type === "team" && !canAssignTeam) {
       setFeedback("You do not have permission to assign project teams.");
@@ -916,54 +996,123 @@ const overdueTasks = myTasks.filter(
       color: "teal",
     };
 
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/projects",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(newProject),
-        }
-      );
+//     try {
+//        const token = localStorage.getItem("token");
+//       const endpoint =
+//   String(role || "").toLowerCase() === "executive"
+//     ? "http://localhost:5000/api/users/assignment-options"
+//     : "http://localhost:5000/api/users";
 
-      const data = await response.json();
+//     console.log("Logged-in role:", role);
+// console.log("Users endpoint:", endpoint);
+//       const response = await fetch(
+//         // "http://localhost:5000/api/projects",
+//         endpoint,
+//         {
+//           // method: "POST",
+//           credentials: "include",
+//             headers: token
+//     ? { Authorization: `Bearer ${token}` }
+//     : {},
+//           // headers: {
+//             // "Content-Type": "application/json",
+//             //   ...(token ? { Authorization: `Bearer ${token}` } : {}),
+//           // },
+//           // body: JSON.stringify(newProject),
+//         }
+//       );
 
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to create project."
-        );
-      }
+//       const data = await response.json();
 
-      const savedProject = {
-        ...data.project,
-        id: data.project._id,
-        departmentId:
-          getDepartmentId(data.project.department) ||
-          projectForm.department,
-        departmentName: getDepartmentName(
-          data.project.department,
-          departments
-        ),
-        members: data.project.members ?? 0,
-        progress: data.project.progress ?? 0,
-        status: data.project.status || "Assigned",
-        color: data.project.color || "teal",
-      };
+//       if (!response.ok) {
+//         throw new Error(
+//           data.message || "Failed to create project."
+//         );
+//       }
 
-      setProjects((current) => [...current, savedProject]);
-      setProjectForm(emptyProject);
-      closeModal();
-      setFeedback("Project saved successfully.");
-    } catch (error) {
-      setFeedback(error.message);
+//       const savedProject = {
+//         ...data.project,
+//         id: data.project._id,
+//         departmentId:
+//           getDepartmentId(data.project.department) ||
+//           projectForm.department,
+//         departmentName: getDepartmentName(
+//           data.project.department,
+//           departments
+//         ),
+//         members: data.project.members ?? 0,
+//         progress: data.project.progress ?? 0,
+//         status: data.project.status || "Assigned",
+//         color: data.project.color || "teal",
+//       };
+
+//       setProjects((current) => [...current, savedProject]);
+//       setProjectForm(emptyProject);
+//       closeModal();
+//       setFeedback("Project saved successfully.");
+//     } 
+    
+//     catch (error) {
+//       setFeedback(error.message);
+//     }
+
+
+
+try {
+  const token = localStorage.getItem("token");
+
+  const response = await fetch(
+    "http://localhost:5000/api/projects",
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(newProject),
     }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to create project.");
+  }
+
+  const savedProject = {
+    ...data.project,
+    id: data.project._id,
+    departmentId:
+      getDepartmentId(data.project.department) ||
+      projectForm.department,
+    departmentName: getDepartmentName(
+      data.project.department,
+      departments
+    ),
+    members: data.project.members ?? 0,
+    progress: data.project.progress ?? 0,
+    status: data.project.status || "Assigned",
+    color: data.project.color || "teal",
+  };
+
+  setProjects((current) => [...current, savedProject]);
+  setProjectForm(emptyProject);
+  closeModal();
+  setFeedback("Project saved successfully.");
+} catch (error) {
+  setFeedback(error.message);
+}
+
   }
 
   async function handleCreateTask(event) {
     event.preventDefault();
+
+    console.log("CREATE TASK CLICKED");
+console.log("Task form:", taskForm);
+console.log("Logged-in user:", user);
+console.log("Selected member:", taskForm.member);
     setFeedback("");
 
     if (!user?._id) {
@@ -974,6 +1123,10 @@ const overdueTasks = myTasks.filter(
     const selectedProject = projects.find(
       (project) => project.name === taskForm.project
     );
+    console.log("Selected project:", selectedProject);
+console.log("Project ID:", selectedProject?._id || selectedProject?.id);
+console.log("Project organization:", selectedProject?.organization);
+console.log("Task form project:", taskForm.project);
 
     if (!selectedProject) {
       setFeedback("Please select an existing project.");
@@ -989,6 +1142,57 @@ const overdueTasks = myTasks.filter(
       setFeedback("Please select an assigned member.");
       return;
     }
+    // if (!taskForm.manager) {
+    //   setFeedback("Please select a department manager.");
+    //   return;
+    // }
+
+
+    // const allowedManager = people.some(
+    //   (person) =>
+    //     String(person._id) === String(taskForm.manager) &&
+    //     String(person.role || "").toLowerCase() === "manager" &&
+    //     person.status === "active" &&
+    //     String(person.department?._id || person.department) ===
+    //       String(user?.department?._id || user?.department)
+    // );
+
+    // if (!allowedManager) {
+    //   setFeedback("Please select a valid manager from your department.");
+    //   return;
+    // }
+
+    
+const currentRole = String(user?.role || role || "")
+  .trim()
+  .toLowerCase();
+
+if (currentRole === "executor") {
+  if (!taskForm.manager) {
+    setFeedback("Please select a department manager.");
+    return;
+  }
+
+  const allowedManager = people.some(
+    (person) =>
+      String(person._id) === String(taskForm.manager) &&
+      String(person.role || "").toLowerCase() === "manager" &&
+      String(person.status || "").toLowerCase() === "active" &&
+      String(
+        person.department?._id || person.department || ""
+      ) ===
+        String(
+          user?.department?._id || user?.department || ""
+        )
+  );
+
+  if (!allowedManager) {
+    setFeedback("Please select a valid manager from your department.");
+    return;
+  }
+}
+
+
 
     if (String(user._id) === String(taskForm.member)) {
       setFeedback("You cannot assign a task to yourself.");
@@ -1015,8 +1219,16 @@ if (
       return;
     }
 
+    console.log("All projects:", projects);
+console.log("Selected project:", selectedProject);
+console.log("Project _id:", selectedProject?._id);
+console.log("Project id:", selectedProject?.id);
+console.log("Logged-in user:", user);
+
     const newTask = {
-      project: taskForm.project,
+      // project: taskForm.project,
+        project: selectedProject._id || selectedProject.id,
+
       title: taskForm.title.trim(),
       team: getDepartmentName(
         selectedProject.department,
@@ -1027,7 +1239,9 @@ if (
         selectedProject.departmentId ||
         "",
       lead: user._id,
-      manager: user._id,
+      // manager: user._id,
+     // manager: taskForm.manager,
+     manager: currentRole === "executor" ? taskForm.manager : undefined,
       member: taskForm.member,
       priority: taskForm.priority,
       due: taskForm.due,
@@ -1036,15 +1250,19 @@ if (
       description: taskForm.description,
       category: taskForm.category,
     };
-
+    console.log("TASK PAYLOAD:", newTask);
     try {
+      const token = localStorage.getItem("token");
+      console.log("Sending task to backend:", newTask);
       const response = await fetch(
         "http://localhost:5000/api/tasks",
+        
         {
           method: "POST",
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify(newTask),
         }
@@ -1071,6 +1289,8 @@ if (
       closeModal();
       setFeedback("Task created successfully.");
     } catch (error) {
+        console.error("Create task error:", error);
+
       setFeedback(error.message);
     }
   }
@@ -1268,117 +1488,6 @@ if (
             </article>
           </section>
  
-          {/* <section className="tasks-section work-queue">
-            <div className="tasks-section-heading">
-              <div>
-                <span className="tasks-section-kicker">
-                  YOUR WORK
-                </span>
-                <h2>Assigned tasks</h2>
-                <p>
-                  Update the status of your tasks below.
-                </p>
-              </div>
-
-              <span className="tasks-count-badge">
-                {myTasks.length} tasks
-              </span>
-            </div>
-
-            <div className="tasks-table-wrap">
-              <table className="tasks-table">
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Due date</th>
-                    <th>Status</th>
-                    <th>Update status</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {myTasks.map((task) => (
-                    <tr key={task.id}>
-                      <td>
-                        <div className="table-task-title">
-                          {displayValue(
-                            task.title,
-                            "Untitled task"
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="task-due-date">
-                        {formatDate(task.due)}
-                      </td>
-
-                      <td>
-                        <span
-                          className={`task-status status-${String(
-                            task.status || "Assigned"
-                          )
-                            .toLowerCase()
-                            .replaceAll(" ", "-")}`}
-                        >
-                          <i />
-                          {task.status || "Assigned"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="hr-task-actions">
-                          {task.status !== "In Progress" &&
-                            task.status !== "Completed" && (
-                              <button
-                                className="tasks-button tasks-button-secondary"
-                                onClick={() =>
-                                  updateTaskStatus(
-                                    task,
-                                    "In Progress"
-                                  )
-                                }
-                              >
-                                Start task
-                              </button>
-                            )}
-
-                          {task.status !== "Completed" && (
-                            <button
-                              className="tasks-button tasks-button-primary"
-                              onClick={() =>
-                                updateTaskStatus(
-                                  task,
-                                  "Completed"
-                                )
-                              }
-                            >
-                              Mark completed
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {myTasks.length === 0 && (
-                    <tr>
-                      <td colSpan={4}>
-                        <div className="tasks-empty-state">
-                          <strong>
-                            No tasks assigned yet
-                          </strong>
-                          <p>
-                            Your assigned tasks will appear here.
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section> 
- */}
 {(isManager || isExecutor) ? (
   <div className="task-groups">
     {/* Tasks assigned to the logged-in user */}
@@ -2393,6 +2502,8 @@ if (
           className="tasks-modal-backdrop"
           onMouseDown={closeModal}
         >
+
+
           <section
             className="tasks-modal"
             role="dialog"
@@ -2643,6 +2754,9 @@ if (
                     />
                   </FormField>
 
+
+
+
                   <FormField label="Category">
                     <input
                       value={taskForm.category}
@@ -2826,6 +2940,8 @@ if (
               </form>
             )}
           </section>
+
+
         </div>
       )}
 
