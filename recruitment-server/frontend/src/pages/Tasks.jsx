@@ -140,18 +140,12 @@ export default function Tasks() {
   const isHiringDepartmentMember = isHiringDepartment(user?.user || user);
   const isManager = role === "manager";
   const isExecutor = role === "executive";
+  const isEmployee = role === "employee";
 
-<<<<<<< HEAD
   const canCreateProject = isAdmin || isHiringDepartmentMember;
   const canAssignTeam = isAdmin || isHiringDepartmentMember;
   const canAddDeliverable =
     isAdmin || isHiringDepartmentMember || isManager || isExecutor;
-=======
-  const canCreateProject = isAdmin;
-  const canAssignTeam = isAdmin;
-  const canAddDeliverable =
-    isAdmin || isManager || isExecutor;
->>>>>>> 789382c (fix admin create-Project)
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [departments, setDepartments] = useState([]);

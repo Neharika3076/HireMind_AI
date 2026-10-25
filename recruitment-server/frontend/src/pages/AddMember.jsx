@@ -272,7 +272,6 @@ async function addMember(event) {
   }
 }
 
-<<<<<<< HEAD
   const selectedDepartment = departments.find(
     (department) =>
       String(department._id) === String(memberForm.department)
@@ -280,56 +279,47 @@ async function addMember(event) {
 
   const isHiringDepartmentMember =
     selectedDepartment?.name?.trim().toLowerCase() === "hr & hiring";
-  const allowedManagerRoles = isHiringDepartmentMember
-    ? ["admin"]
-    : {
-        executive: ["admin"],
-        manager: ["admin", "executive"],
-        employee: ["admin", "executive", "manager"],
-      }[memberForm.role] || [];
 
-  const managers = members.filter((member) => {
-    return allowedManagerRoles.includes(member.role);
-  });
-=======
   // Members follow the Admin → Executive → Manager → Employee reporting chain.
+  const managers = members.filter((member) => {
+    const memberRole = String(member.role || "")
+      .trim()
+      .toLowerCase();
 
-const managers = members.filter((member) => {
-  const memberRole = String(member.role || "")
-    .trim()
-    .toLowerCase();
+    const memberDepartmentId = String(
+      member.department?._id || member.department || ""
+    );
 
-  const memberDepartmentId = String(
-    member.department?._id || member.department || ""
-  );
+    const selectedDepartmentId = String(memberForm.department || "");
 
-  const selectedDepartmentId = String(memberForm.department || "");
+    const expectedManagerRole = isHiringDepartmentMember
+      ? "admin"
+      : {
+          employee: "manager",
+          manager: "executive",
+          executive: "admin",
+          hr: "admin",
+        }[memberForm.role];
 
-  const expectedManagerRole = {
-    employee: "manager",
-    manager: "executive",
-    executive: "admin",
-    hr: "admin",
-  }[memberForm.role];
-
-  // Only show the required reporting role.
-  if (!expectedManagerRole || memberRole !== expectedManagerRole) {
-    return false;
-  }
-
-  // Employees and managers must report within their department.
-  if (["employee", "manager"].includes(memberForm.role)) {
-    if (memberDepartmentId !== selectedDepartmentId) {
+    // Only show the required reporting role.
+    if (!expectedManagerRole || memberRole !== expectedManagerRole) {
       return false;
     }
-  }
 
-  // Do NOT exclude the logged-in Admin when creating HR or Executive.
-  // The company Admin must be able to appear in their Reports to list.
+    // Employees and managers must report within their department.
+    if (
+      !isHiringDepartmentMember &&
+      ["employee", "manager"].includes(memberForm.role)
+    ) {
+      if (memberDepartmentId !== selectedDepartmentId) {
+        return false;
+      }
+    }
 
-  return true;
-});
->>>>>>> 789382c (fix admin create-Project)
+    // Do NOT exclude the logged-in Admin when creating HR or Executive.
+    // The company Admin must be able to appear in their Reports to list.
+    return true;
+  });
 
   return (
     <div className="dashboard-shell">
@@ -530,9 +520,7 @@ const managers = members.filter((member) => {
                           }));
                         }}
                       >
-<<<<<<< HEAD
-=======
-
+                        <option value="">Select account role</option>
                         <option value="hr">HR</option>
                         <option value="executive">Executive</option>
                         <option value="manager">Manager</option>
