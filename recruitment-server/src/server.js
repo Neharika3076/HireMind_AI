@@ -42,6 +42,38 @@ app.use("/api/recruitment/screening", screeningRouter);
 app.use("/api/recruitment/interviews", interviewsRouter);
 app.use("/api/recruitment/emails", emailsRouter);
 app.use("/api/recruitment/ai-interviews", aiInterviewRecruiterRouter);
+
+app.get(["/ai-interview", "/ai-interview.html"], (_req, res) => {
+  const targetOrigin = process.env.PUBLIC_APP_URL && !process.env.PUBLIC_APP_URL.includes(":3001")
+    ? process.env.PUBLIC_APP_URL
+    : "http://localhost:5173";
+  const targetUrl = `${targetOrigin.replace(/\/$/, "")}/ai-interview`;
+  res.format({
+    html: () => {
+      res.status(302).setHeader("Location", targetUrl).send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting to Interview...</title>
+  <script>
+    window.location.replace("${targetUrl}" + (window.location.hash || ""));
+  </script>
+</head>
+<body>
+  <p>Redirecting to your interview session... If you are not redirected, <a id="link" href="${targetUrl}">click here</a>.</p>
+  <script>
+    var l = document.getElementById("link");
+    if (l) l.href = "${targetUrl}" + (window.location.hash || "");
+  </script>
+</body>
+</html>`);
+    },
+    default: () => {
+      res.redirect(302, targetUrl);
+    }
+  });
+});
+
 const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
 // Express serves the local HTML app from the repository root, which also
 // contains the recruitment service. Never let static middleware expose the

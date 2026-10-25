@@ -1191,6 +1191,27 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.directory-hierarchy {
+  display: grid;
+  gap: 14px;
+}
+
+.directory-team-group {
+  background: #11151d;
+  border-color: #303744;
+}
+
+.directory-team-group .org-section-heading {
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.directory-team-group .org-section-heading h3 {
+  margin: 3px 0 0;
+  color: #f1f5f9;
+  font-size: 16px;
+}
+
 .attendance-feedback.error {
   border-color: #64373b;
   background: #251719;
@@ -1272,6 +1293,13 @@
 .attendance-history-card {
   display: grid;
   gap: 16px;
+}
+
+.attendance-team-scroll {
+  max-height: min(56vh, 480px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .attendance-history-table {
@@ -1583,6 +1611,23 @@
 
 .attendance-leave-table {
   min-width: 780px;
+}
+
+.attendance-leave-scroll,
+.attendance-history-scroll {
+  max-height: min(55vh, 480px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.attendance-leave-scroll .attendance-leave-table thead th,
+.attendance-history-scroll .attendance-history-table thead th,
+.attendance-team-scroll .attendance-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #191c23;
 }
 
 .attendance-leave-table .attendance-leave-reason-cell {

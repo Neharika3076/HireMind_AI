@@ -10,6 +10,10 @@ from groq import Groq
 
 load_dotenv()
 
+# Prevent double '/openai/v1' path issue if GROQ_BASE_URL is set to 'https://api.groq.com/openai/v1'
+if os.getenv("GROQ_BASE_URL", "").rstrip("/").endswith("/openai/v1"):
+    del os.environ["GROQ_BASE_URL"]
+
 logger = logging.getLogger(__name__)
 DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
 requested_model = os.getenv("GROQ_MODEL") or os.getenv("GROQ_INTERVIEW_MODEL")
@@ -20,6 +24,7 @@ GROQ_MATCHER_API_KEY = (
     os.getenv("GROQ_MATCHER_API_KEY")
     or os.getenv("GROQ_API_KEY_2")
     or os.getenv("GROQ_API_KEY")
+    or os.getenv("GROQ_INTERVIEW_API_KEY")
 )
 client = (
     Groq(api_key=GROQ_MATCHER_API_KEY, timeout=20.0, max_retries=1)

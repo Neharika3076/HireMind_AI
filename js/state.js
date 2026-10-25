@@ -1343,7 +1343,8 @@ const DEFAULT_STATE = {
       if (!project) return null;
       const organization = scope.organizations.find((item) => item.id === project.orgId) || { name: "Organization", code: "ORG" };
       const department = scope.departments.find((item) => (project.departmentIds || []).includes(item.id) || item.name === project.department) || { id: project.department, name: project.department || "Unassigned", head: "", headEmail: "" };
-      const team = getProjectMembers(scope.data, project);
+      const visibleMemberIds = new Set(scope.members.map((member) => member.id));
+      const team = getProjectMembers(scope.data, project).filter((member) => visibleMemberIds.has(member.id));
       const tasks = scope.tasks.filter((task) => task.projectId === project.id);
       const completedTasks = tasks.filter((task) => task.completed || task.status === "Completed").length;
       const overdueTasks = tasks.filter((task) => task.overdue || task.status === "Overdue").length;
@@ -1363,13 +1364,53 @@ const DEFAULT_STATE = {
     getScopedDirectoryData() {
       const data = readData(); const user = getUser(data); const orgId = user && user.orgId;
       const orgProjects = data.projects.filter((project) => !orgId || project.orgId === orgId);
+      const orgMembers = data.members.filter((member) => !orgId || member.orgId === orgId);
+      const legacyDepartmentNames = new Set([
+        ...orgProjects.map((project) => project.department).filter(Boolean),
+        ...orgMembers.map((member) => member.department).filter(Boolean),
+      ]);
+      const orgDepartments = data.departments.filter((department) =>
+        !orgId || department.orgId === orgId || (!department.orgId && legacyDepartmentNames.has(department.name))
+      );
+
+      // Keep Directory visibility tied to the reporting hierarchy, not merely
+      // shared project membership. Admins retain the complete organization
+      // directory; executives see their reporting hierarchy; managers see
+      // only employee and Team Leader reports attached to them.
+      let members = orgMembers;
+      if (user && isExecutive(user)) {
+        members = orgMembers.filter((member) => member.id !== user.id && isUnderExecutive(data, member, user));
+      } else if (user && user.roleType === "manager") {
+        members = orgMembers.filter((member) => ["employee", "team_leader"].includes(member.roleType) && isUnderManager(member, user));
+      } else if (user && !isAdmin(user)) {
+        // Preserve the existing self/project scope for other non-admin roles.
+        const visibleIds = new Set(orgProjects.filter((project) => canViewProject(data, user, project)).flatMap((project) => project.memberIds || []));
+        members = orgMembers.filter((member) => member.id === user.id || visibleIds.has(member.id));
+      }
+
       const projects = user ? orgProjects.filter((project) => canViewProject(data, user, project)) : orgProjects;
       const visibleProjectIds = new Set(projects.map((project) => project.id));
-      const orgMembers = data.members.filter((member) => !orgId || member.orgId === orgId);
-      const members = !user || isAdmin(user) ? orgMembers : orgMembers.filter((member) => member.id === user.id || projects.some((project) => (project.memberIds || []).includes(member.id)) || (user.roleType === "executive" && isUnderExecutive(data, member, user)) || (user.roleType === "manager" && member.managerId === user.id));
-      const names = new Set([...projects.map((project) => project.department).filter(Boolean), ...members.map((member) => member.department).filter(Boolean)]);
-      const departments = data.departments.filter((department) => !orgId || department.orgId === orgId || (!department.orgId && names.has(department.name)));
-      const tasks = data.tasks.filter((task) => visibleProjectIds.has(task.projectId) && (!user || isAdmin(user) || (user.roleType === "manager" && task.managerIds.includes(user.id)) || (user.roleType === "team_leader" && task.teamLeadIds.includes(user.id)) || task.employeeIds.includes(user.id)));
+      let departments = orgDepartments;
+      if (user && !isAdmin(user)) {
+        const visibleDepartmentIds = new Set(members.map((member) => member.departmentId).filter(Boolean));
+        const visibleDepartmentNames = new Set(members.map((member) => member.department).filter(Boolean));
+        if (user.departmentId) visibleDepartmentIds.add(user.departmentId);
+        if (user.department) visibleDepartmentNames.add(user.department);
+        departments = orgDepartments.filter((department) => visibleDepartmentIds.has(department.id) || visibleDepartmentNames.has(department.name));
+      }
+
+      const visibleMemberIds = new Set(members.map((member) => member.id));
+      const tasks = data.tasks.filter((task) => {
+        if (!visibleProjectIds.has(task.projectId)) return false;
+        if (!user || isAdmin(user)) return true;
+        if (isExecutive(user)) {
+          return (task.managerIds || []).some((id) => visibleMemberIds.has(id)) || (task.employeeIds || []).some((id) => visibleMemberIds.has(id)) || (task.teamLeadIds || []).some((id) => visibleMemberIds.has(id));
+        }
+        if (user.roleType === "manager") {
+          return (task.managerIds || []).includes(user.id) || (task.employeeIds || []).some((id) => visibleMemberIds.has(id)) || (task.teamLeadIds || []).some((id) => visibleMemberIds.has(id));
+        }
+        return (user.roleType === "team_leader" && (task.teamLeadIds || []).includes(user.id)) || (task.employeeIds || []).includes(user.id);
+      });
       return { data, user, orgId, organizations: data.organizations || [], departments, projects, members, tasks };
     }
   };

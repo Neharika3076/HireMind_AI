@@ -1296,10 +1296,29 @@ if (logsTbody) {
     }
   }
 
+  function tomorrowISO() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
   if (btnOpenLeave && modalLeave) {
     btnOpenLeave.onclick = () => {
-      if (leaveStartInput) leaveStartInput.value = todayISO();
-      if (leaveEndInput) leaveEndInput.value = todayISO();
+      const cur = window.TerraHireStore.getCurrentUser() || currentUser;
+      const today = todayISO();
+      const storeData = window.TerraHireStore.getStore();
+      const isCheckedIn = (storeData.attendanceRecords || []).some(
+        (r) => r.userId === cur.id && r.date === today && r.checkInTimestamp
+      );
+      const minDate = isCheckedIn ? tomorrowISO() : today;
+      if (leaveStartInput) {
+        leaveStartInput.min = minDate;
+        leaveStartInput.value = minDate;
+      }
+      if (leaveEndInput) {
+        leaveEndInput.min = minDate;
+        leaveEndInput.value = minDate;
+      }
       renderLeaveBalance();
       updateLeaveDaysPreview();
       modalLeave.classList.remove("hidden");

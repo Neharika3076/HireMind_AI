@@ -140,24 +140,18 @@ export default function Tasks() {
   const isHiringDepartmentMember = isHiringDepartment(user?.user || user);
   const isManager = role === "manager";
   const isExecutor = role === "executive";
-  const isEmployee = role === "employee";
 
-  // HR cannot create projects, assign teams, or add deliverables.
-const canCreateProject =
-  !isEmployee &&
-  !isHR &&
-  (isAdmin || isHiringDepartmentMember);
-
-const canAssignTeam =
-  !isEmployee &&
-  !isHR &&
-  (isAdmin || isHiringDepartmentMember);
-
-const canAddDeliverable =
-  !isEmployee &&
-  !isHR &&
-  (isAdmin || isHiringDepartmentMember || isManager || isExecutor);
-
+<<<<<<< HEAD
+  const canCreateProject = isAdmin || isHiringDepartmentMember;
+  const canAssignTeam = isAdmin || isHiringDepartmentMember;
+  const canAddDeliverable =
+    isAdmin || isHiringDepartmentMember || isManager || isExecutor;
+=======
+  const canCreateProject = isAdmin;
+  const canAssignTeam = isAdmin;
+  const canAddDeliverable =
+    isAdmin || isManager || isExecutor;
+>>>>>>> 789382c (fix admin create-Project)
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [departments, setDepartments] = useState([]);

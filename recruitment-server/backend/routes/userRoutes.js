@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Department = require("../models/Department");
 const { requireAuth } = require("../middleware/auth");
+const { visibleDirectoryMembers } = require("../services/directory-access");
 
 const router = express.Router();
 
@@ -22,58 +23,12 @@ function requireAdmin(req, res, next) {
 }
 
 // GET /api/users
-// Admin and HR: list users in their organization.
-// Executive: list managers in their department.
-// Manager: list direct-report employees only.
-router.get("/", requireAuth, async (req, res) => {
+// Admin: list users belonging to their organization.
+router.get("/", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const currentUser = await User.findOne({
-      _id: req.user.userId,
+    const users = await User.find({
       organization: req.user.organization,
-    }).select("_id role organization department");
-
-    if (!currentUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User account not found.",
-      });
-    }
-
-    const currentRole = String(currentUser.role || "").toLowerCase();
-
-    let query = {
-      organization: currentUser.organization,
-    };
-
-    if (currentRole === "admin" || currentRole === "hr") {
-      // Preserve organization-wide access.
-    } else if (currentRole === "executive") {
-      query = {
-        organization: currentUser.organization,
-        department: currentUser.department,
-        role: "manager",
-        status: "active",
-      };
-    } else if (currentRole === "manager") {
-      query = {
-        organization: currentUser.organization,
-        manager: currentUser._id,
-        role: "employee",
-        status: "active",
-      };
-    } else {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to view team members.",
-      });
-    }
-
-    const users = await User.find(query)
-      .select(
-        "fullName email employeeId role designation position department manager status organization createdAt"
-      )
-      .populate("department", "name description")
-      .populate("manager", "fullName");
+    }).select("fullName email employeeId role designation position department manager status organization createdAt").populate("department", "name description").populate("manager", "fullName");
 
     return res.json({
       success: true,

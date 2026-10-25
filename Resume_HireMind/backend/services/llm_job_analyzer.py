@@ -12,7 +12,12 @@ from backend.models.job import JobProfile
 load_dotenv()
 
 DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Prevent double '/openai/v1' path issue if GROQ_BASE_URL is set to 'https://api.groq.com/openai/v1'
+if os.getenv("GROQ_BASE_URL", "").rstrip("/").endswith("/openai/v1"):
+    del os.environ["GROQ_BASE_URL"]
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_INTERVIEW_API_KEY")
 requested_model = os.getenv("GROQ_MODEL") or os.getenv("GROQ_INTERVIEW_MODEL")
 GROQ_MODEL = requested_model if requested_model and requested_model != "llama-3.1-8b-instant" else DEFAULT_GROQ_MODEL
 
