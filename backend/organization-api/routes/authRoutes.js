@@ -127,12 +127,12 @@ router.post("/login", async (req, res) => {
 
     // Store the token in an HTTP-only cookie
     res.cookie("terrahire_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000,
-      path: "/"
-    });
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 24 * 60 * 60 * 1000,
+    path: "/"
+});
 
     return res.status(200).json({
       success: true,

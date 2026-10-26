@@ -3,7 +3,7 @@ import Sidebar from "../components/Sidebar";
 import { isHiringDepartment } from "../utils/departmentAccess";
 import { ORGANIZATION_API_BASE_URL, RECRUITMENT_API_BASE_URL } from "../config/api";
 import "./Recruitment.css";
-
+const API = "https://hiremind-organization.onrender.com/api";
 const API_BASE = RECRUITMENT_API_BASE_URL;
 
 const TABS = ["Overview", "Jobs", "Screening", "Candidates", "Interviews", "Emails"];

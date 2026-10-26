@@ -5,7 +5,7 @@ import { isHiringDepartment } from "../utils/departmentAccess";
 import { ORGANIZATION_API_BASE_URL } from "../config/api";
 import "../styles/OrganizationPages.css";
 
-const API = ORGANIZATION_API_BASE_URL;
+const API = "https://hiremind-organization.onrender.com/api";
 
 function getRoleLabel(role) {
   const normalized = String(role || "").trim().toLowerCase();

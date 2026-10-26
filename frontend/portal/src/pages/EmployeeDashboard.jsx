@@ -14,7 +14,7 @@ import "../styles/Dashboard.css";
 import "../styles/OrganizationPages.css";
 import "../styles/EmployeeDashboard.css";
 
-const API = ORGANIZATION_API_BASE_URL;
+const API = "https://hiremind-organization.onrender.com/api";
 
 function greetingForHour(hour) {
   if (hour < 12) return "Good morning";

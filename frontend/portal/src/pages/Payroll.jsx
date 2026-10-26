@@ -14,7 +14,7 @@ import { isHiringDepartment } from "../utils/departmentAccess";
 import { ORGANIZATION_API_BASE_URL } from "../config/api";
 import "../styles/OrganizationPages.css";
 import "../styles/Payroll.css";
-
+const API = "https://hiremind-organization.onrender.com/api";
 const API_URL = ORGANIZATION_API_BASE_URL;
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
