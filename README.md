@@ -1,580 +1,84 @@
-# Krew --- HR & Hiring Management Platform
+# HireMind AI
 
-Krew is a front-end HR and hiring management application designed to
-manage employees, departments, projects, tasks, attendance, payroll,
-performance, and recruitment from one interface.
+HireMind is organized as one repository with separate frontend and backend areas. The organization API, recruitment API, and resume-analysis API stay as independent services; FastAPI is not merged into either Express application.
 
-This project is currently a **front-end-only prototype**. It uses HTML,
-CSS, and JavaScript, with browser storage (`localStorage` and
-`sessionStorage`) instead of a backend database.
+## Project layout
 
-------------------------------------------------------------------------
-
-## 1. Project Overview
-
-The application covers two main areas:
-
-### HR Management
-
--   Employee dashboard
--   Admin dashboard
--   Organization and department management
--   Employee/member management
--   Company directory
--   Projects and tasks
--   Attendance and check-in/check-out
--   Payroll history
--   Performance dashboard
-
-### Recruitment
-
--   Job openings
--   Job application form
--   AI interview simulation
--   Organization registration
--   Employer job posting
-
-The interface uses a dark, modern dashboard design with shared
-navigation and reusable styling.
-
-------------------------------------------------------------------------
-
-## 2. Project Structure
-
-``` text
-HR_hire/
-│
-├── css/
-│   ├── index.css
-│   └── careers.css
-│
-├── js/
-│   ├── add-member.js
-│   ├── admin.js
-│   ├── attendance.js
-│   ├── careers.js
-│   ├── directory.js
-│   ├── employee.js
-│   ├── index.js
-│   ├── login.js
-│   ├── organization.js
-│   ├── payroll.js
-│   ├── refactor.js
-│   ├── sidebar.js
-│   ├── state.js
-│   ├── tasks.js
-│   └── tenant.js
-│
-├── add-member.html
-├── admin.html
-├── application.html
-├── attendance.html
-├── directory.html
-├── employee.html
-├── index.html
-├── interview.html
-├── job-openings.html
-├── login.html
-├── organization-register.html
-├── payroll.html
-├── performance.html
-├── post-opening.html
-├── tasks.html
-│
-└── README.md
+```text
+HireMind_AI/
+├── frontend/
+│   ├── portal/             # React + Vite application
+│   ├── legacy/             # Existing HTML/CSS/JS dashboard and careers pages
+│   └── resume-analyzer/    # Standalone resume-analysis page
+├── backend/
+│   ├── organization-api/   # Express + MongoDB: auth, org, attendance, tasks, payroll
+│   ├── recruitment-api/    # Express + MongoDB: jobs, candidates, applications, interviews
+│   ├── resume-ai/          # FastAPI: resume extraction, job analysis, ATS matching
+│   └── dev.js              # Local process runner; starts services without merging them
+├── .env                    # One local environment file; never commit it
+├── .gitignore              # Shared ignore rules
+├── render.yaml             # Render Blueprint for the separately deployed services
+└── AI_INTERVIEW_ARCHITECTURE.md
 ```
 
-There is **no need to create a separate `html/` folder**. The HTML files
-are intentionally kept in the project root.
+The legacy HTML app, React portal, and standalone analyzer UI are all under `frontend/`. No frontend source or build output is kept inside a backend service. `backend/recruitment-api` serves the legacy pages from `frontend/legacy` for local compatibility; uploaded candidate documents remain outside the static directory and are only returned by organization-scoped API routes.
 
-------------------------------------------------------------------------
+## Local setup
 
-## 3. HTML Pages
+Prerequisites: Node.js 20+, Python 3.10+, MongoDB connection strings, and the credentials needed for any AI/email features you use. The existing Python environment is in `backend/resume-ai/venv`.
 
-  -----------------------------------------------------------------------
-  Page                                Purpose
-  ----------------------------------- -----------------------------------
-  `index.html`                        Main landing/marketing page for
-                                      Krew
+If dependencies are not installed yet, from PowerShell at the project root:
 
-  `login.html`                        Login page for existing users
-
-  `organization-register.html`        Register a new organization and
-                                      administrator
-
-  `admin.html`                        Admin command center
-
-  `employee.html`                     Employee personal dashboard
-
-  `directory.html`                    Company directory and organization
-                                      hierarchy
-
-  `add-member.html`                   Create departments and add
-                                      organization members
-
-  `attendance.html`                   Attendance, check-in and check-out
-                                      management
-
-  `tasks.html`                        Projects and task management
-
-  `performance.html`                  Employee performance dashboard
-
-  `payroll.html`                      Payroll history and compensation
-                                      information
-
-  `job-openings.html`                 Browse available job openings
-
-  `application.html`                  Candidate job application form
-
-  `interview.html`                    Simulated AI interview experience
-
-  `post-opening.html`                 Employer job-posting workflow
-  -----------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-## 4. JavaScript Files
-
-The JavaScript is divided into shared functionality and page-specific
-controllers.
-
-### Shared JavaScript
-
-#### `state.js`
-
-This is the main data/store layer of the application.
-
-It:
-
--   Stores the application's data
--   Reads and writes data using `localStorage`
--   Manages the current logged-in user
--   Creates departments, members, projects, and tasks
--   Provides dashboard statistics
--   Handles organization/member relationships
--   Applies role-based rules
--   Provides helper functions for pages
-
-The main global store is:
-
-``` javascript
-window.TerraHireStore
+```powershell
+npm install --prefix backend/organization-api
+npm install --prefix backend/recruitment-api
+npm install --prefix frontend/portal
+py -3 -m venv backend/resume-ai/venv
+backend/resume-ai/venv/Scripts/python.exe -m pip install -r backend/resume-ai/requirements.txt
 ```
 
-#### `tenant.js`
+Copy the required settings into the single root `.env` (the current local file has been consolidated). Keep its secret values private. Important settings include:
 
-Handles organization/session-related functionality for the recruitment
-and organization-registration flow.
+- `MONGO_URI`, `JWT_SECRET`, `ORGANIZATION_PORT` for the organization API.
+- `MONGODB_URI`, `RECRUITMENT_PORT`, `ALLOWED_ORIGIN`, `PUBLIC_APP_URL` for recruitment.
+- `HIREMIND_AI_BASE_URL`, `RESUME_AI_PORT`, `GROQ_API_KEY`, and optional matcher/interview keys for FastAPI and AI features.
+- `CLIENT_URL` for the React portal, plus `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` for email.
 
-#### `sidebar.js`
+Start everything together:
 
-Creates the common left sidebar used by the authenticated dashboard
-pages.
-
-It also controls which navigation options are visible for different user
-roles.
-
-------------------------------------------------------------------------
-
-### Page-Specific JavaScript
-
-  JavaScript          Used For
-  ------------------- -----------------------------------------------
-  `index.js`          Landing page animations and visual effects
-  `login.js`          Login and authentication
-  `admin.js`          Admin dashboard
-  `employee.js`       Employee dashboard
-  `directory.js`      Company directory
-  `add-member.js`     Department/member management
-  `attendance.js`     Attendance and check-in/out
-  `tasks.js`          Projects and tasks
-  `payroll.js`        Payroll information
-  `careers.js`        Job openings, applications and interview flow
-  `organization.js`   Organization registration
-  `refactor.js`       Development/refactoring helper code
-
-------------------------------------------------------------------------
-
-## 5. CSS Files
-
-### `css/index.css`
-
-Main stylesheet for the authenticated HR dashboard pages.
-
-It contains:
-
--   Dashboard layout
--   Sidebar
--   Cards
--   Tables
--   Buttons
--   Forms
--   Statistics
--   Responsive layouts
--   Shared colors and typography
-
-### `css/careers.css`
-
-Used by the recruitment/public-facing pages.
-
-It styles:
-
--   Job opening cards
--   Application forms
--   Employer forms
--   Interview screens
--   Public navigation
--   Recruitment-related components
-
-------------------------------------------------------------------------
-
-## 6. Main User Roles
-
-The application uses role-based access.
-
-The main roles are:
-
-``` text
-Admin
-  ↓
-Executive
-  ↓
-Manager
-  ↓
-Team Leader
-  ↓
-Employee
+```powershell
+npm run dev
 ```
 
-### Admin
+That starts the three separate backend processes and the React/Vite frontend. Use `Ctrl+C` once to stop them. If you prefer separate groups, run `npm run dev:backend` and `npm run dev:frontend` in two terminals. The old HTML dashboard is served at `http://localhost:3001/`; the React portal is at `http://localhost:5173/`.
 
-The admin has the highest level of access.
+Local service routes:
 
-Typical responsibilities include:
+- Organization Express API: `http://localhost:5000/api/health` and `/api/auth`, `/api/organizations`, `/api/users`, `/api/departments`, `/api/attendance`, `/api/leaves`, `/api/tasks`, `/api/projects`, `/api/payroll`.
+- Recruitment Express API: `http://localhost:3001/api/recruitment/health` and `/api/recruitment/jobs`, `/candidates`, `/applications`, `/screening`, `/interviews`, `/dashboard`, `/emails`.
+- Resume FastAPI: `http://localhost:8000/health`; resume and job-analysis routes are under `/api/resume`, `/api/job`, and `/api/ats`.
 
--   Managing the organization
--   Creating departments
--   Adding members
--   Managing projects
--   Viewing organization-wide information
--   Managing employees
+The Vite proxy routes `/api/recruitment/*` to the recruitment Express service and the other `/api/*` requests to the organization Express service. In production, the React build uses `VITE_ORGANIZATION_API_BASE` and `VITE_RECRUITMENT_API_BASE` instead of local ports.
 
-### Executive
+## Checks
 
-An executive is associated with a department and can manage
-department-level work.
-
-### Manager
-
-A manager manages assigned projects and team members.
-
-### Team Leader
-
-A team leader works with members on assigned projects and tasks.
-
-### Employee
-
-An employee mainly works with their own:
-
--   Tasks
--   Projects
--   Attendance
--   Work information
--   Dashboard data
-
-------------------------------------------------------------------------
-
-## 7. Authentication
-
-The login system is implemented entirely in JavaScript.
-
-The basic flow is:
-
-``` text
-login.html
-    ↓
-login.js
-    ↓
-Check user information
-    ↓
-Create login session
-    ↓
-Redirect based on role
-    ↓
-Dashboard
+```powershell
+npm test
+npm run build
+Push-Location backend/resume-ai
+.\venv\Scripts\python.exe -m pytest tests
+Pop-Location
 ```
 
-The current session is stored in:
+## Deploying to Render
 
-``` text
-sessionStorage
-```
+`render.yaml` defines four independent Render services: the organization Express API, recruitment Express API, FastAPI resume analyzer, and React static site. It deliberately leaves each service rooted at the repository root because the recruitment process serves frontend files from `frontend/`; Render makes files outside a configured service root unavailable. The blueprint provides its commands and health checks, but you must enter your MongoDB URLs, Groq/SMTP credentials, frontend origin, and API base URLs in Render's environment settings. For the Vite static site, set:
 
-Application data is stored in:
+- `VITE_ORGANIZATION_API_BASE` to the organization service URL followed by `/api`.
+- `VITE_RECRUITMENT_API_BASE` to the recruitment service URL followed by `/api/recruitment`.
 
-``` text
-localStorage
-```
+Set `CLIENT_URL`, `ALLOWED_ORIGIN`, and `PUBLIC_APP_URL` to your deployed React site origin. Set `HIREMIND_AI_BASE_URL` to the deployed FastAPI service URL; the standalone analyzer page reads that URL from a small runtime configuration response. The recruitment service's Render persistent disk keeps private resume uploads between deploys.
 
-Because this is a front-end prototype, authentication is **not secure
-enough for a real production HR system**.
+Before exposing the recruitment dashboard publicly, note its existing production safeguard: the recruiter API intentionally rejects privileged requests in `NODE_ENV=production` until server-verified recruiter authentication is connected. Do not disable that safeguard to make the UI appear to work; finish the authentication integration first. Add the deployed portal and recruitment origins to FastAPI's comma-separated `CORS_ORIGINS` setting.
 
-------------------------------------------------------------------------
-
-## 8. Data Storage
-
-There is currently no backend server or database.
-
-The browser acts as the application's temporary data store.
-
-``` text
-                    Browser
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-       localStorage        sessionStorage
-             │                   │
-        Application data     Login session
-```
-
-Examples of data managed by the application include:
-
--   Organizations
--   Departments
--   Employees
--   Projects
--   Tasks
--   Attendance
--   Payroll information
--   Job openings
-
-The application also contains default/seed data so the dashboard can be
-explored without setting up a database.
-
-------------------------------------------------------------------------
-
-## 9. Recruitment Flow
-
-The recruitment section follows this general flow:
-
-``` text
-Job Openings
-      ↓
-Select a Job
-      ↓
-Application Form
-      ↓
-AI Interview Simulation
-      ↓
-Application Completed
-```
-
-Employers can use:
-
-``` text
-post-opening.html
-```
-
-to verify their organization and publish a job opening.
-
-Candidates can use:
-
-``` text
-job-openings.html
-        ↓
-application.html
-        ↓
-interview.html
-```
-
-to apply for a position and complete the simulated interview.
-
-------------------------------------------------------------------------
-
-## 10. HR Management Flow
-
-The authenticated HR workflow is roughly:
-
-``` text
-Login
-  ↓
-Role-based Dashboard
-  ↓
-┌──────────────┬──────────────┬──────────────┐
-│ Organization │ Employees    │ Projects     │
-└──────────────┴──────────────┴──────────────┘
-        ↓              ↓              ↓
-   Departments     Directory       Tasks
-        ↓              ↓              ↓
-   Members         Attendance     Performance
-                                      ↓
-                                   Payroll
-```
-
-Different pages show different information depending on the logged-in
-user's role.
-
-------------------------------------------------------------------------
-
-## 11. How to Run the Project
-
-This project does not currently require npm, React, or a build process.
-
-### Option 1 --- Open directly
-
-Open:
-
-``` text
-index.html
-```
-
-in a browser.
-
-You can also start from:
-
-``` text
-login.html
-```
-
-### Option 2 --- Use VS Code Live Server
-
-If you use VS Code:
-
-1.  Open the `HR_hire` folder.
-2.  Install the **Live Server** extension if it is not already
-    installed.
-3.  Right-click `index.html`.
-4.  Select **Open with Live Server**.
-
-Using a local server is recommended because it gives more consistent
-browser behavior when navigating between pages.
-
-------------------------------------------------------------------------
-
-## 12. Technologies Used
-
-### Frontend
-
--   HTML5
--   CSS3
--   JavaScript (Vanilla JS)
-
-### Browser APIs
-
--   `localStorage`
--   `sessionStorage`
--   DOM APIs
-
-### External Libraries/CDNs
-
-The project also uses some external resources, including:
-
--   Three.js for the landing-page visual effects
--   Chart.js for dashboard charts
--   Tailwind CSS CDN on the performance page
--   Google Fonts
-
-An internet connection may therefore be required for some visual
-components and external libraries.
-
-------------------------------------------------------------------------
-
-## 13. Important Notes
-
-This project is a **prototype/demo**, not a production-ready HR system.
-
-### Security
-
-Do not use real employee information or real passwords.
-
-The current application stores data in the browser and performs
-authentication/authorization on the client side.
-
-A production version should use:
-
--   A real backend
--   A real database
--   Password hashing
--   Server-side authentication
--   Server-side authorization
--   Secure sessions/tokens
--   Input validation
--   HTTPS
--   Proper audit logging
-
-### Data Reset
-
-Because the application uses browser storage, clearing the site's
-`localStorage`/`sessionStorage` can remove the current application data
-and session.
-
-------------------------------------------------------------------------
-
-## 14. Recommended Future Improvements
-
-For a production version, the project could be extended with:
-
-1.  Backend API
-2.  Database integration
-3.  Secure authentication
-4.  Password hashing
-5.  Real user registration
-6.  Email notifications
-7.  Real attendance records
-8.  Real payroll processing
-9.  Employee performance reviews
-10. Resume upload and candidate management
-11. Real AI interview integration
-12. Automated recruitment workflows
-13. Role/permission management from the backend
-14. Deployment to a cloud platform
-
-------------------------------------------------------------------------
-
-## 15. Quick Start
-
-The easiest way to explore the project is:
-
-``` text
-1. Open index.html
-        ↓
-2. Explore the landing page
-        ↓
-3. Go to Login
-        ↓
-4. Sign in using the available demo/seed data
-        ↓
-5. Explore the dashboard
-        ↓
-6. Try Directory, Attendance, Tasks and Payroll
-        ↓
-7. Explore Job Openings and the candidate flow
-```
-
-------------------------------------------------------------------------
-
-## 16. Project Goal
-
-Krew aims to provide a single platform for managing the employee
-lifecycle:
-
-``` text
-Hire
-  ↓
-Onboard
-  ↓
-Organize
-  ↓
-Manage
-  ↓
-Track Attendance
-  ↓
-Manage Tasks & Projects
-  ↓
-Measure Performance
-  ↓
-Manage Payroll
-```
-
-The long-term goal is to evolve this front-end prototype into a complete
-HR management platform with a secure backend and database.
+Do not combine the FastAPI code with the Express services or commit `.env`, private uploads, `node_modules`, or the Python virtual environment.

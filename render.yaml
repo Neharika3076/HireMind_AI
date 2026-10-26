@@ -1,0 +1,98 @@
+# Each service remains independently deployable. Root directories are
+# intentionally not restricted because the recruitment API serves frontend
+# assets from the shared frontend/ tree (Render otherwise hides outside files).
+services:
+  - type: web
+    name: hiremind-organization-api
+    runtime: node
+    buildCommand: npm ci --prefix backend/organization-api
+    startCommand: npm start --prefix backend/organization-api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false
+      - key: ATTENDANCE_TIME_ZONE
+        value: Asia/Kolkata
+
+  - type: web
+    name: hiremind-recruitment-api
+    runtime: node
+    buildCommand: npm ci --prefix backend/recruitment-api
+    startCommand: npm start --prefix backend/recruitment-api
+    healthCheckPath: /api/recruitment/health
+    disk:
+      name: hiremind-private-resumes
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: UPLOAD_DIRECTORY
+        value: /var/data/private-uploads
+      - key: HIREMIND_AI_BASE_URL
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: GROQ_INTERVIEW_API_KEY
+        sync: false
+      - key: GROQ_INTERVIEW_MODEL
+        value: openai/gpt-oss-20b
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+  - type: web
+    name: hiremind-resume-ai
+    runtime: python
+    buildCommand: pip install -r backend/resume-ai/requirements.txt
+    startCommand: uvicorn main:app --app-dir backend/resume-ai --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_API_KEY_2
+        sync: false
+      - key: GROQ_MATCHER_API_KEY
+        sync: false
+      - key: GROQ_INTERVIEW_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        sync: false
+      - key: GROQ_INTERVIEW_MODEL
+        value: openai/gpt-oss-20b
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: web
+    runtime: static
+    name: hiremind-portal
+    buildCommand: npm ci --prefix frontend/portal && npm run build --prefix frontend/portal
+    staticPublishPath: frontend/portal/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_ORGANIZATION_API_BASE
+        sync: false
+      - key: VITE_RECRUITMENT_API_BASE
+        sync: false
