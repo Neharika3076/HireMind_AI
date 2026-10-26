@@ -24,7 +24,7 @@ const transporter = emailConfigured
 export async function verifyEmailConnection() {
   if (!transporter) {
     throw new Error(
-      "SMTP configuration missing. Check SMTP_HOST, SMTP_USER, SMTP_PASS and SMTP_FROM in the project root .env"
+      "SMTP configuration missing. Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM."
     );
   }
 
@@ -35,7 +35,7 @@ export async function verifyEmailConnection() {
 export async function sendEmail({ to, subject, text }) {
   if (!transporter) {
     throw new Error(
-      "SMTP is not configured. Check the project root .env"
+      "SMTP is not configured. Check SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and SMTP_FROM."
     );
   }
 
@@ -46,6 +46,8 @@ export async function sendEmail({ to, subject, text }) {
       subject,
       text,
     });
+
+    console.log("Email sent successfully:", result.messageId);
 
     return { messageId: result.messageId };
   } catch (error) {
@@ -60,14 +62,17 @@ export async function sendEmail({ to, subject, text }) {
     throw error;
   }
 }
+
 if (transporter) {
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error("SMTP verification failed:", error.message);
-    } else {
-      console.log("SMTP server is ready");
-    }
-  });
+  transporter.verify()
+    .then(() => console.log("SMTP server is ready"))
+    .catch((error) => {
+      console.error("SMTP verification failed:", {
+        message: error.message,
+        code: error.code,
+        responseCode: error.responseCode,
+      });
+    });
 } else {
   console.log("SMTP is not configured; email features are disabled.");
 }
