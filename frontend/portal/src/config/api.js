@@ -9,3 +9,6 @@ export const ORGANIZATION_API_BASE_URL = stripTrailingSlash(
 export const RECRUITMENT_API_BASE_URL = stripTrailingSlash(
   import.meta.env.VITE_RECRUITMENT_API_BASE || "/api/recruitment"
 );
+export const RESUME_API_BASE_URL = stripTrailingSlash(
+  import.meta.env.VITE_RESUME_API_BASE || "/api/resume"
+);
