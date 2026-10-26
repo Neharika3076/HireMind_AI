@@ -26,7 +26,7 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "https://hiremind-ai-3-bhqb.onrender.com",
+    origin: process.env.CLIENT_URL || "https://hiremind-coir.onrender.com",
     credentials: true
   })
 );
