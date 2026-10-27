@@ -613,7 +613,26 @@ export default function Recruitment() {
               ))}
             </div>
             <section className="recruitment-panel">
-              <div className="recruitment-panel-heading"><div><span className="recruitment-eyebrow">WORKSPACE PULSE</span><h2>Recent activity</h2></div></div>
+              
+<div className="recruitment-panel-heading">
+  <div>
+    <span className="recruitment-eyebrow">CANDIDATE COMMUNICATION</span>
+    <h2>Email composer</h2>
+  </div>
+
+  <span
+    className={
+      emailConfigured
+        ? "recruitment-email-ready"
+        : "recruitment-hint"
+    }
+  >
+    {emailConfigured
+      ? "Resend delivery configured"
+      : "Email unavailable — preview only"}
+  </span>
+</div>
+
               <div className="recruitment-activity-list">
                 {activity.length ? activity.map((item) => (
                   <article className="recruitment-activity" key={item._id}>
