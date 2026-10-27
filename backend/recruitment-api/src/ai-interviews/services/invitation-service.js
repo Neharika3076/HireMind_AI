@@ -25,9 +25,13 @@ async function deliverInvitation({ invitation, candidate, job }) {
   invitation.tokenHash = sha256(rawToken);
   invitation.status = "invited";
   invitation.emailStatus = "pending";
-  const appOrigin = config.publicAppUrl ||
-    (process.env.NODE_ENV === "production" ? config.allowedOrigin : "http://localhost:5173");
-  const url = `${appOrigin.replace(/\/$/, "")}/ai-interview#${rawToken}`;
+  const appOrigin = (
+  config.publicAppUrl ||
+  (process.env.NODE_ENV === "production"
+    ? config.allowedOrigin
+    : "http://localhost:5173")).replace(/\/+$/, "");
+
+  const url = `${appOrigin}/ai-interview#${rawToken}`;
   const subject = `Interview invitation: ${job.title}`;
   const text = [
     `Hello ${candidate.fullName || "Candidate"},`,
