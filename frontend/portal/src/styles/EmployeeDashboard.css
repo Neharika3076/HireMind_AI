@@ -1,0 +1,776 @@
+.employee-dashboard {
+  --employee-panel: #15181f;
+  --employee-panel-raised: #1b1f27;
+  --employee-border: #292f3a;
+  --employee-muted: #98a2b3;
+  --employee-teal: #c8ff00;
+  gap: 24px;
+  min-height: 100vh;
+  padding: clamp(22px, 3vw, 40px);
+  background:
+    radial-gradient(ellipse at 80% -10%, rgb(200 255 0 / 4%), transparent 36%),
+    #0b0d10;
+}
+
+.employee-dashboard,
+.employee-dashboard * {
+  box-sizing: border-box;
+}
+
+.employee-dashboard > section {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+.employee-dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 0;
+}
+
+.employee-eyebrow {
+  display: block;
+  color: #929bad;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.employee-dashboard-header h1 {
+  margin: 0;
+  color: #f4f7fb;
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 750;
+  letter-spacing: -1.4px;
+  line-height: 1.2;
+}
+
+.employee-dashboard-header h1 span {
+  color: #c8ff00;
+}
+
+.employee-dashboard-header p {
+  margin: 8px 0 0;
+  color: #98a2b3;
+  font-size: 13px;
+}
+
+.employee-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.employee-date-pill,
+.employee-live-dot {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--employee-border);
+  background: rgb(21 24 31 / 88%);
+}
+
+.employee-date-pill {
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: 999px;
+  color: #aab4c4;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.employee-date-pill svg {
+  color: var(--employee-teal);
+}
+
+.employee-date-pill i {
+  padding: 0 3px;
+  color: #697386;
+  font-style: normal;
+}
+
+.employee-live-dot {
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.employee-live-dot::after {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c8ff00;
+  box-shadow: 0 0 12px rgb(200 255 0 / 38%);
+  content: "";
+}
+
+.employee-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.28fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.employee-profile-card,
+.employee-workday-card,
+.employee-metric-card,
+.employee-tasks-card {
+  min-width: 0;
+  border: 1px solid var(--employee-border);
+  border-radius: 17px;
+  background: #15181f;
+  box-shadow: 0 16px 36px rgb(0 0 0 / 16%);
+}
+
+.employee-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 25px 24px;
+  text-align: center;
+}
+
+.employee-avatar-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.employee-profile-avatar {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 1px solid rgb(200 255 0 / 42%);
+  border-radius: 17px;
+  background: linear-gradient(145deg, #30391b, #202719);
+  box-shadow: 0 0 24px rgb(200 255 0 / 8%);
+  color: #efffc2;
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.employee-avatar-indicator {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: 15px;
+  height: 15px;
+  border: 3px solid var(--employee-panel);
+  border-radius: 50%;
+  background: #c8ff00;
+}
+
+.employee-profile-card h2 {
+  max-width: 100%;
+  margin: 0;
+  color: #f4f7fb;
+  font-size: 17px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.employee-profile-title {
+  margin: 5px 0 0;
+  color: var(--employee-teal);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.employee-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.employee-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px;
+  padding: 6px 10px;
+  border: 1px solid rgb(200 255 0 / 20%);
+  border-radius: 999px;
+  background: rgb(200 255 0 / 6%);
+  color: #d9ed9a;
+  font-size: 10px;
+}
+
+.employee-status-pill i,
+.employee-workday-top h2 i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c8ff00;
+  box-shadow: 0 0 10px rgb(200 255 0 / 30%);
+}
+
+.employee-profile-details {
+  display: grid;
+  width: 100%;
+  gap: 13px;
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid var(--employee-border);
+  text-align: left;
+}
+
+.employee-profile-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.employee-profile-details span {
+  color: var(--employee-muted);
+}
+
+.employee-profile-details strong {
+  color: #dfe8f2;
+  font-weight: 650;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.employee-outline-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 18px;
+  border: 1px solid var(--employee-border);
+  border-radius: 9px;
+  color: #dce7f5;
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.employee-outline-link:hover {
+  border-color: #59673a;
+  background: rgb(200 255 0 / 5%);
+}
+
+.employee-workday-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(28px, 3vw, 38px);
+}
+
+.employee-workday-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.employee-workday-top h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 9px 0 0;
+  color: #e6edf7;
+  font-size: 18px;
+}
+
+.employee-workday-top h2 i {
+  flex: 0 0 8px;
+  background: #8294ad;
+  box-shadow: none;
+}
+
+.employee-workday-top h2 i.is-checked-in {
+  background: #c8ff00;
+  box-shadow: 0 0 10px rgb(200 255 0 / 30%);
+}
+
+.employee-workday-top p,
+.employee-workday-actions p {
+  margin: 8px 0 0;
+  color: var(--employee-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.employee-check-times {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  color: #7186a2;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.employee-check-times strong {
+  color: #e2eaf4;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.employee-check-times .employee-dashboard-leave-label {
+  margin-top: 5px;
+  color: #98a2b3;
+}
+
+.employee-check-times .employee-dashboard-leave-balance {
+  color: #c8ff00;
+  font-size: 15px;
+}
+
+.employee-workday-divider {
+  height: 1px;
+  margin: 27px 0;
+  background: var(--employee-border);
+}
+
+.employee-workday-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 140px;
+}
+
+.employee-work-hours-label {
+  color: #94a8c1;
+  font-size: 11px;
+}
+
+.employee-work-hours {
+  display: block;
+  margin-top: 7px;
+  color: #f0f5fb;
+  font-size: clamp(21px, 2.5vw, 29px);
+  font-weight: 750;
+  letter-spacing: -0.8px;
+}
+
+.employee-workday-actions p {
+  max-width: 470px;
+}
+
+.employee-checkin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid rgb(200 255 0 / 30%);
+  border-radius: 10px;
+  background: rgb(200 255 0 / 8%);
+  color: #e1f4a5;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.employee-checkin-button:hover {
+  transform: translateY(-1px);
+  background: rgb(200 255 0 / 14%);
+}
+
+.employee-workday-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  margin-top: 20px;
+  padding: 0 12px;
+  border: 1px solid rgb(200 255 0 / 20%);
+  border-radius: 9px;
+  background: rgb(200 255 0 / 5%);
+  color: #d1dfa0;
+  font-size: 10px;
+}
+
+.employee-workday-note svg {
+  flex: 0 0 auto;
+  color: var(--employee-teal);
+}
+
+.employee-workday-note span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-workday-note small {
+  margin-left: auto;
+  color: #8294ad;
+  white-space: nowrap;
+}
+
+.employee-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.28fr) minmax(150px, 0.28fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 0;
+}
+
+.employee-metric-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 190px;
+  padding: 23px;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.employee-metric-card:hover {
+  transform: translateY(-2px);
+  border-color: #59673a;
+}
+
+.employee-metric-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--employee-border);
+  border-radius: 9px;
+  color: var(--employee-teal);
+}
+
+.employee-metric-link {
+  position: absolute;
+  top: 22px;
+  right: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--employee-teal);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.employee-metric-card > strong {
+  display: block;
+  margin-top: 13px;
+  color: #f1f5fb;
+  font-size: clamp(23px, 2.3vw, 30px);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-metric-title {
+  margin-top: 5px;
+  color: #b4c2d4;
+  font-size: 11px;
+}
+
+.employee-metric-card > small {
+  margin-top: 7px;
+  color: #7489a4;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.employee-tasks-card {
+  min-height: 190px;
+  padding: 25px 26px;
+}
+
+.employee-tasks-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.employee-tasks-heading h2 {
+  margin: 6px 0 0;
+  color: #e8eef6;
+  font-size: 15px;
+}
+
+.employee-tasks-heading > a,
+.employee-more-tasks {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--employee-teal);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.employee-task-list {
+  display: grid;
+  gap: 13px;
+}
+
+.employee-task-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.employee-task-progress {
+  position: relative;
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(
+    #c8ff00 var(--task-progress),
+    #30343d var(--task-progress)
+  );
+}
+
+.employee-task-progress::before {
+  position: absolute;
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  background: var(--employee-panel);
+  content: "";
+}
+
+.employee-task-progress span {
+  position: relative;
+  z-index: 1;
+  color: #e9f6f4;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.employee-task-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.employee-task-copy strong,
+.employee-task-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-task-copy strong {
+  color: #e5ecf5;
+  font-size: 11px;
+}
+
+.employee-task-copy span {
+  color: #8194ad;
+  font-size: 9px;
+}
+
+.employee-task-status {
+  max-width: 110px;
+  padding: 5px 8px;
+  overflow: hidden;
+  border: 1px solid var(--employee-border);
+  border-radius: 999px;
+  color: #b0bfd1;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-empty-tasks {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 75px;
+  color: #e5ecf5;
+}
+
+.employee-empty-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 1px solid var(--employee-border);
+  border-radius: 11px;
+  color: var(--employee-teal);
+}
+
+.employee-empty-tasks strong {
+  font-size: 11px;
+}
+
+.employee-empty-tasks p {
+  margin: 5px 0 0;
+  color: var(--employee-muted);
+  font-size: 10px;
+}
+
+.employee-more-tasks {
+  margin-top: 14px;
+}
+
+.employee-dashboard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: #71849c;
+  font-size: 10px;
+}
+
+.employee-dashboard-footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.employee-dashboard-footer svg {
+  color: var(--employee-teal);
+}
+
+.employee-alert {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #70414b;
+  border-radius: 10px;
+  background: #261a22;
+  color: #ffc2cb;
+  font-size: 12px;
+}
+
+.employee-alert a {
+  color: #9be7de;
+}
+
+.employee-loading {
+  color: #aab9cc;
+}
+
+@media (max-width: 1100px) {
+  .employee-overview-grid {
+    grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+  }
+
+  .employee-lower-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-tasks-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .employee-dashboard {
+    padding: 22px 16px;
+    gap: 20px;
+  }
+
+  .employee-dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .employee-header-tools {
+    align-self: stretch;
+    justify-content: space-between;
+  }
+
+  .employee-overview-grid,
+  .employee-lower-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .employee-profile-card {
+    padding: 26px 22px;
+  }
+
+  .employee-workday-card {
+    min-height: 0;
+  }
+
+  .employee-tasks-card {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .employee-dashboard {
+    padding: 18px 12px;
+    gap: 18px;
+  }
+
+  .employee-dashboard-header h1 {
+    font-size: 28px;
+  }
+
+  .employee-workday-top {
+    flex-direction: column;
+  }
+
+  .employee-check-times {
+    align-items: flex-start;
+  }
+
+  .employee-workday-actions {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .employee-work-hours {
+    font-size: 23px;
+  }
+
+  .employee-workday-note {
+    align-items: flex-start;
+    padding-block: 10px;
+  }
+
+  .employee-dashboard-footer {
+    flex-direction: column;
+  }
+
+  .employee-task-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .employee-task-status {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: -5px;
+  }
+}
+
+.employee-dashboard > section {
+  margin-block: 0 !important;
+  padding-block: 0 !important;
+  border-top: 0 !important;
+}
+
+.employee-dashboard > .employee-dashboard-header {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+}

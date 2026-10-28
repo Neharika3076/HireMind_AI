@@ -1,0 +1,13 @@
+{
+  "name": "hiremind-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HireMind monorepo with separate web frontends and backend services.",
+  "scripts": {
+    "dev": "node backend/dev.js all",
+    "dev:backend": "node backend/dev.js backend",
+    "dev:frontend": "node backend/dev.js frontend",
+    "build": "npm --prefix frontend/portal run build",
+    "test": "npm --prefix backend/recruitment-api test && npm --prefix backend/organization-api test"
+  }
+}

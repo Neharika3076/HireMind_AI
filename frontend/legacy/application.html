@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Apply | HireMind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/careers.css">
+</head>
+
+<body>
+    <header class="site-header"><a class="brand" href="index.html">HireMind AI <span>Careers</span></a><a class="back-link"
+            href="job-openings.html">← All openings</a></header>
+    <main>
+        <div class="form-shell">
+            <div class="progress"><b>1</b> Application details <span>—</span> <span>AI interview</span></div>
+            <h1 class="form-title">Start your application</h1>
+            <p class="form-subtitle">Applying to <strong id="role-name">this position</strong> at <strong id="company-name">the organization</strong>. Add your contact information before uploading your resume.</p>
+            <form id="application-form" novalidate>
+                <div class="form-grid">
+                    <div class="field"><label for="full-name">Full name</label><input id="full-name" name="fullName"
+                            autocomplete="name" required></div>
+                    <div class="field"><label for="email">Email address</label><input id="email" name="email"
+                            type="email" autocomplete="email" required></div>
+                    <div class="field"><label for="password">Application-history password</label><input id="password" name="password"
+                            type="password" autocomplete="new-password" minlength="8" required><small class="file-note">Create a password to view your application status later. Reuse it for future applications with this email.</small></div>
+                    <div class="field"><label for="phone">Phone number</label><input id="phone" name="phone" type="tel"
+                            autocomplete="tel" required></div>
+                    <div class="field"><label for="location">City & country</label><input id="location" name="location"
+                            autocomplete="address-level2" required></div>
+                    <div class="field full"><label for="address">Street address</label><input id="address"
+                            name="address" autocomplete="street-address" required></div>
+                    <div class="field full"><label for="resume">Resume</label>
+                        <div class="upload">Drop your resume here or choose a file<input id="resume" type="file"
+                                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                        <div class="file-note">PDF or DOCX · up to 5 MB. Upload your own readable resume.</div>
+                        </div>
+                    </div>
+                    <div class="field full"><label for="note">A short note (optional)</label><textarea id="note"
+                            name="note" placeholder="What excites you about this opportunity?"></textarea></div>
+                </div>
+                <div id="form-error" class="form-error" role="alert"></div>
+                <div id="form-success" class="form-success" role="status" hidden></div>
+                <div class="form-actions"><button class="primary-button" type="submit">Submit application</button>
+                </div>
+            </form>
+        </div>
+    </main>
+    <script src="js/careers.js"></script>
+</body>
+
+</html>

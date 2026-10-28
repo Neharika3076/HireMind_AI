@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>HireMind AI Interview</title>
+  <link rel="stylesheet" href="css/ai-interview.css">
+</head>
+<body>
+  <main class="interview-shell">
+    <header class="interview-brand"><a href="job-openings.html" aria-label="HireMind careers">HireMind <span>AI Interview</span></a><span class="privacy-chip">Private session</span></header>
+    <section class="interview-card" aria-labelledby="page-title">
+      <p class="eyebrow">STRUCTURED ROLE INTERVIEW</p>
+      <h1 id="page-title">Your interview</h1>
+      <p id="job-summary" class="job-summary">Checking your secure invitation…</p>
+      <div id="access-panel" class="access-panel" hidden>
+        <div class="privacy-notice"><h2>Before you begin</h2><p id="privacy-copy"></p><p id="context-copy" class="subtle"></p></div>
+        <label class="consent-check"><input id="consent" type="checkbox"><span>I have read the privacy notice and agree to submit my answers for this interview.</span></label>
+        <label class="consent-check optional"><input id="focus-consent" type="checkbox"><span>Optional: allow this page to report when the interview tab loses focus and when the connection goes offline and recovers. These signals are imperfect, not proof of misconduct, and never change your score.</span></label>
+        <div class="interview-actions"><button id="start-interview" class="button primary" type="button" disabled>Start interview</button><button id="alternative-request" class="button secondary" type="button">Request an alternative</button></div>
+        <label id="alternative-reason-label" class="field" hidden>Optional note for the hiring team<textarea id="alternative-reason" rows="3" maxlength="500" placeholder="Share any accommodation or format needs (optional)."></textarea></label>
+        <p id="alternative-message" class="status-message" role="status"></p>
+      </div>
+      <section id="question-panel" class="question-panel" hidden aria-live="polite">
+        <div class="progress-row"><span id="question-count"></span><span id="question-kind" class="question-kind"></span></div>
+        <progress id="interview-progress" value="0" max="100"></progress>
+        <h2 id="question-prompt"></h2>
+        <form id="answer-form">
+          <label class="field" for="answer-text">Your answer<textarea id="answer-text" maxlength="5000" rows="9" required placeholder="Explain your approach and relevant experience…"></textarea></label>
+          <div class="answer-footer"><span>Up to 5,000 characters. Your answer is saved before evaluation.</span><button id="submit-answer" class="button primary" type="submit">Submit answer</button></div>
+        </form>
+        <button id="in-session-alternative" class="button secondary" type="button">Request an alternative assessment</button>
+      </section>
+      <section id="completion-panel" class="completion-panel" hidden>
+        <div class="complete-icon" aria-hidden="true">✓</div><h2>Interview submitted</h2><p>Your responses were received. The hiring team will review the interview and contact you about next steps.</p><p class="subtle">Your score and internal evaluation notes are private to the recruitment team.</p>
+      </section>
+      <div id="page-message" class="status-message" role="status" aria-live="polite"></div>
+    </section>
+    <footer>Need an accommodation? Use “Request an alternative” or contact the hiring team. No camera, microphone, or screen recording is used.</footer>
+  </main>
+  <script src="js/ai-interview.js"></script>
+</body>
+</html>

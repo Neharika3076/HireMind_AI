@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Job Openings | HireMind AI</title>
+    <link rel="stylesheet" href="css/careers.css">
+</head>
+
+<body>
+    <header class="site-header"><a class="brand" href="index.html">HireMind AI <span>Careers</span></a><a class="back-link"
+            href="index.html">Back to home</a></header>
+    <main>
+        <div class="page-top">
+            <div>
+                <div class="eyebrow">Build what is next</div>
+                <h1 class="page-title">Open roles for curious builders.</h1>
+                <p class="intro">Explore current roles from organizations hiring through HireMind.</p>
+            </div>
+        </div>
+        <section class="history-panel" aria-labelledby="history-title">
+            <div class="history-heading"><div><h2 id="history-title">Previously applied?</h2><p>Sign in with the email and password you used when applying to see your applications across companies.</p></div><button id="history-toggle" class="history-toggle" type="button" aria-expanded="false">View my applications</button></div>
+            <form id="candidate-history-form" class="history-form" hidden>
+                <label>Email address<input name="email" type="email" autocomplete="email" required></label>
+                <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+                <button class="apply-button" type="submit">Sign in</button>
+            </form>
+            <div id="candidate-history-message" class="history-message" role="status"></div>
+            <div id="candidate-history-list" class="history-list"></div>
+        </section>
+        <div id="jobs-message" class="intro" role="status" aria-live="polite">Loading openings…</div>
+        <section class="job-grid" id="posted-jobs" aria-label="Published job openings"></section>
+    </main>
+    <script src="js/careers.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,53 @@
+
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema(
+  {
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true
+    },
+    fullName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true
+    },
+    password: {
+      type: String,
+      required: true,
+      select: false
+    },
+    
+    role: {
+      type: String,
+      enum: ["admin","hr", "executive", "manager", "employee"],
+      default: "employee",
+      lowercase: true,
+      trim: true
+    },
+
+    designation: { type: String, trim: true, default: '' },
+    position: { type: String, trim: true, default: '' },
+    department: { type: mongoose.Schema.Types.ObjectId, ref: "Department", default: null },
+    manager: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    salaryStructure: { type: mongoose.Schema.Types.ObjectId, ref: "SalaryStructure", default: null },
+    status: { type: String, enum: ["active", "inactive"], default: "active" },
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null
+    }
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("User", userSchema);

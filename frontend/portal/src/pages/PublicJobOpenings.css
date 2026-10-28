@@ -1,0 +1,240 @@
+.public-careers-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at 85% -10%, #15334b 0, #071221 43%, #050e1a 100%);
+  color: #edf7ff;
+  font: 15px/1.55 Inter, system-ui, sans-serif;
+}
+
+.public-careers-header,
+.public-careers-main {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.public-careers-header {
+  padding: 24px 0 22px;
+  border-bottom: 1px solid rgba(125, 164, 196, .18);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.public-careers-brand {
+  color: #edf7ff;
+  font: 700 20px "Space Grotesk", Inter, system-ui, sans-serif;
+  letter-spacing: -.03em;
+  text-decoration: none;
+}
+
+.public-careers-brand span {
+  margin-left: 8px;
+  color: #36e2cc;
+  font: 700 13px Inter, system-ui, sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.public-careers-back {
+  color: #b8ccdf;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.public-careers-back:hover { color: #36e2cc; }
+
+.public-careers-main { padding: 54px 0 80px; }
+
+.public-careers-page-top { margin-bottom: 32px; }
+
+.public-careers-eyebrow {
+  color: #36e2cc;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+
+.public-careers-page-top h1 {
+  margin: 12px 0 13px;
+  font: 700 clamp(32px, 5vw, 56px)/1.05 "Space Grotesk", Inter, system-ui, sans-serif;
+  letter-spacing: -.045em;
+}
+
+.public-careers-page-top p { max-width: 680px; color: #9bb0c6; font-size: 16px; }
+
+.public-careers-history {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #29425e;
+  border-radius: 14px;
+  background: rgba(13, 27, 48, .9);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .14);
+}
+
+.public-careers-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.public-careers-history-heading h2 { margin-bottom: 5px; font-size: 19px; }
+.public-careers-history-heading p { color: #9bb0c6; font-size: 13px; }
+
+.public-careers-history-toggle {
+  flex: 0 0 auto;
+  padding: 11px 14px;
+  border: 1px solid #29425e;
+  border-radius: 8px;
+  background: #102238;
+  color: #edf7ff;
+  cursor: pointer;
+}
+
+.public-careers-history-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.public-careers-history-form label {
+  display: grid;
+  flex: 1;
+  min-width: 180px;
+  gap: 6px;
+  color: #dbe7f5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.public-careers-history-form input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(174, 208, 232, .2);
+  border-radius: 8px;
+  background: #071423;
+  color: #edf7ff;
+}
+
+.public-careers-history-message,
+.public-careers-jobs-message { margin-top: 14px; color: #9bb0c6; font-size: 13px; }
+.public-careers-history-message.is-error,
+.public-careers-jobs-message.is-error { color: #ff9eaa; }
+.public-careers-history-list { display: grid; gap: 8px; margin-top: 12px; }
+
+.public-careers-history-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 13px;
+  border: 1px solid #29425e;
+  border-radius: 9px;
+  background: #081525;
+}
+
+.public-careers-history-row > div { flex: 1; }
+.public-careers-history-row p { margin-top: 4px; color: #9bb0c6; font-size: 12px; }
+.public-careers-history-row .public-careers-interview-status { color: #60ddcc; }
+
+.public-careers-history-status {
+  padding: 5px 9px;
+  border: 1px solid rgba(54, 226, 204, .35);
+  border-radius: 99px;
+  color: #36e2cc;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.public-careers-history-row time { color: #9bb0c6; font-size: 12px; }
+
+.public-careers-job-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+
+.public-careers-job-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 300px;
+  padding: 25px;
+  border: 1px solid #29425e;
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(16, 36, 59, .98), rgba(9, 24, 41, .98));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .18);
+}
+
+.public-careers-company {
+  color: #36e2cc;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.public-careers-job-card h2 {
+  margin: 9px 0 10px;
+  font: 700 25px/1.15 "Space Grotesk", Inter, system-ui, sans-serif;
+}
+
+.public-careers-description { color: #b2c4d5; line-height: 1.65; }
+.public-careers-tags { display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0 0; }
+
+.public-careers-tag {
+  padding: 6px 9px;
+  border: 1px solid rgba(54, 226, 204, .27);
+  border-radius: 999px;
+  background: rgba(17, 92, 93, .22);
+  color: #c1f8ef;
+  font-size: 11px;
+}
+
+.public-careers-details {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(156, 193, 218, .16);
+  color: #9bb0c6;
+  font-size: 13px;
+}
+
+.public-careers-details summary { color: #36e2cc; font-weight: 700; cursor: pointer; }
+.public-careers-details p { margin-top: 10px; line-height: 1.65; white-space: pre-wrap; }
+.public-careers-detail-section { margin-top: 12px; }
+.public-careers-detail-section h3 { color: #edf7ff; font-size: 13px; }
+.public-careers-detail-section ul { margin: 5px 0; padding-left: 20px; line-height: 1.7; }
+
+.public-careers-apply {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 130px;
+  min-height: 45px;
+  padding: 11px 18px;
+  border: 1px solid #4bead7;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #31d8c5, #20bcae);
+  color: #03161e;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.public-careers-apply:disabled { cursor: wait; opacity: .65; }
+
+@media (max-width: 760px) {
+  .public-careers-header,
+  .public-careers-main { width: min(100% - 28px, 620px); }
+  .public-careers-main { padding-top: 34px; }
+  .public-careers-job-grid { grid-template-columns: 1fr; }
+  .public-careers-job-card { min-height: 0; }
+}
+
+@media (max-width: 600px) {
+  .public-careers-history-heading,
+  .public-careers-history-row { align-items: flex-start; flex-direction: column; }
+  .public-careers-history-heading { gap: 12px; }
+  .public-careers-history-row { gap: 6px; }
+  .public-careers-history-form .public-careers-apply { width: 100%; }
+}
